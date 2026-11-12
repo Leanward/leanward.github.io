@@ -28,6 +28,10 @@ on:
         description: Search check queries, separated by ; (empty = the built-in list)
         type: string
         default: ''
+      off_check:
+        description: Open Food Facts check only (times its search services from GitHub's machine; touches no database)
+        type: boolean
+        default: false
   schedule:
     - cron: '17 9 3 * *'   # the 3rd of each month, 09:17 UTC
 
@@ -55,6 +59,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Open Food Facts check
+        if: ${{ inputs.off_check }}
+        working-directory: app
+        env:
+          SEARCH_QUERIES: ${{ inputs.search_queries }}
+        run: bash tools/food-import/off-check.sh
       - name: Search check (read only)
         if: ${{ inputs.search_check }}
         working-directory: app
@@ -63,7 +73,7 @@ jobs:
           SEARCH_QUERIES: ${{ inputs.search_queries }}
         run: bash tools/food-import/search-check.sh
       - name: Prepare the throwaway database (measure mode)
-        if: ${{ inputs.measure && !inputs.search_check }}
+        if: ${{ inputs.measure && !inputs.search_check && !inputs.off_check }}
         working-directory: app
         env:
           PGURL: postgresql://postgres:scratch@localhost:5432/postgres
@@ -71,7 +81,7 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f tools/food-import/local-prelude.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/schema.sql
       - name: Import
-        if: ${{ !inputs.search_check }}
+        if: ${{ !inputs.search_check && !inputs.off_check }}
         working-directory: app
         env:
           # Measure mode points the import at the throwaway database instead of Supabase.

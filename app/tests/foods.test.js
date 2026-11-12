@@ -63,3 +63,19 @@ test('Search online: the Open Food Facts query and its results (FDB-3, FDB-6)', 
   assert.deepEqual([foods[0].id, foods[0].brand, foods[0].verification, foods[0].serving_g], ['off:00036000291452', 'Quest', 'community', 60]);
   assert.deepEqual(F.fromOffSearch(null), []);
 });
+
+test('Search online gives up with a clear message instead of hanging, and falls back to the worldwide site', async () => {
+  const calls = [];
+  const saved = { fetch: global.fetch, AbortController: global.AbortController };
+  const product = { code: '0036000291452', product_name: 'Overload Bar', brands: 'Quest', nutriments: { 'energy-kcal_100g': 400, proteins_100g: 35, carbohydrates_100g: 40, fat_100g: 16.7 } };
+  try {
+    // US site busy (503), worldwide site answers
+    global.fetch = (url) => { calls.push(url.split('/cgi')[0]); return Promise.resolve(url.includes('//us.') ? { ok: false, status: 503 } : { ok: true, status: 200, json: () => Promise.resolve({ products: [product] }) }); };
+    const foods = await F.offSearch('quest overload');
+    assert.deepEqual(calls, ['https://us.openfoodfacts.org', 'https://world.openfoodfacts.org']);
+    assert.equal(foods[0].name, 'Overload Bar');
+    // both sites hang: each try is aborted at the time limit and the search fails with a message
+    global.fetch = (url, o) => new Promise((resolve, reject) => o.signal.addEventListener('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e); }));
+    await assert.rejects(F.offSearch('quest overload', { timeoutMs: 20 }), /didn't answer in time.*create the food/);
+  } finally { global.fetch = saved.fetch; }
+});

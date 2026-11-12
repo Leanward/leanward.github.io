@@ -32,7 +32,7 @@
     function onlineHtml(prominent) {
       var a = S.sheet, o = a.online;
       if (o && o.q === a.q.trim()) {
-        if (o.loading) return '<span class="sec">Online · Open Food Facts</span><p class="small muted">Searching Open Food Facts…</p>';
+        if (o.loading) return '<span class="sec">Online · Open Food Facts</span><p class="small muted">' + (o.slow ? 'Still searching… Open Food Facts can be slow. This stops after about 25 seconds.' : 'Searching Open Food Facts…') + '</p>';
         if (o.error) return '<span class="sec">Online · Open Food Facts</span><p class="small warn">' + esc(o.error) + '</p><button type="button" class="btn ghost block" data-a="offsearch">Try again</button>';
         return '<span class="sec">Online · Open Food Facts</span>' + (o.results.length ? '<div class="list">' + o.results.map(resultRow).join('') + '</div><p class="small muted">' + esc(FD.OFF_ATTRIBUTION) + '</p>'
           : '<p class="small muted">Open Food Facts has nothing for "' + esc(a.q) + '" either. Create it from the label below.</p>');
@@ -377,6 +377,8 @@
         if (q.length < 2) return;
         if (root.navigator.onLine === false) { ctx.toast('You\'re offline. Searching online needs a connection.'); return; }
         a.online = { q: q, loading: true, results: [] }; paint();
+        var mine = a.online;
+        root.setTimeout(function () { if (S.sheet === a && a.online === mine && mine.loading) { mine.slow = true; paint(); } }, 4000);
         FD.offSearch(q).then(function (rows) {
           if (!S.sheet || S.sheet.kind !== 'add' || !a.online || a.online.q !== q) return;
           a.online = { q: q, results: rows }; paint();

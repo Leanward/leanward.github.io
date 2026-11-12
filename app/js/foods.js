@@ -171,22 +171,34 @@
    * Search Open Food Facts by name (browser). Only the typed words are sent. Resolves to foods,
    * which are cached so the detail screen opens without another request.
    */
-  function offSearch(q) {
+  function offSearch(q, opts) {
     q = String(q || '').trim();
     if (q.length < 2) return Promise.resolve([]);
-    var i = 0;
-    function next() {
-      var host = OFF_SEARCH_HOSTS[i++];
-      return root.fetch(offSearchUrl(q, host)).then(function (r) {
-        if (r.status === 429) throw new Error('Open Food Facts is busy. Try again in a minute.');
-        if (!r.ok) throw new Error('Open Food Facts didn\'t answer (' + r.status + ').');
+    var G = typeof globalThis !== 'undefined' ? globalThis : root;
+    var timeoutMs = (opts && opts.timeoutMs) || 12000, i = 0, lastErr = null;
+    // Open Food Facts' search is often busy (503) or slow; each try gets a time limit, and a failed or
+    // empty US search falls back to the worldwide site once.
+    function attempt(host) {
+      var ctl = G.AbortController ? new G.AbortController() : null;
+      var timer = G.setTimeout(function () { if (ctl) ctl.abort(); }, timeoutMs);
+      return G.fetch(offSearchUrl(q, host), ctl ? { signal: ctl.signal } : undefined).then(function (r) {
+        if (r.status === 429 || r.status === 503) throw new Error('busy');
+        if (!r.ok) throw new Error('status ' + r.status);
         return r.json();
-      }).then(function (j) {
-        var foods = fromOffSearch(j);
+      }).then(function (j) { G.clearTimeout(timer); return fromOffSearch(j); },
+        function (e) { G.clearTimeout(timer); throw e; });
+    }
+    function next() {
+      if (i >= OFF_SEARCH_HOSTS.length) {
+        var msg = lastErr && lastErr.name === 'AbortError' ? 'Open Food Facts didn\'t answer in time.' : 'Open Food Facts is busy right now.';
+        return Promise.reject(new Error(msg + ' Try again in a minute, or create the food from its label.'));
+      }
+      var host = OFF_SEARCH_HOSTS[i++];
+      return attempt(host).then(function (foods) {
         if (!foods.length && i < OFF_SEARCH_HOSTS.length) return next();
         foods.forEach(function (f) { cache[f.id] = f; });
         return foods;
-      });
+      }, function (e) { lastErr = e; return next(); });
     }
     return next();
   }
