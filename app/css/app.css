@@ -156,3 +156,19 @@ input[type=search] { width: 100%; font: inherit; font-size: 16px; color: var(--f
 .item .k { font-size: 14px; font-weight: 600; text-align: right; }
 .item .k small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
 .card.slim { padding: 10px 16px; }
+
+/* Progress charts (PRG-1): hand-drawn SVG, colored from the theme tokens. */
+.chart { width: 100%; height: auto; display: block; margin-top: 8px; }
+.chart text { font: 10px var(--font); fill: var(--muted); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .phase { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.chart .dot { fill: var(--muted); }
+.chart .trend { fill: none; stroke: var(--g1); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .target { fill: none; stroke: var(--g2); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; }
+.legend .k-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.legend .k-trend { width: 16px; height: 3px; border-radius: 2px; background: var(--g1); }
+.legend .k-target { width: 16px; height: 0; border-top: 2px dashed var(--g2); }
+input[type=time] { width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--input); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; -webkit-appearance: none; appearance: none; }

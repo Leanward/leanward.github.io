@@ -69,6 +69,8 @@ app/
 │   ├── library.js         custom foods, saved meals, meal names/order/visibility (pure, tested)
 │   ├── review.js          the Nutrient review: groups, 7-day average, ratios, top foods (pure, tested)
 │   ├── diaryui.js         the Diary tab, edit sheet, meals, Nutrients and the Home calories card
+│   ├── measure.js         weigh-ins, circumferences, chart ranges and scales (pure, tested)
+│   ├── progressui.js      the Progress tab: weight trend, waist, intake charts, log and edit sheets
 │   ├── cloud.js           Google sign-in, connection check, error sending, Supabase pull/push and the Syncer
 │   ├── app.js             the shell UI
 │   ├── calc/              calculation engine (M1): pure, tested, every result with its working

@@ -226,6 +226,8 @@ Each milestone has an **exit criteria** list. A milestone is done when every ite
 - **Maintenance check (PRG-5, P1):** run `calc/adaptive` weekly on the diary (M5) and weigh-ins; show what's still needed until 21 good days exist; then offer a Recommendation (`lw_recommendations`) with the working, which becomes a new target version only when accepted. Moved into the MVP 2026-11-03.
 - Phase tab: goal, phase + day count, targets, progress read, phase history (PHS-4).
 
+**Status (2026-11-12, M6a built):** Progress tab with weigh-ins (several a day, the trend uses the first; MEA-1), trend and weekly averages labelled derived (MEA-2), waist plus hips, chest, arm, thigh and neck with how-to-measure guidance (MEA-3), edit and delete (MEA-6), and hand-drawn SVG charts for weight (dots + trend), waist, calories and protein vs target over 4 weeks / 12 weeks / 6 months / all, with phase starts marked and a spoken summary each (PRG-1). Home has a weight card. The Phase tab's "Is it working?" now reads real weigh-ins and waist, in the user's units (PRG-2/3/4). Logic in `js/measure.js` (pure, tested). Checked in Chromium with 70 days of seeded data. **M6b:** key lifts (manual and from PR Forge), body-fat entries (MEA-4), the maintenance check (PRG-5), persona seeds.
+
 **Testing:** progress-read logic is tested in M1; here, seeded data for each persona (Alex recomp, Maya cut, Sam nutrition-only), plus your real PR Forge history, checked on screen against the expected read.
 
 **Exit criteria:** each persona's data produces the expected read and copy; your PR Forge lifts appear with the same e1RMs PR Forge shows; charts draw 6 months of daily data smoothly on the iPhone.

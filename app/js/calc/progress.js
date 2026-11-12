@@ -17,6 +17,13 @@
   var WAIST_NOISE_CM = 0.5;          // tape-measure noise: changes smaller than this count as flat
   var DEFAULT_WAIST_CM_PER_KG = 1;   // lean bulk: waist growth limit per kg gained (PRG-2 proposed default)
 
+  // Display units: stored values are kg and cm; U.w / U.l convert for the text when the user's units are US.
+  var U = { us: false, wu: 'kg', lu: 'cm', w: function (kg) { return kg; }, l: function (cm) { return cm; } };
+  function setUnits(units) {
+    var us = units === 'us';
+    U = { us: us, wu: us ? 'lb' : 'kg', lu: us ? 'in' : 'cm', w: function (kg) { return us ? core.kgToLb(kg) : kg; }, l: function (cm) { return us ? core.cmToIn(cm) : cm; } };
+  }
+
   var PHASE_NAMES = { cut: 'cut', recomp: 'recomp', bulk: 'lean bulk', maintenance: 'maintenance', nutrition: 'nutrition phase' };
 
   function sig(id, label, status, value, rule, extra) {
@@ -41,7 +48,7 @@
     var rate = trend.rateOfChange(ctx.series);
     if (!rate) return collecting('weight', label, 'a few more days of weigh-ins');
     var pct = rate.pctPerWeek;
-    var value = fmtS(rate.kgPerWeek, 2) + ' kg a week (' + fmtS(pct, 2) + '% of body weight)';
+    var value = fmtS(U.w(rate.kgPerWeek), 2) + ' ' + U.wu + ' a week (' + fmtS(pct, 2) + '% of body weight)';
 
     if (phase.type === 'cut' || phase.type === 'bulk') {
       var planned = phase.expectedWeeklyPct;
@@ -58,8 +65,8 @@
       var startKg = ctx.startTrendKg, nowKg = ctx.series[ctx.series.length - 1].trendKg;
       var diff = (nowKg - startKg) / startKg * 100, ad = Math.abs(diff);
       return sig('weight', label, ad <= 1.5 ? 'on-track' : ad <= 3 ? 'watch' : 'off-track',
-        fmtS(nowKg - startKg, 1) + ' kg since the phase started (' + fmtS(diff, 1) + '%)',
-        'On track within ±1.5% of your phase-start weight (' + fmt(startKg, 1) + ' kg); watch up to ±3%.', { changePct: diff });
+        fmtS(U.w(nowKg - startKg), 1) + ' ' + U.wu + ' since the phase started (' + fmtS(diff, 1) + '%)',
+        'On track within ±1.5% of your phase-start weight (' + fmt(U.w(startKg), 1) + ' ' + U.wu + '); watch up to ±3%.', { changePct: diff });
     }
     return null;
   }
@@ -73,27 +80,27 @@
     if (w.length < MIN_ENTRIES) need.push(plural(MIN_ENTRIES - w.length, 'waist measurement'));
     if (need.length) return collecting('waist', label, need.join(' and '));
     var d = w[w.length - 1].cm - w[0].cm;
-    var value = fmtS(d, 1) + ' cm since ' + w[0].date;
-    var n = WAIST_NOISE_CM;
+    var value = fmtS(U.l(d), 1) + ' ' + U.lu + ' since ' + w[0].date;
+    var n = WAIST_NOISE_CM, nText = fmt(U.l(n), U.us ? 1 : 1) + ' ' + U.lu;
     if (phase.type === 'cut') {
       return sig('waist', label, d <= -n ? 'on-track' : d < n ? 'watch' : 'off-track', value,
-        'On track when falling (by more than ' + n + ' cm); flat is worth watching.', { changeCm: d });
+        'On track when falling (by more than ' + nText + '); flat is worth watching.', { changeCm: d });
     }
     if (phase.type === 'recomp') {
       return sig('waist', label, d < n ? 'on-track' : d < 2 * n ? 'watch' : 'off-track', value,
-        'On track when flat or falling (changes under ' + n + ' cm count as flat).', { changeCm: d });
+        'On track when flat or falling (changes under ' + nText + ' count as flat).', { changeCm: d });
     }
     if (phase.type === 'maintenance') {
       var a = Math.abs(d);
-      return sig('waist', label, a <= 1 ? 'on-track' : a <= 2 ? 'watch' : 'off-track', value, 'On track within ±1 cm; watch up to ±2 cm.', { changeCm: d });
+      return sig('waist', label, a <= 1 ? 'on-track' : a <= 2 ? 'watch' : 'off-track', value, 'On track within ±' + fmt(U.l(1), U.us ? 1 : 0) + ' ' + U.lu + '; watch up to ±' + fmt(U.l(2), U.us ? 1 : 0) + ' ' + U.lu + '.', { changeCm: d });
     }
     if (phase.type === 'bulk') {
       var limit = (opts && opts.waistCmPerKg) || DEFAULT_WAIST_CM_PER_KG;
       var gained = ctx.series[ctx.series.length - 1].trendKg - ctx.startTrendKg;
       var allowed = Math.max(gained, 0) * limit + n;
       return sig('waist', label, d <= allowed ? 'on-track' : d <= allowed * 1.5 ? 'watch' : 'off-track',
-        value + ' with ' + fmtS(gained, 1) + ' kg gained',
-        'On track when waist grows no faster than ' + limit + ' cm per kg gained (allowed now: ' + fmt(allowed, 1) + ' cm).', { changeCm: d, gainedKg: gained });
+        value + ' with ' + fmtS(U.w(gained), 1) + ' ' + U.wu + ' gained',
+        'On track when waist grows no faster than ' + limit + ' cm per kg gained (allowed now: ' + fmt(U.l(allowed), 1) + ' ' + U.lu + ').', { changeCm: d, gainedKg: gained });
     }
     return null;
   }
@@ -149,10 +156,11 @@
    *   weights: [{ date, kg, at? }], waist: [{ date, cm }], lifts: { 'Back squat': [{ date, e1rm }] },
    *   loggedDates?: ['YYYY-MM-DD'], nutrientsMet?, nutrientsTotal?   (nutrition optimization)
    * }
-   * opts: { waistCmPerKg? }
+   * opts: { waistCmPerKg?, units?: 'us' | 'metric' (the text's units; the default is metric) }
    * Returns { signals: [...], summary, dayOfPhase }.
    */
   function read(input, opts) {
+    setUnits(opts && opts.units);
     var ph = input.phase, today = input.today;
     var days = core.daysBetween(ph.startDate, today) + 1;
     var ctx = { days: days, today: today, windowStart: core.addDays(today, -(Math.min(days, MIN_DAYS) - 1)) };
@@ -187,9 +195,9 @@
     var parts = read.map(function (s) {
       if (s.id === 'weight') {
         if (s.changePct != null) return 'weight ' + fmtS(s.changePct, 1) + '% since the start';
-        return Math.abs(s.actual) < 0.1 ? 'weight flat' : 'weight ' + fmtS(s.rate.kgPerWeek, 2) + ' kg a week';
+        return Math.abs(s.actual) < 0.1 ? 'weight flat' : 'weight ' + fmtS(U.w(s.rate.kgPerWeek), 2) + ' ' + U.wu + ' a week';
       }
-      if (s.id === 'waist') return 'waist ' + (Math.abs(s.changeCm) < WAIST_NOISE_CM ? 'flat' : fmtS(s.changeCm, 1) + ' cm');
+      if (s.id === 'waist') return 'waist ' + (Math.abs(s.changeCm) < WAIST_NOISE_CM ? 'flat' : fmtS(U.l(s.changeCm), 1) + ' ' + U.lu);
       if (s.id.indexOf('lift:') === 0) return s.label.toLowerCase() + ' e1RM ' + fmtS(s.changePct, 0) + '%';
       return s.value.charAt(0).toLowerCase() + s.value.slice(1);
     });

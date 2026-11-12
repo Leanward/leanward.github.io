@@ -37,7 +37,7 @@
     // rows: the signed-in person's saved data, read from the phone's database (M3).
     rows: emptyRows(), loaded: false, everSynced: false, ob: null };
   var data = null, syncer = null;   // the signed-in person's phone copy (js/db.js) and its sync
-  function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], diary: [], customs: [], meals: [] }; }
+  function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], measures: [], diary: [], customs: [], meals: [] }; }
 
   /** Today as the user's local calendar day. */
   function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -117,8 +117,9 @@
     var t = TABS.filter(function (x) { return x[0] === id; })[0];
     if (id === 'phase') return screens.phaseView();
     if (id === 'diary') return diaryui.view();
+    if (id === 'progress') return progressui.view();
     var soon = '<section class="card"><span class="chip"><i></i>Coming in ' + esc(t[2]) + '</span><p>' + esc(t[3]) + '</p></section>';
-    if (id === 'home') return '<header class="top"><h1>Today</h1></header>' + diaryui.homeCard() + soon;
+    if (id === 'home') return '<header class="top"><h1>Today</h1></header>' + diaryui.homeCard() + progressui.homeCard() + soon;
     if (id === 'profile') return '<header class="top"><h1>Profile</h1></header>' + screens.profileCard() + accountCard() + aboutCard() + '<section class="card"><a class="link" href="privacy.html">Privacy</a></section>';
     return '<header class="top"><h1>' + esc(t[1]) + '</h1></header>' + soon;
   }
@@ -134,7 +135,7 @@
 
   function sheet() {
     if (!state.sheet) return '';
-    return diaryui.sheetView() || foodui.sheetView() || screens.sheetView() || '';
+    return diaryui.sheetView() || progressui.sheetView() || foodui.sheetView() || screens.sheetView() || '';
   }
 
   /** Redraw for background events (sync, connection, offline cache). Skipped during setup and while a
@@ -197,16 +198,16 @@
   doc.addEventListener('click', function (e) {
     var el = e.target.closest('[data-a]');
     if (!el) return;
-    var fn = actions[el.dataset.a] || screens.actions[el.dataset.a] || foodui.actions[el.dataset.a] || diaryui.actions[el.dataset.a];
+    var fn = actions[el.dataset.a] || screens.actions[el.dataset.a] || foodui.actions[el.dataset.a] || diaryui.actions[el.dataset.a] || progressui.actions[el.dataset.a];
     if (fn) { e.preventDefault(); fn(el.dataset.v, el); }
   });
   // Typing updates the form without redrawing it; choices that change the screen redraw on change.
   doc.addEventListener('input', function (e) {
-    if (/^(number|text|search)$/.test(e.target.type) && (foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
+    if (/^(number|text|search)$/.test(e.target.type) && (progressui.onInput(e.target) || foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
     if (/^(number|text)$/.test(e.target.type)) screens.onInput(e.target);
   });
   doc.addEventListener('change', function (e) {
-    if (/^(select-one|date)$/.test(e.target.type) && (foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
+    if (/^(select-one|date|time)$/.test(e.target.type) && (progressui.onInput(e.target) || foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
     if (/^(checkbox|select-one|date)$/.test(e.target.type)) screens.onInput(e.target);
     // Fields that change the whole calculation (e.g. a known maintenance) redraw when you leave them.
     else if (e.target.dataset.redraw) render();
@@ -222,6 +223,7 @@
   /* ---------- M3 screens ---------- */
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today });
   var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today });
+  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today });
   var foodui = root.LW.foodui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, slotLabel: diaryui.slotLabel, slotOptions: diaryui.slotOptions, dayName: diaryui.dayName });
 
   /** Deletes a record (a tombstone until the cloud has it), reloads, and asks the Syncer to back it up. */
@@ -243,7 +245,7 @@
     return Promise.all([d.get('lw_profiles', 'me'), d.all('lw_goals'), d.all('lw_phases'), d.all('lw_target_sets'), d.all('lw_weights'), d.all('lw_measurements'), d.all('lw_diary_entries'), d.all('lw_custom_foods'), d.all('lw_saved_meals')])
       .then(function (r) {
         if (d !== data) return;
-        state.rows = { profile: r[0] || null, goals: r[1], phases: r[2], sets: r[3], weights: r[4], waist: r[5].filter(function (m) { return m.site === 'waist'; }), diary: r[6],
+        state.rows = { profile: r[0] || null, goals: r[1], phases: r[2], sets: r[3], weights: r[4], waist: r[5].filter(function (m) { return m.site === 'waist' && !m.deleted; }), measures: r[5], diary: r[6],
           customs: r[7].filter(function (x) { return !x.deleted; }), meals: r[8].filter(function (x) { return !x.deleted; }) };
         state.loaded = true;
         refresh();
