@@ -236,3 +236,17 @@ test('adaptive maintenance: not enough data keeps the previous estimate', () => 
   assert.ok(r.reasons[0].startsWith('15 of 21 days fully logged (needs 17)'));
   assert.deepEqual(r.reasons.slice(1), ['week 2 has 2 weigh-ins (needs 4)', 'week 3 has 2 weigh-ins (needs 4)']);
 });
+
+test('the progress read speaks the user\'s units (US: lb and in)', () => {
+  const P = require('../js/calc/progress.js');
+  const weights = []; for (let i = 0; i < 20; i++) weights.push({ date: `2026-11-${String(i + 1).padStart(2, '0')}`, kg: 80 });
+  const input = { phase: { type: 'recomp', startDate: '2026-11-01' }, today: '2026-11-20', weights, waist: [{ date: '2026-11-02', cm: 90 }, { date: '2026-11-18', cm: 87.46 }], lifts: {} };
+  const us = P.read(input, { units: 'us' });
+  // waist 87.46 − 90 = −2.54 cm = −1.0 in; the 0.5 cm noise band = 0.2 in
+  assert.match(us.signals[0].value, /lb a week/);
+  assert.equal(us.signals[1].value, '−1.0 in since 2026-11-02');
+  assert.match(us.signals[1].rule, /under 0\.2 in count as flat/);
+  assert.match(us.summary, /waist −1\.0 in/);
+  const metric = P.read(input);
+  assert.match(metric.signals[1].value, /−2\.5 cm/); assert.match(metric.signals[1].rule, /under 0\.5 cm/);
+});
