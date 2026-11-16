@@ -4,17 +4,21 @@
 @font-face { font-family: "Onest"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("../fonts/onest-latin-ext-variable.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 :root {
-  --g1: #8a7cf8; --g2: #e37bb3;
-  --g1a: rgba(138, 124, 248, .5); --g2a: rgba(227, 123, 179, .32); --acc-soft: rgba(138, 124, 248, .18);
+  /* The two phase colors (--g1, --g2) come from the palette and phase (js/theme.js sets the -rgb values). */
+  --g1-rgb: 138, 124, 248; --g2-rgb: 227, 123, 179; --ga1: .5; --ga2: .32;
+  --g1: rgb(var(--g1-rgb)); --g2: rgb(var(--g2-rgb));
+  --g1a: rgba(var(--g1-rgb), var(--ga1)); --g2a: rgba(var(--g2-rgb), var(--ga2)); --acc-soft: rgba(var(--g1-rgb), .18);
   --bg: #0b0c12; --card: rgba(255, 255, 255, .055); --line: rgba(255, 255, 255, .08); --fg: #eef0f7; --muted: #9a9fb5;
   --track: rgba(255, 255, 255, .1); --tab: rgba(11, 12, 18, .94); --sheet: #14161f; --ink: #10121c;
   --ok: #7fd3a6; --bad: #f0b45a;
   --font: "Onest", -apple-system, "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }
+/* Light: when the phone is in light mode and the person hasn't chosen Dark, or when they chose Light (ACC-6). */
 @media (prefers-color-scheme: light) {
-  :root { --bg: #f5f6fa; --card: rgba(255, 255, 255, .88); --line: rgba(20, 24, 41, .09); --fg: #151829; --muted: #5e6378; --track: rgba(20, 24, 41, .08); --tab: rgba(255, 255, 255, .95); --sheet: #fff; --g1a: rgba(138, 124, 248, .3); --g2a: rgba(227, 123, 179, .2); --ok: #1d7a4c; --bad: #9a6410; color-scheme: light; }
+  :root:not([data-theme="dark"]) { --bg: #f5f6fa; --card: rgba(255, 255, 255, .88); --line: rgba(20, 24, 41, .09); --fg: #151829; --muted: #5e6378; --track: rgba(20, 24, 41, .08); --tab: rgba(255, 255, 255, .95); --sheet: #fff; --ga1: .3; --ga2: .2; --ok: #1d7a4c; --bad: #9a6410; --input: #fff; color-scheme: light; }
 }
+:root[data-theme="light"] { --bg: #f5f6fa; --card: rgba(255, 255, 255, .88); --line: rgba(20, 24, 41, .09); --fg: #151829; --muted: #5e6378; --track: rgba(20, 24, 41, .08); --tab: rgba(255, 255, 255, .95); --sheet: #fff; --ga1: .3; --ga2: .2; --ok: #1d7a4c; --bad: #9a6410; --input: #fff; color-scheme: light; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -73,7 +77,6 @@ p { margin: 8px 0 0; }
 
 /* Onboarding, Phase and forms (M3) — from the prototype's styles, on the app's tokens. */
 :root { --input: rgba(255, 255, 255, .06); --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-@media (prefers-color-scheme: light) { :root { --input: #fff; } }
 input[type=text], input[type=number], input[type=date], input[type=email], input[type=password], select { width: 100%; font: inherit; font-size: 16px; color: var(--fg); background: var(--input); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; }
 select option, select optgroup { background-color: var(--sheet); color: var(--fg); }
 .field { display: grid; gap: 5px; }
@@ -177,3 +180,5 @@ input[type=time] { width: 100%; min-width: 0; font: inherit; font-size: 16px; co
 .macros.three { grid-template-columns: repeat(3, 1fr); }
 .cardbtn { display: block; width: 100%; text-align: left; font-family: var(--font); color: var(--fg); cursor: pointer; }
 .cardbtn:focus-visible { outline: 2px solid var(--g1); outline-offset: 2px; }
+.swatch { width: 44px; height: 16px; border-radius: 8px; display: inline-block; }
+.btn.danger { background: none; border: 1px solid var(--bad); color: var(--bad); }

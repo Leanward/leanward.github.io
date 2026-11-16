@@ -157,7 +157,23 @@
       knownBmr: prof.known_bmr_kcal == null ? null : Number(prof.known_bmr_kcal), knownBmrSource: prof.known_bmr_source
     });
   }
-  function latest(list, key) { return (list || []).slice().sort(function (x, y) { return x[key] < y[key] ? 1 : -1; })[0]; }
+  function latest(list, key) { return (list || []).filter(function (x) { return !x.deleted; }).sort(function (x, y) { return x[key] < y[key] ? 1 : -1; })[0]; }
+
+  /**
+   * Edited profile details (date of birth, sex, height, activity, pregnant or breastfeeding), checked.
+   * d: { dob, sex, cm, activity, pregnantOrBreastfeeding }. Returns the profile columns to save.
+   */
+  function detailsRow(d, today) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.dob || '')) || d.dob > today) throw new Error('Enter your date of birth.');
+    var age = calc.core.ageOn(d.dob, today);
+    if (age < 18) throw new Error('Leanward is for adults 18 and over.');
+    if (age > 110) throw new Error('Check the year of your date of birth.');
+    if (calc.core.SEXES.indexOf(d.sex) < 0) throw new Error('Choose the sex used for the calorie formula.');
+    var cm = Number(d.cm);
+    if (!(cm >= 120 && cm <= 230)) throw new Error('Check your height.');
+    calc.energy.activityById(d.activity);
+    return { dob: d.dob, sex: d.sex, height_cm: calc.core.round(cm, 0.1), activity: d.activity, pregnant_or_breastfeeding: d.sex === 'male' ? false : !!d.pregnantOrBreastfeeding };
+  }
 
   /** The active phase: not deleted, no end date; the newest if somehow there are several. */
   function currentPhase(phases) {
@@ -231,7 +247,7 @@
 
   var api = {
     GOALS: GOALS, PLANNED_WEEKS: PLANNED_WEEKS, goalById: goalById, newId: newId, goalOptions: goalOptions, preview: preview, setup: setup,
-    profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, currentPhase: currentPhase, phaseOn: phaseOn, targetsFor: targetsFor, targetsOn: targetsOn, dayOf: dayOf,
+    profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, detailsRow: detailsRow, currentPhase: currentPhase, phaseOn: phaseOn, targetsFor: targetsFor, targetsOn: targetsOn, dayOf: dayOf,
     startPhase: startPhase, editTargets: editTargets
   };
   if (node) module.exports = api;

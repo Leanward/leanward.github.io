@@ -1,6 +1,6 @@
 # Leanward — Product Requirements Document
 
-> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now) · **Date:** 2026-11-16 · **Owner:** Kevin Chavez
+> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta) · **Date:** 2026-11-16 · **Owner:** Kevin Chavez
 > **Source:** [`blueprint-v2.md`](blueprint-v2.md) (Product Vision v2.0). Where this PRD adds detail, changes scope, or makes a call the blueprint left open, it is marked **[Proposed]** so you can accept or reject it; calls you've confirmed are marked **[Decided]** and logged in [`decisions.md`](decisions.md).
 > **How to review:** react to anything, but the fastest path to sign-off is answering the numbered questions in §15.
 
@@ -179,8 +179,8 @@ Priority: **P0** = MVP can't ship without it · **P1** = MVP, can slip to a fast
 | ACC-2 | Export all data (diary, foods, measurements, phases, targets) as CSV and JSON. | P0 |
 | ACC-3 | No ads. No sale or sharing of health or nutrition data with third parties; analytics are first-party and contain no food or body data. | P0 |
 | ACC-4 | A support link to eating-disorder resources is available in Settings (National Alliance for Eating Disorders). | P0 |
-| ACC-5 | Notifications are off by default; if enabled they're only reminders (log, weigh-in) — never shame or streak-loss messages. | P1 |
-| ACC-6 | **Appearance settings** (Profile › Settings › Appearance): choose a color palette (Aurora, Ocean, Sunset, Moss, Mono at launch); "Change color with my phase" on/off (off = the palette's one signature color everywhere); mode Dark / Light / Match iPhone. Default: Aurora, follow phase on, Dark. Every palette gives each phase a distinct color, and text meets 4.5:1 contrast in both modes. See `prototype/appearance/`. | P1 |
+| ACC-5 | Notifications are off by default; if enabled they're only reminders (log, weigh-in) — never shame or streak-loss messages. **Deferred to after the beta (v1.6):** needs a push server; Home's "no weigh-in for 7 days" insight covers the gentlest case meanwhile. | P1 |
+| ACC-6 | **Appearance settings** (Profile › Settings › Appearance): choose a color palette (Aurora, Ocean, Sunset, Moss, Mono at launch); "Change color with my phase" on/off (off = the palette's one signature color everywhere); mode Dark / Light / Match iPhone. Default: Aurora, follow phase on, Match iPhone (v1.6: the app has followed the phone's light or dark setting since M0, so that stays the default; Dark and Light are choices). Every palette gives each phase a distinct color, and text meets 4.5:1 contrast in both modes. See `prototype/appearance/`. | P1 |
 
 ### 6.10 Lab results (LAB) — Phase 2, specified early [Decided 2026-11-02]
 Owner request: let users bring in their lab results, from any lab, and connect them to nutrition. The feature is called **Labs** and the action **Import labs**; no lab company is named in the product. Leanward is not a medical device: it shows how nutrition relates to a result and never diagnoses or treats.
@@ -439,6 +439,7 @@ No questions are open. Signed off 2026-11-02. Changes from here go through the f
 | 2026-11-03 | 1.3 | ONB-10 "I know my numbers" (measured BMR/RMR or known maintenance), checks on entered numbers and the accuracy note in §8.1 (owner request after testing: the formula overestimated their maintenance). |
 | 2026-11-03 | 1.3 | ONB-1: Google sign-in only for now; email + password deferred (owner decision). |
 | 2026-11-03 | 1.3 | §8.10 extended for M1b: progress-read bands, adaptive blend, DRI life stages. |
+| 2026-11-16 | 1.6 | ACC-6 default mode is Match iPhone. ACC-5 reminders (P1) move to after the beta: web push on iPhone needs a push server and only works for home-screen apps. |
 | 2026-11-16 | 1.5 | §8.10: maintenance check rules (what counts as a logged day, window, 50 kcal threshold, weekly wait). |
 | 2026-11-16 | 1.5 | MEA-5: key lifts are read from PR Forge only for now; manual lift entry deferred (owner decision). |
 | 2026-11-06 | 1.4 | Owner request: FDB-3a Search online (Open Food Facts text search) when the catalog doesn't have a food; branded coverage gaps seen on the real catalog (e.g. Quest Overload bars, most Transparent Labs products). |

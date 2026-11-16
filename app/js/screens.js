@@ -326,6 +326,13 @@
       knownmode: function (v) { var o = S.ob ? S.ob.a : S.sheet; o.knownMode = v; o.knownErr = ''; if (S.ob) S.ob.manual = {}; ctx.render(); },
       editmaint: function () { S.sheet = Object.assign({ kind: 'maint' }, knownFromProfile(S.rows.profile)); ctx.render(); },
       savemaint: function () { saveMaint(); },
+      editdetails: function () {
+        var p = S.rows.profile, f = core.cmToFtIn(Number(p.height_cm));
+        S.sheet = { kind: 'details', dob: p.dob, sex: p.sex || 'unspecified', cm: core.round(Number(p.height_cm)), ft: f.ft, inch: f.in, activity: p.activity, pob: !!p.pregnant_or_breastfeeding };
+        ctx.render();
+      },
+      detset: function (v) { var i = v.indexOf(':'); S.sheet[v.slice(0, i)] = v.slice(i + 1); ctx.render(); },
+      detsave: function (v) { detailsSave(v); },
       maintaccept: function () { maintDecide(true); },
       maintdecline: function () { maintDecide(false); },
       newphase: function () { startNewPhase(); ctx.render(); root.scrollTo(0, 0); },
@@ -492,7 +499,8 @@
       var cp = profileNow(), age = cp.dob ? core.ageOn(cp.dob, today()) : null;
       return '<section class="card"><h2>Your details</h2><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
         '<div class="row" style="margin-top:8px"><span class="small">Units</span><div class="seg" style="width:170px">' + [['us', 'US'], ['metric', 'Metric']].map(function (u) { return '<button type="button" data-a="units" data-v="' + u[0] + '" aria-pressed="' + (p.units === u[0]) + '">' + u[1] + '</button>'; }).join('') + '</div></div>' +
-        '<p class="small muted">To change your goal or phase, use Phase → Start a new phase. Editing these details comes in the next update.</p></section>';
+        '<button type="button" class="btn ghost block" data-a="editdetails">Edit details</button>' +
+        '<p class="small muted">Your weight comes from your latest weigh-in. To change your goal or phase, use Phase → Start a new phase.</p></section>';
     }
     function activityLabel(id) { try { return C.energy.activityById(id).label.toLowerCase(); } catch (e) { return null; } }
 
@@ -529,8 +537,63 @@
     /** The saved profile as onboarding-style answers (for recalculating with changed known numbers). */
     function profileNowRaw() { var p = profileNow(); return Object.assign({}, p, { bodyFatSource: S.rows.profile.body_fat_source }); }
 
+    /* ---------- edit profile details ---------- */
+    function detailsValues(sh) {
+      var cm = metric(S.rows.profile.units) ? num(sh.cm) : (sh.ft != null || sh.inch != null ? core.ftInToCm(num(sh.ft) || 0, num(sh.inch) || 0) : null);
+      return { dob: sh.dob, sex: sh.sex, cm: cm, activity: sh.activity, pregnantOrBreastfeeding: sh.pob };
+    }
+    /** What the calculated targets would be with the edited details, or { error }. */
+    function detailsPlan(sh) {
+      try {
+        var cols = M.detailsRow(detailsValues(sh), today());
+        var prof = M.profileFromRows(Object.assign({}, S.rows.profile, cols), S.rows.weights);
+        var r = M.editTargets({ now: new Date().toISOString(), phase: M.currentPhase(S.rows.phases), profile: prof, from: today(), manual: null });
+        return { cols: cols, rows: r.rows, set: r.rows[0][1] };
+      } catch (e) { return { error: e.message }; }
+    }
+    function detailsOut(sh) {
+      var p = detailsPlan(sh), t = currentTargets();
+      if (p.error) return '<p class="small warn">' + esc(p.error) + '</p>';
+      var same = p.set.kcal === t.kcal && p.set.protein_g === t.protein_g && p.set.fat_g === t.fat_g;
+      return '<p class="small">' + (same ? 'Your targets stay the same with these details.' : 'Calculated targets with these details: <b>' + fmt(p.set.kcal) + ' kcal</b> · P ' + p.set.protein_g + ' g · C ' + p.set.carbs_g + ' g · F ' + p.set.fat_g + ' g (now ' + fmt(t.kcal) + ' kcal · P ' + t.protein_g + ' · C ' + t.carbs_g + ' · F ' + t.fat_g + ').') + '</p>' +
+        (!same && t.origin === 'manual' ? '<p class="small muted">Your current targets were set by hand. "Save and update targets" replaces them; "Save details only" keeps them.</p>' : '');
+    }
+    function detailsSheet() {
+      var sh = S.sheet, m = metric(S.rows.profile.units);
+      var dseg = function (key, opts) { return '<div class="seg' + (opts.length > 2 ? ' rows' : '') + '">' + opts.map(function (o) { return '<button type="button" data-a="detset" data-v="' + key + ':' + o[0] + '" aria-pressed="' + (sh[key] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>'; };
+      var p = detailsPlan(sh), t = currentTargets(), same = !p.error && p.set.kcal === t.kcal && p.set.protein_g === t.protein_g && p.set.fat_g === t.fat_g;
+      return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Edit details"><div class="grab"></div><h2>Your details</h2>' +
+        '<p class="small muted">Used to estimate how much energy you burn.</p>' +
+        '<div class="field"><label for="de-dob">Date of birth</label><input type="date" id="de-dob" data-d="dob" value="' + esc(sh.dob || '') + '" max="' + today() + '"></div>' +
+        '<div class="field"><span class="lab">Sex for the calorie formula</span>' + dseg('sex', [['male', 'Male'], ['female', 'Female'], ['unspecified', 'Prefer not to say']]) + '</div>' +
+        (m ? '<div class="field"><label for="de-cm">Height (cm)</label><input type="number" id="de-cm" inputmode="decimal" data-redraw="1" data-d="cm" value="' + (sh.cm == null ? '' : sh.cm) + '"></div>'
+          : '<div class="grid2"><div class="field"><label for="de-ft">Height (ft)</label><input type="number" id="de-ft" inputmode="numeric" data-redraw="1" data-d="ft" value="' + (sh.ft == null ? '' : sh.ft) + '"></div><div class="field"><label for="de-in">(in)</label><input type="number" id="de-in" inputmode="decimal" data-redraw="1" data-d="inch" value="' + (sh.inch == null ? '' : sh.inch) + '"></div></div>') +
+        '<div class="field"><label for="de-act">Activity</label><select id="de-act" data-d="activity">' + C.energy.ACTIVITY.map(function (x) { return '<option value="' + x.id + '"' + (x.id === sh.activity ? ' selected' : '') + '>' + esc(x.label) + '</option>'; }).join('') + '</select></div>' +
+        (sh.sex !== 'male' ? '<label class="check"><input type="checkbox" data-d="pob"' + (sh.pob ? ' checked' : '') + '> I\'m pregnant or breastfeeding</label>' : '') +
+        '<div class="card" id="de-out">' + detailsOut(sh) + '</div>' +
+        (same || p.error ? '<button type="button" class="btn block" data-a="detsave" data-v="keep">Save</button>'
+          : '<button type="button" class="btn block" data-a="detsave" data-v="update">Save and update targets</button><button type="button" class="btn ghost block" data-a="detsave" data-v="keep">Save details only</button>') + '</div>';
+    }
+    function detailsInput(el) {
+      var sh = S.sheet, k = el.dataset.d;
+      if (!sh || sh.kind !== 'details' || !k) return false;
+      sh[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? num(el.value) : el.value);
+      if (el.type === 'number') { var box = root.document.getElementById('de-out'); if (box) box.innerHTML = detailsOut(sh); }
+      else if (el.type !== 'date') ctx.render();
+      else { var b2 = root.document.getElementById('de-out'); if (b2) b2.innerHTML = detailsOut(sh); }
+      return true;
+    }
+    function detailsSave(mode) {
+      var sh = S.sheet, p = detailsPlan(sh);
+      if (p.error) { ctx.toast(p.error); return; }
+      var rows = [['lw_profiles', Object.assign({ id: 'me' }, p.cols)]];
+      if (mode === 'update') rows = rows.concat(p.rows);
+      ctx.save(rows).then(function () { S.sheet = false; ctx.toast(mode === 'update' ? 'Details and targets updated' : 'Details saved'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
+    }
+
     function sheetView() {
       var sh = S.sheet;
+      if (sh && sh.kind === 'details') return detailsSheet();
       if (sh && sh.kind === 'maint') return maintSheet();
       if (!sh || sh.kind !== 'targets') return '';
       var pv = sheetPreview();
@@ -545,6 +608,7 @@
         '<button type="button" class="btn ghost block" data-a="resettargets">Go back to calculated (' + fmt(pv.plan.calories.kcal) + ' kcal)</button></div>';
     }
     function onSheetInput(el) {
+      if (detailsInput(el)) return;
       if (S.sheet && S.sheet.kind === 'maint') { if (knownInput(S.sheet, el) && el.dataset.f === 'knownSrc') ctx.render(); return; }
       var k = el.dataset.e;
       if (!k || !S.sheet) return;

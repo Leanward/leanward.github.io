@@ -63,6 +63,21 @@
         options: { redirectTo: root.location.origin + root.location.pathname }
       }).then(function (res) { if (res.error) throw res.error; });
     },
+    /**
+     * Deletes the signed-in person's account and everything they saved in Leanward (ACC-1), through
+     * the lw_delete_account database function, which can only delete the caller's own account.
+     */
+    deleteAccount: function () {
+      var c = getClient();
+      if (!c) return Promise.reject(new Error('Could not reach Leanward. Check your connection and reload.'));
+      return c.rpc('lw_delete_account').then(function (res) {
+        if (res.error) {
+          var missing = res.error.code === 'PGRST202' || /could not find the function|does not exist/i.test(res.error.message || '');
+          throw new Error(missing ? 'Account deletion isn\'t switched on in the database yet.' : (res.error.message || 'The request failed.'));
+        }
+        return true;
+      });
+    },
     /** Signs out on this phone only. */
     signOut: function () {
       var c = getClient();
