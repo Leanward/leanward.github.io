@@ -70,8 +70,8 @@
         '</details>';
     }
     /** Maintenance, where it came from, and how far the target is from it. */
-    function maintLine(tdee, source, formulaTdee, kcal, phase) {
-      var src = source === 'known-tdee' ? 'entered by you' : source === 'known-bmr' ? 'from your measured BMR' : 'estimated by formula';
+    function maintLine(tdee, source, formulaTdee, kcal, phase, knownSource) {
+      var src = source === 'known-tdee' ? (knownSource === 'tracking-check' ? 'from the maintenance check (your own logging)' : 'entered by you') : source === 'known-bmr' ? 'from your measured BMR' : 'estimated by formula';
       var diff = kcal - tdee, pct = diff / tdee * 100;
       var rel = phase === 'nutrition' || Math.abs(diff) < 15 ? 'about the same as maintenance' : fmt(Math.abs(diff)) + ' kcal ' + (diff < 0 ? 'below' : 'above') + ' maintenance (' + core.fmtSigned(pct, 0) + '%)';
       return '<div class="row"><span class="small muted">Maintenance</span><b>≈ ' + fmt(tdee) + ' kcal</b></div>' +
@@ -372,10 +372,15 @@
     }
 
     /* ---------- maintenance check (PRG-5, §8.6) ---------- */
+    /** True when the maintenance behind these targets is one the user accepted from the check. */
+    function fromCheck(t) {
+      var tdee = t && t.calc_inputs ? t.calc_inputs.tdee : null;
+      return tdee != null && (S.rows.recs || []).some(function (r) { return r.type === 'maintenance-update' && r.status === 'accepted' && r.proposed && Number(r.proposed.to) === Number(tdee); });
+    }
     function maintCheck() {
       var t = currentTargets();
       return root.LW.maint.check({ today: today(), diary: S.rows.diary, weights: S.rows.weights, recommendations: S.rows.recs,
-        previousTdee: t && t.calc_inputs ? t.calc_inputs.tdee : null,
+        previousTdee: t && t.calc_inputs ? t.calc_inputs.tdee : null, units: (S.rows.profile && S.rows.profile.units) || 'us',
         targetOn: function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); } });
     }
     /** New targets if the suggested maintenance were accepted (same phase, calculated from it). */
@@ -402,7 +407,7 @@
         return head + '<p class="small">You ' + (c.last.status === 'accepted' ? 'accepted' : 'kept your targets instead of') + ' a change from ' + fmt(p.from) + ' to ' + fmt(p.to) + ' kcal on ' + esc(niceDay(String(c.last.decided_at).slice(0, 10))) + '. The next check is on ' + esc(niceDay(c.until)) + ', so each change has a week to show up.</p></section>';
       }
       var working = '<details><summary>How this is worked out</summary><div class="working">' + c.estimate.steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>' +
-        '<p class="small muted">An estimate from your own logging, as good as the logging is. 7,700 kcal per kg of body weight is a standard approximation.</p></details>';
+        '<p class="small muted">An estimate from your own logging, as good as the logging is. 7,700 kcal per kg of body weight (3,493 per lb) is a standard approximation.</p></details>';
       if (c.state === 'matches') return head + '<p class="small">Your last 21 days (' + esc(span) + ') fit your maintenance of <b>' + fmt(c.tdee) + ' kcal</b>. No change suggested.</p>' + working + '</section>';
       var plan;
       try { plan = maintPlan(c.to); } catch (e) { return head + '<p class="small warn">' + esc(e.message) + '</p></section>'; }
@@ -440,7 +445,7 @@
         progressCard(ph, t) + maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
-          (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type) + '</div>' : '') +
+          (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type, fromCheck(t) ? 'tracking-check' : null) + '</div>' : '') +
           '<button type="button" class="link" data-a="editmaint" style="margin-top:6px">Know your real maintenance or BMR?</button>' +
           '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + t.effective_from + '</p>' +
           '<details><summary>How these are worked out</summary><div class="working">' + steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') +
