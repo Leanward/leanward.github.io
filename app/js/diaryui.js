@@ -14,9 +14,7 @@
 
     function entriesOn(date) { return (S.rows.diary || []).filter(function (e) { return !e.deleted && e.date === date; }); }
     function targetsFor(date) {
-      var ph = (S.rows.phases || []).filter(function (p) { return !p.deleted && p.start_date <= date && (!p.end_date || p.end_date >= date); })
-        .sort(function (a, b) { return a.start_date < b.start_date ? 1 : -1; })[0];
-      return ph ? M.targetsOn(S.rows.sets, ph.id, date) : null;
+      return M.targetsFor(S.rows.phases, S.rows.sets, date, ctx.today());
     }
     function dayName(date) {
       var t = ctx.today();

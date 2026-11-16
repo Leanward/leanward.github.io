@@ -345,10 +345,7 @@
       return g || (S.rows.goals || []).filter(function (x) { return !x.ended_on; }).sort(function (x, y) { return x.started_on < y.started_on ? 1 : -1; })[0] || null;
     }
     function currentTargets() {
-      var ph = M.currentPhase(S.rows.phases);
-      if (!ph) return null;
-      return M.targetsOn(S.rows.sets, ph.id, today()) ||
-        (S.rows.sets || []).filter(function (s) { return s.phase_id === ph.id && !s.deleted; }).sort(function (x, y) { return x.effective_from < y.effective_from ? -1 : 1; })[0] || null;
+      return M.targetsFor(S.rows.phases, S.rows.sets, today(), today());
     }
     function profileNow() { return M.profileFromRows(S.rows.profile, S.rows.weights); }
     function hasSetup() { return !!(S.rows.profile && M.currentPhase(S.rows.phases) && currentTargets()); }
