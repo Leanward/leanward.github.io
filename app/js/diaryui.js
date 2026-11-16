@@ -75,16 +75,33 @@
       return out + '<p class="center"><button type="button" class="link" data-a="slots">Rename, reorder or hide meals</button></p>';
     }
 
+    /** Home (HOM-1): calories left with eaten / target, then protein, carbs and fat; quick log for the time of day (HOM-3). */
     function homeCard() {
       var today = ctx.today(), t = DY.totals(entriesOn(today)), tg = targetsFor(today), ph = M.currentPhase(S.rows.phases);
       if (!tg || !ph) return '';
       var v = DY.versusTarget(t, tg);
-      return '<section class="card"><div class="row"><h2 style="margin:0">Calories</h2><span class="small muted">' + esc(M.dayOf(ph, today).label) + '</span></div>' +
-        '<div class="row" style="margin-top:8px"><span><b style="font-size:26px">' + fmt(Math.abs(v.kcal.left)) + '</b> <span class="small muted">kcal ' + (v.kcal.left >= 0 ? 'left' : 'over') + '</span></span>' +
-        '<span class="small muted">' + fmt(t.kcal) + ' eaten of ' + fmt(tg.kcal) + '</span></div>' +
-        '<div class="bar"><i style="width:' + Math.min(100, t.kcal / tg.kcal * 100) + '%"></i></div>' +
-        '<p class="small muted">Protein ' + fmt(t.protein_g) + ' / ' + tg.protein_g + ' g · Carbs ' + fmt(t.carbs_g) + ' / ' + tg.carbs_g + ' g · Fat ' + fmt(t.fat_g) + ' / ' + tg.fat_g + ' g · Fiber ' + fmt(t.nutrients.fiber || 0) + ' / ' + tg.fiber_g + ' g</p>' +
+      var bar = function (eaten, target) { return '<div class="bar"><i style="width:' + Math.min(100, target ? eaten / target * 100 : 0) + '%"></i></div>'; };
+      var macro = function (label, m) { return '<div><span class="small muted">' + label + '</span><b>' + fmt(m.eaten) + '<span class="small muted"> / ' + fmt(m.target) + ' g</span></b>' + bar(m.eaten, m.target) + '</div>'; };
+      var now = new Date(), slot = DY.slotForTime(now.getHours() * 60 + now.getMinutes());
+      var picks = DY.quickPicks(S.rows.diary || [], slot, today, 5);
+      return '<section class="card"><div class="row"><h2 style="margin:0">Calories</h2><span class="small muted">' + fmt(t.kcal) + ' eaten of ' + fmt(tg.kcal) + '</span></div>' +
+        '<div style="margin-top:6px"><b style="font-size:30px">' + fmt(Math.abs(v.kcal.left)) + '</b> <span class="small muted">kcal ' + (v.kcal.left >= 0 ? 'left' : 'over') + '</span></div>' +
+        bar(t.kcal, tg.kcal) +
+        '<div class="macros three">' + macro('Protein', v.protein) + macro('Carbs', v.carbs) + macro('Fat', v.fat) + '</div>' +
+        (picks.length ? '<span class="sec" style="display:block;margin:14px 2px 6px">Quick log · ' + esc(slotLabel(slot)) + '</span><div class="chips2">' + picks.map(function (e) {
+          return '<button type="button" data-a="quicklog" data-v="' + esc(e.id) + '" aria-label="Log ' + esc(e.name) + ', ' + fmt(Number(e.kcal)) + ' kcal, to ' + esc(slotLabel(slot)) + '">+ ' + esc(String(e.name).split(' · ')[0].slice(0, 28)) + ' <span class="muted">' + fmt(Number(e.kcal)) + '</span></button>';
+        }).join('') + '</div>' : '') +
         '<button type="button" class="btn block" data-a="addto" data-v="">Log food</button></section>';
+    }
+    /** Home (HOM-4): at most one insight card. */
+    function insightCard() {
+      var today = ctx.today(), now = new Date();
+      var lastW = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort().pop() || null;
+      var first = (S.rows.phases || []).filter(function (p) { return !p.deleted; }).map(function (p) { return p.start_date; }).sort()[0] || null;
+      var i = root.LW.home.insight({ minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: targetsFor(today), lastWeighDate: lastW, firstUseDate: first });
+      if (!i) return '';
+      return '<section class="card"><span class="chip"><i></i>Today</span><b style="display:block;margin-top:6px">' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p>' +
+        '<button type="button" class="btn ghost sm" data-a="' + i.action.a + '" data-v="">' + esc(i.action.label) + '</button></section>';
     }
 
     /* ---------- edit an entry (LOG-11) ---------- */
@@ -269,6 +286,13 @@
       nutrients: function () { S.sheet = { kind: 'nutrients', date: S.diaryDate || ctx.today(), span: 'day', open: null }; ctx.render(); },
       nutspan: function (v) { S.sheet.span = v; S.sheet.open = null; ctx.render(); },
       nutrow: function (id) { S.sheet.open = S.sheet.open === id ? null : id; ctx.render(); },
+      quicklog: function (id) {
+        var e = (S.rows.diary || []).filter(function (x) { return x.id === id; })[0];
+        if (!e) return;
+        var now = new Date(), slot = DY.slotForTime(now.getHours() * 60 + now.getMinutes());
+        var rows = DY.copyEntries([e], ctx.today(), slot).map(function (r) { r.logged_via = 'recent'; return ['lw_diary_entries', r]; });
+        ctx.save(rows).then(function () { ctx.toast('Added to ' + slotLabel(slot) + '. Tap it in the Diary to change it.'); ctx.render(); });
+      },
       repeatbf: function () {
         var date = S.diaryDate || ctx.today();
         var src = entriesOn(DY.addDays(date, -1)).filter(function (e) { return e.slot === 'breakfast'; });
@@ -276,7 +300,7 @@
       }
     };
 
-    return { view: view, homeCard: homeCard, sheetView: sheetView, onInput: onInput, actions: actions, entriesOn: entriesOn, slots: slots, slotOptions: slotOptions, slotLabel: slotLabel, dayName: dayName };
+    return { view: view, homeCard: homeCard, insightCard: insightCard, sheetView: sheetView, onInput: onInput, actions: actions, entriesOn: entriesOn, slots: slots, slotOptions: slotOptions, slotLabel: slotLabel, dayName: dayName };
   }
 
   root.LW.diaryui = { create: create };

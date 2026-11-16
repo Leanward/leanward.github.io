@@ -248,6 +248,8 @@ Each milestone has an **exit criteria** list. A milestone is done when every ite
 - Entitlement switch so premium can be turned on later (S4); no paywall.
 - P1: reminders (ACC-5), off by default and never shaming. iOS allows web push only for home-screen apps; test it on the iPhone.
 
+**Status (2026-11-16, M7a built):** Home has calories left with protein, carbs and fat bars and a quick log for the time of day (HOM-1, HOM-3), a phase card with the headline signal that opens the Phase tab (HOM-2), the weight card, and at most one insight (HOM-4); four cards at most (HOM-5). Profile has Settings (meals, phase, PR Forge status), Your data (export as JSON or CSV, ACC-2) and Support (ACC-4). Checked in Chromium: the JSON export held all 13 tables with no bookkeeping fields; CSV gave one file per table with rows. **M7b:** account deletion (ACC-1), editing profile details, appearance (ACC-6), entitlement switch, reminders (ACC-5).
+
 **Exit criteria:** export round-trips (every entity present in the files); deleting an account removes every Leanward row for that user (verified by query); all P0 requirements in PRD §6 are implemented.
 
 ### M8 — Hardening and beta
