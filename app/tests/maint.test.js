@@ -33,6 +33,11 @@ test('a suggestion when maintenance looks different, capped at 150 kcal', () => 
   assert.deepEqual([r.state, r.from, r.to, r.windowStart, r.windowEnd], ['proposed', 2400, 2550, '2026-11-01', '2026-11-21']);
   assert.ok(Math.abs(r.estimate.rawTdee - 2885) < 15, String(r.estimate.rawTdee));
   assert.match(r.estimate.steps.join(' | '), /Change limited to 150 kcal a week/);
+  // the working follows the user's units: −1.0 kg is −2.2 lb, and 7,700 kcal per kg is 3,493 per lb
+  const us = MT.check({ today, diary: diary(2500), weights: weights(-0.05), targetOn: target, previousTdee: 2400, recommendations: [], units: 'us' });
+  assert.equal(us.to, 2550);
+  assert.match(us.estimate.steps[1], /lb \(−\d\.\d\d lb\)$/); assert.match(us.estimate.steps[2], /lb × 3,493 ÷ 20 days\)/);
+  assert.match(r.estimate.steps[2], /kg × 7,700 ÷ 20 days\)/);
   const row = MT.decisionRow(r, 'accepted', 'ph1', '2026-11-22T09:00:00Z');
   assert.deepEqual([row.type, row.status, row.phase_id, row.proposed.from, row.proposed.to, row.decided_at], ['maintenance-update', 'accepted', 'ph1', 2400, 2550, '2026-11-22T09:00:00Z']);
   assert.ok(row.reasoning.length >= 4);

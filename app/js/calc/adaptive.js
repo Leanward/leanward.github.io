@@ -28,7 +28,8 @@
    *   endDate: 'YYYY-MM-DD',
    *   intake: [{ date, kcal, complete: true|false }],   // one row per logged day
    *   weights: [{ date, kg, at? }],                      // all weigh-ins (earlier ones seed the trend)
-   *   previousTdee: number
+   *   previousTdee: number,
+   *   units?: 'us' | 'metric'                            // the working's units; the maths is always in kg
    * }
    */
   function estimate(input) {
@@ -65,10 +66,13 @@
     var change = Math.max(-MAX_CHANGE_KCAL, Math.min(MAX_CHANGE_KCAL, blended - prev));
     var next = core.round(prev + change);
 
+    // The working in the user's units: 7,700 kcal per kg is 3,493 kcal per lb.
+    var us = input.units === 'us', wu = us ? 'lb' : 'kg', w = function (kg) { return us ? core.kgToLb(kg) : kg; };
+    var perUnit = us ? fmt(targets.KCAL_PER_KG * core.KG_PER_LB) : fmt(targets.KCAL_PER_KG);
     var steps = [
       'Average intake on ' + complete.length + ' fully logged days: ' + fmt(meanIntake) + ' kcal',
-      'Trend weight ' + start + ' → ' + end + ': ' + fmt(t0, 2) + ' → ' + fmt(t1, 2) + ' kg (' + core.fmtSigned(dKg, 2) + ' kg)',
-      'Estimated maintenance: ' + fmt(meanIntake) + ' − (' + core.fmtSigned(dKg, 2) + ' kg × 7,700 ÷ ' + days + ' days) = ' + fmt(raw) + ' kcal',
+      'Trend weight ' + start + ' → ' + end + ': ' + fmt(w(t0), us ? 1 : 2) + ' → ' + fmt(w(t1), us ? 1 : 2) + ' ' + wu + ' (' + core.fmtSigned(w(dKg), 2) + ' ' + wu + ')',
+      'Estimated maintenance: ' + fmt(meanIntake) + ' − (' + core.fmtSigned(w(dKg), 2) + ' ' + wu + ' × ' + perUnit + ' ÷ ' + days + ' days) = ' + fmt(raw) + ' kcal',
       'Blended 70% new, 30% previous (' + fmt(prev) + '): ' + fmt(blended) + ' kcal'
     ];
     if (Math.abs(blended - prev) > MAX_CHANGE_KCAL) steps.push('Change limited to ' + MAX_CHANGE_KCAL + ' kcal a week');

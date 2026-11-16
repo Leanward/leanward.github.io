@@ -36,7 +36,7 @@
   }
 
   /**
-   * input: { today, diary, weights, targetOn(date), previousTdee, recommendations }
+   * input: { today, diary, weights, targetOn(date), previousTdee, recommendations, units? }
    * Returns one of:
    *   { state: 'unavailable', why }                     no maintenance in use to compare with
    *   { state: 'collecting', need: [...], logged, neededDays, weeks: [n, n, n] }
@@ -50,7 +50,7 @@
     var end = core.addDays(input.today, -1), start = core.addDays(end, -(adaptive.WINDOW_DAYS - 1));
     var days = intakeDays(input.diary, input.targetOn, start, end);
     var weights = live(input.weights).map(function (w) { return { date: w.date, kg: Number(w.kg), at: w.measured_at }; }).filter(function (w) { return w.date <= end; });
-    var est = adaptive.estimate({ endDate: end, intake: days, weights: weights, previousTdee: prev });
+    var est = adaptive.estimate({ endDate: end, intake: days, weights: weights, previousTdee: prev, units: input.units });
 
     var logged = days.filter(function (d) { return d.complete; }).length, weeks = [0, 1, 2].map(function (wk) {
       var a = core.addDays(start, wk * 7), b = core.addDays(start, wk * 7 + 6), seen = {};
