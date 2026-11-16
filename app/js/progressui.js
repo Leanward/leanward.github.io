@@ -21,9 +21,7 @@
     function nowTime() { var d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function timeOf(iso) { var d = new Date(iso); return isNaN(d) ? '12:00' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function targetOn(date) {
-      var ph = (S.rows.phases || []).filter(function (p) { return !p.deleted && p.start_date <= date && (!p.end_date || p.end_date >= date); })
-        .sort(function (a, b) { return a.start_date < b.start_date ? 1 : -1; })[0];
-      return ph ? M.targetsOn(S.rows.sets, ph.id, date) : null;
+      return M.targetsFor(S.rows.phases, S.rows.sets, date, ctx.today());
     }
     function wrap(title, body) { return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="grab"></div>' + body + '</div>'; }
 

@@ -163,6 +163,24 @@
   function currentPhase(phases) {
     return (phases || []).filter(function (p) { return !p.deleted && !p.end_date; }).sort(function (x, y) { return x.start_date < y.start_date ? 1 : x.start_date > y.start_date ? -1 : (x.created_at < y.created_at ? 1 : -1); })[0] || null;
   }
+  /**
+   * The phase in effect on a date. Today's is always the current phase (the same one the Phase tab
+   * shows); for earlier days, the phase that covered the day, newest first, with the same tie-break
+   * as currentPhase so two phases that start on the same day never give different answers.
+   */
+  function phaseOn(phases, date, today) {
+    var cur = currentPhase(phases);
+    if (cur && (date === today || date >= cur.start_date)) return cur;
+    return (phases || []).filter(function (p) { return !p.deleted && p.start_date <= date && (!p.end_date || p.end_date >= date); })
+      .sort(function (x, y) { return x.start_date < y.start_date ? 1 : x.start_date > y.start_date ? -1 : (x.created_at < y.created_at ? 1 : -1); })[0] || null;
+  }
+  /** The targets for a day: that day's phase and its target set; today falls back to the phase's first set, as the Phase tab does. */
+  function targetsFor(phases, sets, date, today) {
+    var ph = phaseOn(phases, date, today);
+    if (!ph) return null;
+    return targetsOn(sets, ph.id, date) || (date === today
+      ? (sets || []).filter(function (s) { return s.phase_id === ph.id && !s.deleted; }).sort(function (x, y) { return x.effective_from < y.effective_from ? -1 : 1; })[0] || null : null);
+  }
   /** The phase's target set in effect on a date: the latest effective_from on or before it. */
   function targetsOn(sets, phaseId, date) {
     return (sets || []).filter(function (s) { return !s.deleted && s.phase_id === phaseId && s.effective_from <= date; })
@@ -213,7 +231,7 @@
 
   var api = {
     GOALS: GOALS, PLANNED_WEEKS: PLANNED_WEEKS, goalById: goalById, newId: newId, goalOptions: goalOptions, preview: preview, setup: setup,
-    profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, currentPhase: currentPhase, targetsOn: targetsOn, dayOf: dayOf,
+    profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, currentPhase: currentPhase, phaseOn: phaseOn, targetsFor: targetsFor, targetsOn: targetsOn, dayOf: dayOf,
     startPhase: startPhase, editTargets: editTargets
   };
   if (node) module.exports = api;

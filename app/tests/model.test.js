@@ -138,3 +138,21 @@ test('two target versions starting the same day: the newer one is in effect', ()
   assert.equal(M.targetsOn(all, phase.id, '2026-11-03').kcal, 2200);
   assert.equal(M.targetsOn(all.slice().reverse(), phase.id, '2026-11-03').kcal, 2200, 'order in storage does not matter');
 });
+
+test('Home, Diary and the Phase tab use the same targets for today', () => {
+  const M2 = require('../js/model.js');
+  const set = (id, phase, from, kcal, created) => ({ id, phase_id: phase, effective_from: from, kcal, created_at: created });
+  // Two open phases that start on the same day (set up on two devices): the newer one is current everywhere.
+  const phases = [{ id: 'p-old', start_date: '2026-11-03', created_at: '2026-11-03T10:00:00Z' }, { id: 'p-new', start_date: '2026-11-03', created_at: '2026-11-03T12:00:00Z' }];
+  const sets = [set('s1', 'p-old', '2026-11-03', 2200, 'a'), set('s2', 'p-new', '2026-11-03', 2750, 'b'), set('s3', 'p-new', '2026-11-03', 1900, 'c')];
+  assert.equal(M2.currentPhase(phases).id, 'p-new');
+  assert.equal(M2.targetsFor(phases, sets, '2026-11-16', '2026-11-16').kcal, 1900);
+  assert.equal(M2.targetsFor(phases.slice().reverse(), sets, '2026-11-10', '2026-11-16').kcal, 1900);
+  // An ended phase still answers for its own days; today falls back to the phase's first set when none has started.
+  const hist = [{ id: 'a', start_date: '2026-10-01', end_date: '2026-11-02', created_at: '1' }, { id: 'b', start_date: '2026-11-03', created_at: '2' }];
+  const hs = [set('x', 'a', '2026-10-01', 2500, '1'), set('y', 'b', '2026-11-20', 2000, '2')];
+  assert.equal(M2.targetsFor(hist, hs, '2026-10-15', '2026-11-16').kcal, 2500);
+  assert.equal(M2.targetsFor(hist, hs, '2026-11-16', '2026-11-16').kcal, 2000);
+  assert.equal(M2.targetsFor(hist, hs, '2026-11-10', '2026-11-16'), null);
+  assert.equal(M2.targetsFor([], [], '2026-11-16', '2026-11-16'), null);
+});
