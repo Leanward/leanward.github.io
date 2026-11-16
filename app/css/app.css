@@ -58,6 +58,10 @@ p { margin: 8px 0 0; }
 .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 10; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--sheet); border-radius: 22px 22px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 11; max-width: 560px; margin: 0 auto; }
 .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--track); margin: 0 auto 12px; }
+/* The sheet can be pulled down by its top edge to close it (js/app.js). */
+.sheet { touch-action: pan-y; will-change: transform; }
+.sheet.dragging { transition: none; }
+.sheet.settling { transition: transform .18s ease-out; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 999px; z-index: 30; max-width: 90%; }
 [hidden] { display: none !important; }
 
@@ -138,7 +142,9 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .field { min-width: 0; }
 
 /* Find a food, food detail and the scanner (M4b) */
-.sheet.tall { min-height: 70vh; }
+/* Tall sheets (search, food, forms) keep one height whatever they hold, so the top (and the search
+ * box) never moves while results come and go; the contents scroll inside. */
+.sheet.tall { height: 90vh; height: 90dvh; max-height: 90vh; max-height: 90dvh; }
 input[type=search] { width: 100%; font: inherit; font-size: 16px; color: var(--fg); background: var(--input); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; -webkit-appearance: none; appearance: none; }
 .item.food { background: none; border: 0; border-top: 1px solid var(--line); color: var(--fg); font-family: var(--font); text-align: left; cursor: pointer; width: 100%; }
 .item.food:first-child { border-top: 0; }
