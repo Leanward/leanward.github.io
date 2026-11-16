@@ -227,3 +227,37 @@ details.advanced > summary { color: var(--muted); font-weight: 600; font-size: 1
 .tile .pill { max-width: 100%; margin-top: 2px; }
 .verdict { font-size: 15.5px; line-height: 1.4; font-weight: 600; margin: 8px 0 4px; }
 @media (max-width: 350px) { .herogrid { grid-template-columns: 112px 1fr; gap: 12px; } .ring { width: 112px; height: 112px; } .ringtxt b { font-size: 25px; } }
+
+/* Design pass 4 (2026-11-17): a compact Today. */
+.daytitle { text-align: center; display: grid; gap: 1px; }
+.daytitle h1 { margin: 0; font-size: 21px; letter-spacing: -.01em; }
+.meals { display: grid; gap: 8px; }
+.mealrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 6px 6px 16px; border: 1px dashed var(--line); border-radius: 14px; }
+.mealrow h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.mealrow .iconbtn { width: 34px; height: 34px; }
+.card.empty { display: grid; gap: 2px; }
+.card.tip { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px 14px; }
+.card.tip b { font-size: 14px; } .card.tip p { margin: 2px 0 0; }
+
+/* Design pass 5: logging screens. Amount first; chips for unit and meal; deletes are quiet. */
+.amount { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: start; }
+.amount input { font-size: 20px; font-weight: 600; padding: 10px 12px; }
+.lab { font-size: 12.5px; color: var(--muted); }
+.field .chips2 { margin-top: 1px; }
+button.link.quietdanger { background: none; color: var(--bad); font-weight: 600; }
+.sheet details > summary { padding: 6px 0; }
+
+/* Design pass 6: charts. */
+.chart .area { stroke: none; }
+.chart .dot { fill: var(--muted); opacity: .75; }
+.chart .trend { stroke-width: 2.4; }
+.chart .last { fill: var(--g1); stroke: var(--sheet); stroke-width: 1.5; }
+.chart .lasthalo { fill: rgba(var(--g1-rgb), .22); }
+/* Design pass 7: status dots (the word still says it), and small moments. */
+.pill.dot { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); }
+.pill.dot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.pill.dot.ok::before { background: var(--ok); }
+.pill.dot.watch::before { background: var(--bad); }
+.pill.dot.wait::before { background: var(--muted); opacity: .6; }
+.met { color: var(--ok); font-weight: 700; }
+.ontarget { color: var(--ok); font-weight: 600; }

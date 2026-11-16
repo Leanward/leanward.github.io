@@ -41,14 +41,14 @@
       if (!v) return '<section class="card"><b style="font-size:22px">' + fmt(t.kcal) + ' kcal</b><p class="small muted">No targets for this day.</p></section>';
       var C = 2 * Math.PI * 50, share = tg.kcal ? Math.min(1, t.kcal / tg.kcal) : 0, over = v.kcal.left < 0;
       var bar = function (eaten, target) { return '<div class="bar"><i style="width:' + Math.min(100, target ? eaten / target * 100 : 0) + '%"></i></div>'; };
-      var macro = function (label, m) { return '<div class="hm"><div class="row"><span class="small muted">' + label + '</span><span class="small"><b>' + fmt(m.eaten) + '</b><span class="muted"> / ' + fmt(m.target) + ' g</span></span></div>' + bar(m.eaten, m.target) + '</div>'; };
+      var macro = function (label, m) { var met = m.target > 0 && m.eaten >= m.target && (label === 'Protein' || label === 'Fiber'); return '<div class="hm"><div class="row"><span class="small muted">' + label + (met ? ' <span class="met" aria-label="target met">✓</span>' : '') + '</span><span class="small"><b>' + fmt(m.eaten) + '</b><span class="muted"> / ' + fmt(m.target) + ' g</span></span></div>' + bar(m.eaten, m.target) + '</div>'; };
       var said = fmt(Math.abs(v.kcal.left)) + ' calories ' + (over ? 'over' : 'left') + '. ' + fmt(t.kcal) + ' eaten of ' + fmt(tg.kcal) + '.';
       return '<section class="card hero"><div class="herogrid">' +
         '<div class="ring" role="img" aria-label="' + esc(said) + '"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--g1)"/><stop offset="1" style="stop-color:var(--g2)"/></linearGradient></defs>' +
           '<circle class="rt" cx="60" cy="60" r="50"/><circle class="rp" cx="60" cy="60" r="50" stroke="url(#ring-g)" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - share)).toFixed(1) + '" transform="rotate(-90 60 60)"/></svg>' +
           '<div class="ringtxt"><b>' + fmt(Math.abs(v.kcal.left)) + '</b><span>kcal ' + (over ? 'over' : 'left') + '</span></div></div>' +
         '<div class="heromacros">' + macro('Protein', v.protein) + macro('Carbs', v.carbs) + macro('Fat', v.fat) + macro('Fiber', v.fiber) + '</div></div>' +
-        '<div class="row herofoot"><span class="small muted">' + fmt(t.kcal) + ' eaten · target ' + fmt(tg.kcal) +
+        '<div class="row herofoot"><span class="small muted">' + (t.entries && Math.abs(v.kcal.left) <= tg.kcal * 0.05 ? '<b class="ontarget">On target</b> · ' : '') + fmt(t.kcal) + ' eaten · target ' + fmt(tg.kcal) +
           (t.entries && !(t.coverage.fiber >= 1) ? ' · fiber known for ' + Math.round((t.coverage.fiber || 0) * 100) + '%' : '') + '</span>' +
           (t.entries ? '<button type="button" class="link" data-a="nutrients">Nutrients</button>' : '') + '</div></section>';
     }
@@ -60,30 +60,49 @@
         '<span class="k">' + fmt(Number(e.kcal)) + '<small>' + (e.protein_g != null ? 'P ' + fmt(Number(e.protein_g)) + ' g' : '') + '</small></span></button>';
     }
 
+    function longDate(date) { return new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
     function view() {
       var date = S.diaryDate || ctx.today(), today = ctx.today(), es = entriesOn(date), y = DY.addDays(date, -1), yEntries = entriesOn(y);
+      var named = date === today || date === DY.addDays(today, -1);
       var out = '<header class="top row"><button type="button" class="iconbtn" data-a="day" data-v="-1" aria-label="Previous day">‹</button>' +
-        '<h1 style="text-align:center;font-size:22px">' + esc(dayName(date)) + '</h1>' +
+        '<div class="daytitle"><h1>' + esc(named ? dayName(date) : new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })) + '</h1>' +
+          '<span class="small muted">' + esc(named ? longDate(date) : new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })) + '</span></div>' +
         '<button type="button" class="iconbtn" data-a="day" data-v="1" aria-label="Next day"' + (date >= today ? ' disabled style="opacity:.35"' : '') + '>›</button></header>' +
         heroCard(date);
-      // Today only: the phase and weight tiles, at most one insight, and quick log for the time of day.
+      // Today only: the phase and weight tiles, at most one tip, and quick log for the time of day.
       if (date === today) out += (ctx.tiles ? ctx.tiles() : '') + insightCard() + quickLog();
-      if (!es.length && yEntries.length) out += '<section class="card"><div class="row"><span class="small">Nothing logged yet.</span><button type="button" class="btn sm" data-a="copyday">Copy ' + (y === DY.addDays(today, -1) ? 'yesterday' : 'the day before') + '</button></div></section>';
+      if (!es.length) {
+        out += yEntries.length
+          ? '<section class="card slim"><div class="row"><span class="small">Nothing logged ' + (date === today ? 'yet today' : 'this day') + '.</span><button type="button" class="btn sm" data-a="copyday">Copy ' + (y === DY.addDays(today, -1) ? 'yesterday' : 'the day before') + '</button></div></section>'
+          : '<section class="card slim empty"><b>Nothing logged ' + (date === today ? 'yet' : 'this day') + '</b><span class="small muted">Tap + to add a food, scan a barcode or quick add. Foods you log often show up for one-tap logging.</span></section>';
+      }
+      // Meals: a card when it has food; a slim row when it doesn't.
+      out += '<div class="meals">';
       slots().forEach(function (sl) {
         var se = es.filter(function (e) { return e.slot === sl.id; });
         if (sl.hidden && !se.length) return;
+        var add = '<button type="button" class="iconbtn" data-a="addto" data-v="' + sl.id + '" aria-label="Add to ' + esc(sl.label) + '">+</button>';
+        if (!se.length) {
+          var repeat = sl.id === 'breakfast' && yEntries.some(function (e) { return e.slot === 'breakfast'; });
+          out += '<section class="mealrow"><h2>' + esc(sl.label) + '</h2><span class="row" style="gap:8px">' +
+            (repeat ? '<button type="button" class="link" data-a="repeatbf">Repeat yesterday\'s</button>' : '') + add + '</span></section>';
+          return;
+        }
         var t = DY.totals(se);
-        var small = !se.length && (sl.id === 'beverages' || sl.id === 'supplements');
-        var repeat = sl.id === 'breakfast' && !se.length && yEntries.some(function (e) { return e.slot === 'breakfast'; });
-        out += '<section class="card' + (small ? ' slim' : '') + '"><div class="row"><h2 style="margin:0' + (small ? ';font-size:14px;color:var(--muted)' : '') + '">' + esc(sl.label) + '</h2>' +
-          '<span class="row" style="gap:8px">' + (se.length ? '<span class="small muted">' + fmt(t.kcal) + ' kcal</span>' : '') +
-          '<button type="button" class="iconbtn" data-a="addto" data-v="' + sl.id + '" aria-label="Add to ' + esc(sl.label) + '">+</button></span></div>' +
-          (se.length ? '<p class="small muted" style="margin:2px 0 0">P ' + fmt(t.protein_g) + ' g · C ' + fmt(t.carbs_g) + ' g · F ' + fmt(t.fat_g) + ' g</p><div class="list">' + se.map(entryRow).join('') + '</div>' +
-            '<div class="row" style="justify-content:flex-start;gap:16px;margin-top:6px"><button type="button" class="link" data-a="savemeal" data-v="' + sl.id + '">Save as meal</button><button type="button" class="link" data-a="copymeal" data-v="' + sl.id + '">Copy to…</button></div>'
-            : small ? '' : '<p class="small muted">' + (repeat ? '<button type="button" class="link" data-a="repeatbf">Repeat yesterday\'s breakfast</button>' : 'Nothing here yet.') + '</p>') +
-          '</section>';
+        out += '<section class="card"><div class="row"><div><h2 style="margin:0">' + esc(sl.label) + '</h2>' +
+          '<span class="small muted">' + fmt(t.kcal) + ' kcal · P ' + fmt(t.protein_g) + ' · C ' + fmt(t.carbs_g) + ' · F ' + fmt(t.fat_g) + ' g</span></div>' +
+          '<span class="row" style="gap:8px"><button type="button" class="iconbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">⋯</button>' + add + '</span></div>' +
+          '<div class="list">' + se.map(entryRow).join('') + '</div></section>';
       });
-      return out + '<p class="center"><button type="button" class="link" data-a="slots">Rename, reorder or hide meals</button></p>';
+      return out + '</div><p class="center"><button type="button" class="link" data-a="slots">Rename, reorder or hide meals</button></p>';
+    }
+    /** The ⋯ menu for a meal that has food: save it as a meal, or copy it elsewhere. */
+    function mealMenuSheet() {
+      var sh = S.sheet, list = entriesOn(sh.date).filter(function (e) { return e.slot === sh.slot; }), t = DY.totals(list);
+      return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(slotLabel(sh.slot)) + '"><div class="grab"></div>' +
+        '<h2>' + esc(slotLabel(sh.slot)) + '</h2><p class="small muted">' + list.length + ' item' + (list.length === 1 ? '' : 's') + ' · ' + fmt(t.kcal) + ' kcal</p>' +
+        '<button type="button" class="btn ghost block" data-a="savemeal" data-v="' + sh.slot + '">Save as a meal</button>' +
+        '<button type="button" class="btn ghost block" data-a="copymeal" data-v="' + sh.slot + '">Copy to another day or meal</button></div>';
     }
 
     /** Quick log (HOM-3): the foods you most often log at this time of day, one tap each. */
@@ -102,8 +121,7 @@
       var first = (S.rows.phases || []).filter(function (p) { return !p.deleted; }).map(function (p) { return p.start_date; }).sort()[0] || null;
       var i = root.LW.home.insight({ minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: targetsFor(today), lastWeighDate: lastW, firstUseDate: first });
       if (!i) return '';
-      return '<section class="card"><span class="chip"><i></i>Tip</span><b style="display:block;margin-top:6px">' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p>' +
-        '<button type="button" class="btn ghost sm" data-a="' + i.action.a + '" data-v="">' + esc(i.action.label) + '</button></section>';
+      return '<section class="card slim tip"><span class="chip"><i></i>Tip</span><div><b>' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p></div></section>';
     }
 
     /* ---------- edit an entry (LOG-11) ---------- */
@@ -111,16 +129,18 @@
       var sh = S.sheet, e = (S.rows.diary || []).filter(function (x) { return x.id === sh.id; })[0];
       if (!e) return '';
       var food = DY.foodOfEntry(e), units = food ? DY.unitsFor(food) : [], isQuick = e.food_source === 'quick';
-      var slotSel = '<div class="field"><label for="en-slot">Meal</label><select id="en-slot" data-x="slot">' + slotOptions(sh.slot || e.slot) + '</select></div>';
+      var curSlot = sh.slot || e.slot, ui = sh.unit != null ? sh.unit : unitIndex(units, e);
+      var slotSel = '<div class="field"><span class="lab">Meal</span><div class="chips2" role="group" aria-label="Meal">' + slots().filter(function (x) { return !x.hidden || x.id === curSlot; }).map(function (x) {
+        return '<button type="button" data-a="enslot" data-v="' + x.id + '" aria-pressed="' + (x.id === curSlot) + '">' + esc(x.label) + '</button>'; }).join('') + '</div></div>';
       var dateIn = '<div class="field"><label for="en-date">Day</label><input type="date" id="en-date" data-x="date" value="' + esc(sh.date || e.date) + '" max="' + ctx.today() + '"></div>';
       var amount = isQuick
         ? '<div class="grid2"><div class="field"><label for="en-k">Calories</label><input type="number" id="en-k" inputmode="decimal" data-x="kcal" value="' + (sh.kcal != null ? sh.kcal : e.kcal) + '"></div><div class="field"><label for="en-l">Label</label><input type="text" id="en-l" data-x="label" value="' + esc(sh.label != null ? sh.label : e.name) + '"></div></div>'
-        : (food ? '<div class="grid2"><div class="field"><label for="en-q">Amount</label><input type="number" id="en-q" inputmode="decimal" step="any" data-x="qty" value="' + (sh.qty != null ? sh.qty : e.qty) + '"></div>' +
-          '<div class="field"><label for="en-u">Unit</label><select id="en-u" data-x="unit">' + units.map(function (u, i) { return '<option value="' + i + '"' + (i === (sh.unit != null ? sh.unit : unitIndex(units, e)) ? ' selected' : '') + '>' + esc(u.label) + '</option>'; }).join('') + '</select></div></div>' : '');
+        : (food ? '<div class="amount"><div class="field"><label for="en-q">Amount</label><input type="number" id="en-q" inputmode="decimal" step="any" data-x="qty" value="' + (sh.qty != null ? sh.qty : e.qty) + '"></div>' +
+          '<div class="field"><span class="lab">Unit</span><div class="chips2" role="group" aria-label="Unit">' + units.map(function (u, i) { return '<button type="button" data-a="enunit" data-v="' + i + '" aria-pressed="' + (i === ui) + '">' + esc(u.label) + '</button>'; }).join('') + '</div></div></div>' : '');
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Edit entry"><div class="grab"></div>' +
         '<h2>' + esc(e.name) + '</h2><p class="small muted">' + fmt(Number(e.kcal)) + ' kcal' + (e.protein_g != null ? ' · P ' + fmt(Number(e.protein_g)) + ' g · C ' + fmt(Number(e.carbs_g)) + ' g · F ' + fmt(Number(e.fat_g)) + ' g' : '') + '</p>' +
-        amount + '<div class="grid2">' + slotSel + dateIn + '</div>' +
-        '<button type="button" class="btn block" data-a="entrysave">Save</button><button type="button" class="btn ghost block" data-a="entrydelete">Delete</button></div>';
+        amount + slotSel + dateIn +
+        '<button type="button" class="btn block" data-a="entrysave">Save</button><p class="center"><button type="button" class="link quietdanger" data-a="entrydelete">Delete this entry</button></p></div>';
     }
     function unitIndex(units, e) {
       // The entry's unit label looks like "1.5 × 1 container" or "150 g".
@@ -210,16 +230,16 @@
         '<p class="small muted">' + esc(sub) + '</p>' +
         (targets ? (far.length ? '<section class="card"><b>Furthest from target</b><p class="small muted">' + far.map(function (r) { return esc(r.label) + (r.flags && r.flags.indexOf('over-limit') >= 0 ? ' (over the limit)' : r.flags && r.flags.indexOf('above-ul') >= 0 ? ' (above UL)' : r.pct != null ? ' ' + fmt(r.pct) + '%' : ''); }).join(' · ') + '</p></section>' : '')
           : '<p class="small muted">Vitamin and mineral targets need your date of birth. For now you see your amounts and how complete the data is.</p>') +
-        (targets ? '<p class="small muted">Targets are the RDA, or the AI where no RDA exists, for your age and sex (National Academies). A low number may be missing data: check "known for". Tap a nutrient to see where it came from.</p>' : '') +
         groups.map(function (g) { return '<span class="sec">' + esc(g.label) + '</span><div class="list">' + g.rows.map(row).join('') + '</div>'; }).join('') +
         (q.length ? '<span class="sec">Ratios and quality</span><section class="card">' + q.map(function (x) { return '<div class="status" style="display:block"><b>' + esc(x.label) + '</b><span class="small muted" style="display:block">' + esc(x.text) + '</span></div>'; }).join('') +
           '<p class="small muted">Limits from the Dietary Guidelines for Americans 2020–2025. A total is only as complete as the foods that list it.</p></section>' : '') +
+        (targets ? '<p class="small muted">Targets are the RDA, or the AI where no RDA exists, for your age and sex (National Academies). A low number may be missing data: check "known for". Tap a nutrient to see where it came from.</p>' : '') +
         (groups.length ? '' : '<p class="small muted">Log some food to see its nutrients.</p>'));
     }
 
     function sheetView() {
       var k = S.sheet && S.sheet.kind;
-      return k === 'entry' ? entrySheet() : k === 'savemeal' ? saveMealSheet() : k === 'copymeal' ? copyMealSheet() : k === 'slots' ? slotsSheet() : k === 'nutrients' ? nutrientsSheet() : null;
+      return k === 'entry' ? entrySheet() : k === 'mealmenu' ? mealMenuSheet() : k === 'savemeal' ? saveMealSheet() : k === 'copymeal' ? copyMealSheet() : k === 'slots' ? slotsSheet() : k === 'nutrients' ? nutrientsSheet() : null;
     }
 
     var actions = {
@@ -228,6 +248,8 @@
         if (d > ctx.today()) return;
         S.diaryDate = d; ctx.render();
       },
+      enslot: function (v) { S.sheet.slot = v; ctx.render(); },
+      enunit: function (v) { S.sheet.unit = Number(v); ctx.render(); },
       entry: function (id) { S.sheet = { kind: 'entry', id: id }; ctx.render(); },
       entrysave: function () {
         var sh = S.sheet, e = S.rows.diary.filter(function (x) { return x.id === sh.id; })[0];
@@ -258,6 +280,7 @@
         var rows = DY.copyEntries(entriesOn(DY.addDays(date, -1)), date).map(function (r) { return ['lw_diary_entries', r]; });
         ctx.save(rows).then(function () { ctx.toast('Copied ' + rows.length + ' item' + (rows.length === 1 ? '' : 's')); ctx.render(); });
       },
+      mealmenu: function (slot) { S.sheet = { kind: 'mealmenu', slot: slot, date: S.diaryDate || ctx.today() }; ctx.render(); },
       savemeal: function (slot) { var d = S.diaryDate || ctx.today(); S.sheet = { kind: 'savemeal', slot: slot, date: d, name: slotLabel(slot) }; ctx.render(); },
       savemealgo: function () {
         var sh = S.sheet, meal;

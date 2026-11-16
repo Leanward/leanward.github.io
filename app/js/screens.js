@@ -15,7 +15,8 @@
   var PHASE_NAME = { cut: 'Cut', recomp: 'Recomp', bulk: 'Lean bulk', maintenance: 'Maintenance', nutrition: 'Nutrition optimization' };
   var PREFS = ['Vegetarian', 'Vegan', 'Pescatarian', 'Dairy-free', 'Gluten-free', 'Nut-free', 'Halal', 'Kosher'];
   var BF_SOURCES = [['guess', 'Guess'], ['scale', 'Smart scale'], ['calipers', 'Calipers'], ['dexa', 'DEXA'], ['other', 'Other']];
-  var SIGNAL = { 'on-track': ['', 'On track'], watch: ['watch', 'Watch'], 'off-track': ['watch', 'Off track'], collecting: ['wait', 'Collecting data'] };
+  // Status pills: the words carry the meaning; a small dot adds color (never the only signal, §9).
+  var SIGNAL = { 'on-track': ['dot ok', 'On track'], watch: ['dot watch', 'Watch'], 'off-track': ['dot watch', 'Off track'], collecting: ['dot wait', 'Collecting data'] };
 
   function create(ctx) {
     var S = ctx.state, esc = ctx.esc;
@@ -480,7 +481,7 @@
       var past = (S.rows.phases || []).filter(function (p) { return p.end_date && !p.deleted; }).sort(function (x, y) { return x.start_date < y.start_date ? 1 : -1; });
       var steps = (t.calc_inputs && t.calc_inputs.steps) || [];
       return '<header class="top row"><h1>Plan</h1><button type="button" class="btn ghost sm" data-a="newphase">Start a new phase</button></header>' +
-        '<section class="card"><span class="small muted">Goal: ' + (g ? esc(M.goalById(g.type).label) : '—') + '</span>' +
+        '<section class="card">' + (g && M.goalById(g.type).label.toLowerCase() !== PHASE_NAME[ph.type].toLowerCase() ? '<span class="small muted">Goal: ' + esc(M.goalById(g.type).label) + '</span>' : '<span class="small muted">Current phase</span>') +
           '<div style="font-size:22px;font-weight:700;margin-top:2px">' + PHASE_NAME[ph.type] + '</div>' +
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' +
           '<div class="route"><i style="width:' + pos + '%"></i></div>' +

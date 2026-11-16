@@ -74,10 +74,7 @@
         '<div class="grid3"><div class="field"><label for="qa-p">Protein g</label><input type="number" id="qa-p" inputmode="decimal" data-q="protein_g" value="' + (a.qa.protein_g == null ? '' : a.qa.protein_g) + '"></div>' +
         '<div class="field"><label for="qa-c">Carbs g</label><input type="number" id="qa-c" inputmode="decimal" data-q="carbs_g" value="' + (a.qa.carbs_g == null ? '' : a.qa.carbs_g) + '"></div>' +
         '<div class="field"><label for="qa-f">Fat g</label><input type="number" id="qa-f" inputmode="decimal" data-q="fat_g" value="' + (a.qa.fat_g == null ? '' : a.qa.fat_g) + '"></div></div>' +
-        slotField(a.slot, 'qa') + '<button type="button" class="btn block" data-a="qadd">Add to ' + esc(where()) + '</button>';
-    }
-    function slotField(cur, prefix) {
-      return '<div class="field"><label for="' + prefix + '-slot">Meal</label><select id="' + prefix + '-slot" data-s="slot">' + ctx.slotOptions(cur) + '</select></div>';
+        slotChips(a.slot) + '<button type="button" class="btn block" data-a="qadd">Add to ' + esc(where()) + '</button>';
     }
     function addView() {
       var a = S.sheet, online = root.navigator.onLine !== false;
@@ -105,6 +102,28 @@
     function paint() { var box = doc.getElementById('fd-results'); if (box) box.innerHTML = S.sheet.q.trim().length < 2 ? recentHtml() : resultsHtml(); }
 
     /* ---------- Food detail ---------- */
+    /** The four numbers for an amount of a food, as tiles. */
+    function tiles(f, qty, u) {
+      if (!(qty > 0) || !u) return '<div><b>–</b><span>kcal</span></div><div><b>–</b><span>protein g</span></div><div><b>–</b><span>carbs g</span></div><div><b>–</b><span>fat g</span></div>';
+      var a = DY.amountsFor(f, qty * u.g);
+      return '<div><b>' + fmt(a.kcal) + '</b><span>kcal</span></div><div><b>' + fmt(a.protein_g, 1) + '</b><span>protein g</span></div><div><b>' + fmt(a.carbs_g, 1) + '</b><span>carbs g</span></div><div><b>' + fmt(a.fat_g, 1) + '</b><span>fat g</span></div>';
+    }
+    function gramsLine(f, qty, u) {
+      if (!(qty > 0) || !u) return 'Enter an amount.';
+      var per = f.per === 'ml' ? 'ml' : 'g';
+      return u.label === per ? ' ' : '= ' + fmt(qty * u.g) + ' ' + per;
+    }
+    /** Meal chips: the visible meals, plus the current one if it's hidden. */
+    function slotChips(cur) {
+      var list = ctx.slots().filter(function (x) { return !x.hidden || x.id === cur; });
+      return '<div class="field"><span class="lab">Meal</span><div class="chips2" role="group" aria-label="Meal">' + list.map(function (x) {
+        return '<button type="button" data-a="slotpick" data-v="' + x.id + '" aria-pressed="' + (x.id === cur) + '">' + esc(x.label) + '</button>';
+      }).join('') + '</div></div>';
+    }
+    /**
+     * Food detail, built for logging: the amount comes first and the calories and macros follow it
+     * as you type; the full nutrition facts (per 100 g or per serving) are one tap below.
+     */
     function detailView() {
       var d = S.sheet, f = d.food;
       if (!f) return wrap('Food', '<h2>Loading…</h2>' + (d.error ? '<p class="small warn">' + esc(d.error) + '</p>' : ''));
@@ -116,34 +135,29 @@
         return '<div class="status"><span>' + n[1] + '</span><span>' + amount(v.nutrients[n[0]], n[2]) + '</span></div>';
       }).join('');
       var src = FD.SOURCE_LABEL[f.source] || f.source;
+      var units = DY.unitsFor(f), ui = d.unitIdx || 0, u = units[ui], qty = d.qty == null ? 1 : d.qty;
       return wrap(f.name,
         '<div class="row"><span class="badge ' + b.kind + '">' + b.text + '</span>' + (f.brand ? '<span class="small muted">' + esc(f.brand) + '</span>' : '') + '</div>' +
         '<h2>' + esc(f.name) + '</h2>' +
-        (f.serving_g ? '<div class="seg">' + [['100', 'Per 100 ' + per], ['serving', 'Per serving']].map(function (o) { return '<button type="button" data-a="fdbasis" data-v="' + o[0] + '" aria-pressed="' + ((d.basis || '100') === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
-        '<p class="small muted">' + esc(label) + '</p>' +
-        '<div class="targets"><div><b>' + fmt(v.kcal) + '</b><span>kcal</span></div><div><b>' + fmt(v.protein_g, 1) + '</b><span>protein g</span></div><div><b>' + fmt(v.carbs_g, 1) + '</b><span>carbs g</span></div><div><b>' + fmt(v.fat_g, 1) + '</b><span>fat g</span></div></div>' +
-        (f.energy_derived ? '<p class="small muted">Calories worked out from protein, carbs and fat (the source didn\'t list them).</p>' : '') +
-        (rows ? '<details' + (rows.length < 400 ? ' open' : '') + '><summary>Nutrients</summary>' + rows + '</details>' : '<p class="small muted">No vitamins or minerals listed for this food.</p>') +
-        (f.servings && f.servings.length ? '<p class="small muted">Servings: ' + f.servings.map(function (s) { return esc(s.label) + ' = ' + fmt(s.g) + ' g'; }).join(' · ') + '</p>' : '') +
-        '<p class="small muted">Source: ' + esc(src) + (f.source_id ? ' (FoodData Central #' + esc(f.source_id) + ')' : '') + (f.gtin ? ' · barcode ' + esc(f.gtin.replace(/^0+(?=\d{12})/, '')) : '') + '. ' +
-          (/^usda/.test(f.source) ? 'USDA data: public domain.' : f.source === 'custom' ? 'Only you can see it.' : '') + '</p>' +
-        (f.attribution ? '<p class="small muted">' + esc(f.attribution) + '</p>' : '') +
-        logControls(d, f) +
+        '<div class="amount"><div class="field"><label for="lg-q">Amount</label><input type="number" id="lg-q" inputmode="decimal" step="any" data-l="qty" value="' + qty + '"></div>' +
+          '<div class="field"><span class="lab">Unit <span class="muted" id="lg-out">' + esc(gramsLine(f, qty, u)) + '</span></span><div class="chips2" role="group" aria-label="Unit">' + units.map(function (x, i) {
+            return '<button type="button" data-a="lgunit" data-v="' + i + '" aria-pressed="' + (i === ui) + '">' + esc(x.label) + '</button>';
+          }).join('') + '</div></div></div>' +
+        '<div class="targets" id="lg-tiles" aria-live="polite">' + tiles(f, qty, u) + '</div>' +
+        slotChips(d.slot) +
+        '<button type="button" class="btn block" data-a="logfood">Add to ' + esc(ctx.slotLabel(d.slot) + (d.date !== ctx.today() ? ', ' + ctx.dayName(d.date) : '')) + '</button>' +
+        '<details data-keep="facts"' + (d.facts ? ' open' : '') + '><summary>Nutrition facts</summary>' +
+          (f.serving_g ? '<div class="seg" style="margin-top:8px">' + [['100', 'Per 100 ' + per], ['serving', 'Per serving']].map(function (o) { return '<button type="button" data-a="fdbasis" data-v="' + o[0] + '" aria-pressed="' + ((d.basis || '100') === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
+          '<p class="small muted">' + esc(label) + ': ' + fmt(v.kcal) + ' kcal · protein ' + fmt(v.protein_g, 1) + ' g · carbs ' + fmt(v.carbs_g, 1) + ' g · fat ' + fmt(v.fat_g, 1) + ' g</p>' +
+          (f.energy_derived ? '<p class="small muted">Calories worked out from protein, carbs and fat (the source didn\'t list them).</p>' : '') +
+          (rows || '<p class="small muted">No vitamins or minerals listed for this food.</p>') +
+          (f.servings && f.servings.length ? '<p class="small muted">Servings: ' + f.servings.map(function (s) { return esc(s.label) + ' = ' + fmt(s.g) + ' g'; }).join(' · ') + '</p>' : '') +
+          '<p class="small muted">Source: ' + esc(src) + (f.source_id ? ' (FoodData Central #' + esc(f.source_id) + ')' : '') + (f.gtin ? ' · barcode ' + esc(f.gtin.replace(/^0+(?=\d{12})/, '')) : '') + '. ' +
+            (/^usda/.test(f.source) ? 'USDA data: public domain.' : f.source === 'custom' ? 'Only you can see it.' : '') + '</p>' +
+          (f.attribution ? '<p class="small muted">' + esc(f.attribution) + '</p>' : '') + '</details>' +
         (f.source === 'custom' ? '<button type="button" class="btn ghost block" data-a="cfedit">Edit this food</button>'
-          : (d.reporting ? reportForm() : '<div class="row" style="justify-content:flex-start;gap:16px"><button type="button" class="link" data-a="fdreport">Report a problem</button><button type="button" class="link" data-a="cfcopy">Make my own copy</button></div>')) +
+          : (d.reporting ? reportForm() : '<div class="linkrow"><button type="button" class="link" data-a="fdreport">Report a problem</button><button type="button" class="link" data-a="cfcopy">Make my own copy</button></div>')) +
         (d.back ? '<button type="button" class="btn ghost block" data-a="fdback">Back to results</button>' : ''), ' tall');
-    }
-    function logControls(d, f) {
-      var units = DY.unitsFor(f), u = units[d.unitIdx || 0], qty = d.qty == null ? 1 : d.qty;
-      return '<div class="card" style="display:grid;gap:10px"><div class="grid2"><div class="field"><label for="lg-q">Amount</label><input type="number" id="lg-q" inputmode="decimal" step="any" data-l="qty" value="' + qty + '"></div>' +
-        '<div class="field"><label for="lg-u">Unit</label><select id="lg-u" data-l="unit">' + units.map(function (x, i) { return '<option value="' + i + '"' + (i === (d.unitIdx || 0) ? ' selected' : '') + '>' + esc(x.label) + '</option>'; }).join('') + '</select></div></div>' +
-        slotField(d.slot, 'lg') + '<p class="small muted" id="lg-out">' + preview(f, qty, u) + '</p>' +
-        '<button type="button" class="btn block" data-a="logfood">Add to ' + esc(ctx.slotLabel(d.slot) + (d.date !== ctx.today() ? ', ' + ctx.dayName(d.date) : '')) + '</button></div>';
-    }
-    function preview(f, qty, u) {
-      if (!(qty > 0) || !u) return 'Enter an amount.';
-      var a = DY.amountsFor(f, qty * u.g);
-      return fmt(qty * u.g) + ' ' + (f.per === 'ml' ? 'ml' : 'g') + ' = ' + fmt(a.kcal) + ' kcal · P ' + fmt(a.protein_g, 1) + ' g · C ' + fmt(a.carbs_g, 1) + ' g · F ' + fmt(a.fat_g, 1) + ' g';
     }
     function reportForm() {
       var d = S.sheet;
@@ -187,7 +201,7 @@
           L.LABEL_NUTRIENTS.map(function (k) { return num('cf-' + k, 'n:' + k, LABELS[k][1], LABELS[k][2]); }).join('') + '</div>' +
           (extra ? '<p class="small muted">Plus ' + extra + ' more nutrient' + (extra === 1 ? '' : 's') + ' kept from the original.</p>' : '') + '</details>' +
         '<button type="button" class="btn block" data-a="cfsave">' + (c.editing ? 'Save changes' : 'Save food') + '</button>' +
-        (c.editing ? '<button type="button" class="btn ghost block" data-a="cfdelete">Delete this food</button><p class="small muted">Changes apply to future logs. Days you already logged keep their numbers.</p>' : ''), ' tall');
+        (c.editing ? '<p class="center"><button type="button" class="link quietdanger" data-a="cfdelete">Delete this food</button></p><p class="small muted">Changes apply to future logs. Days you already logged keep their numbers.</p>' : ''), ' tall');
     }
     /** "Do the calories add up?" (4/4/9), said plainly; labels round, so only a big gap is mentioned. */
     function checkText(f) {
@@ -223,10 +237,10 @@
         '<div class="seg">' + FACTORS.map(function (o) { return '<button type="button" data-a="mealfactor" data-v="' + o[0] + '" aria-pressed="' + (fct === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
         '<div class="list">' + items.map(function (e) { return '<div class="item"><span><span class="t">' + esc(e.name) + '</span><span class="s">' + esc(e.unit || 'Quick add') + '</span></span><span class="k">' + fmt(Number(e.kcal)) + '<small>kcal</small></span></div>'; }).join('') + '</div>' +
         '<p class="small muted">' + fmt(t.kcal) + ' kcal · P ' + fmt(t.protein_g) + ' g · C ' + fmt(t.carbs_g) + ' g · F ' + fmt(t.fat_g) + ' g</p>' +
-        slotField(m.slot, 'ml') +
+        slotChips(m.slot) +
         '<button type="button" class="btn block" data-a="logmeal">Add to ' + esc(where()) + '</button>' +
         '<button type="button" class="btn ghost block" data-a="mealback">Back to meals</button>' +
-        '<p class="center"><button type="button" class="link" data-a="mealdelete">Delete this saved meal</button></p>', ' tall');
+        '<p class="center"><button type="button" class="link quietdanger" data-a="mealdelete">Delete this saved meal</button></p>', ' tall');
     }
 
     /* ---------- Scan ---------- */
@@ -316,7 +330,9 @@
         ctx.render();
       },
       fdback: function () { var b = S.sheet.back, sh = S.sheet; S.sheet = { kind: 'add', q: b.q, results: b.results, online: b.online, tab: 'foods', qa: {}, slot: sh.slot, date: sh.date }; ctx.render(); },
-      fdbasis: function (v) { S.sheet.basis = v; ctx.render(); },
+      fdbasis: function (v) { S.sheet.basis = v; S.sheet.facts = true; ctx.render(); },
+      lgunit: function (v) { S.sheet.unitIdx = Number(v); ctx.render(); },
+      slotpick: function (v) { if (S.sheet) { S.sheet.slot = v; ctx.render(); } },
       fdreport: function () { S.sheet.reporting = true; ctx.render(); },
       fdissue: function (v) { S.sheet.issue = v; ctx.render(); },
       fdsend: function () {
@@ -398,7 +414,6 @@
     function onInput(el) {
       var sh = S.sheet;
       if (!sh) return false;
-      if (el.dataset.s === 'slot') { sh.slot = el.value; ctx.render(); return true; }
       if (el.dataset.c && sh.kind === 'custom') {
         var k = el.dataset.c, f = sh.form, text = { name: 1, brand: 1, barcode: 1, servingLabel: 1 };
         var v2 = text[k] ? el.value : (el.value.trim() === '' ? null : Number(el.value));
@@ -408,11 +423,12 @@
         return true;
       }
       if (el.dataset.q) { var v = el.value.trim(); sh.qa[el.dataset.q] = el.dataset.q === 'label' ? el.value : (v === '' ? null : Number(v)); return true; }
-      if (el.dataset.l && sh.kind === 'food') {
-        if (el.dataset.l === 'qty') sh.qty = el.value.trim() === '' ? null : Number(el.value);
-        else sh.unitIdx = Number(el.value);
-        var out = doc.getElementById('lg-out'), units = DY.unitsFor(sh.food);
-        if (out) out.textContent = preview(sh.food, sh.qty == null ? 0 : sh.qty, units[sh.unitIdx || 0]);
+      if (el.dataset.l === 'qty' && sh.kind === 'food') {
+        sh.qty = el.value.trim() === '' ? null : Number(el.value);
+        var units = DY.unitsFor(sh.food), u = units[sh.unitIdx || 0], q = sh.qty == null ? 0 : sh.qty;
+        var box = doc.getElementById('lg-tiles'), out = doc.getElementById('lg-out');
+        if (box) box.innerHTML = tiles(sh.food, q, u);
+        if (out) out.textContent = gramsLine(sh.food, q, u);
         return true;
       }
       if (el.id !== 'fd-q' || sh.kind !== 'add') return false;
