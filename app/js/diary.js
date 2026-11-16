@@ -196,6 +196,31 @@
     });
   }
 
+  var PLAIN_UNITS = ['g', 'ml', 'oz', 'fl oz', 'cup', 'tbsp', 'tsp'];
+  /**
+   * An entry's amount as people say it: "8 oz · 227 g", "1 bagel (46 g)", "2 × 1 bar (40 g) · 80 g", "150 g".
+   * The stored unit text is "QTY × LABEL" (or "150 g"); the grams are added only when the text doesn't
+   * already say them.
+   */
+  function amountText(e) {
+    var unit = String(e.unit || '');
+    if (!unit) return '';
+    var m = /^([\d.]+) × (.+)$/.exec(unit), text = unit, per = / ml\)?$/.test(unit) ? 'ml' : 'g';
+    if (m) {
+      var qty = Number(m[1]), label = m[2];
+      if (PLAIN_UNITS.indexOf(label.toLowerCase()) >= 0) text = m[1] + ' ' + label;
+      else if (qty === 1 && /^1\b/.test(label)) text = label;
+    }
+    var grams = e.grams == null ? null : Math.round(Number(e.grams) * 10) / 10;
+    if (grams == null || !(grams > 0)) return text;
+    var said = new RegExp('(^|[^\\d.])' + String(grams).replace('.', '\\.') + ' ?(g|ml)\\b').test(text);
+    return said ? text : text + ' · ' + grams + ' ' + per;
+  }
+  /** A food name for display: words shouted in capitals (5+ letters) are calmed to Title Case; short ones (USDA, KIND, BBQ) stay. */
+  function calmName(name) {
+    return String(name || '').replace(/\b[A-Z][A-Z']{4,}\b/g, function (w) { return w.charAt(0) + w.slice(1).toLowerCase(); });
+  }
+
   /** The slot to suggest for the time of day (minutes since midnight). */
   function slotForTime(minutes) {
     if (minutes < 10 * 60 + 30) return 'breakfast';
@@ -212,7 +237,7 @@
 
   var api = { SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
     updateEntry: updateEntry, quickAdd: quickAdd, totals: totals, versusTarget: versusTarget, recents: recents, frequents: frequents,
-    quickPicks: quickPicks, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
+    quickPicks: quickPicks, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
   if (node) module.exports = api;
   else { root.LW.diary = api; }
 })(this);

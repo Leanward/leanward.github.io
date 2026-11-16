@@ -55,8 +55,9 @@
 
     function entryRow(e) {
       var badge = e.food_source === 'quick' ? 'Quick add' : e.food_source === 'off' ? 'Community' : e.food_source === 'custom' ? 'Yours' : 'USDA';
-      return '<button type="button" class="item food" data-a="entry" data-v="' + esc(e.id) + '"><span><span class="t">' + esc(e.name) + '</span>' +
-        '<span class="s">' + (e.unit ? esc(e.unit) + (e.grams && !/ (g|ml)$/.test(e.unit) ? ' · ' + fmt(Number(e.grams)) + ' g' : '') + ' · ' : '') + badge + '</span></span>' +
+      var amt = DY.amountText(e);
+      return '<button type="button" class="item food" data-a="entry" data-v="' + esc(e.id) + '"><span><span class="t">' + esc(DY.calmName(e.name)) + '</span>' +
+        '<span class="s">' + (amt ? esc(amt) + ' · ' : '') + badge + '</span></span>' +
         '<span class="k">' + fmt(Number(e.kcal)) + '<small>' + (e.protein_g != null ? 'P ' + fmt(Number(e.protein_g)) + ' g' : '') + '</small></span></button>';
     }
 
@@ -89,9 +90,11 @@
           return;
         }
         var t = DY.totals(se);
-        out += '<section class="card"><div class="row"><div><h2 style="margin:0">' + esc(sl.label) + '</h2>' +
-          '<span class="small muted">' + fmt(t.kcal) + ' kcal · P ' + fmt(t.protein_g) + ' · C ' + fmt(t.carbs_g) + ' · F ' + fmt(t.fat_g) + ' g</span></div>' +
-          '<span class="row" style="gap:8px"><button type="button" class="iconbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">⋯</button>' + add + '</span></div>' +
+        // The meal's header is set apart from its foods: a larger title with the total beside it, on its own band.
+        out += '<section class="card meal"><header class="mealhead"><div><h2>' + esc(sl.label) + '</h2>' +
+          '<span class="small muted">P ' + fmt(t.protein_g) + ' · C ' + fmt(t.carbs_g) + ' · F ' + fmt(t.fat_g) + ' g</span></div>' +
+          '<span class="mealkcal"><b>' + fmt(t.kcal) + '</b><small>kcal</small></span>' +
+          '<span class="row" style="gap:6px"><button type="button" class="iconbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">⋯</button>' + add + '</span></header>' +
           '<div class="list">' + se.map(entryRow).join('') + '</div></section>';
       });
       return out + '</div><p class="center"><button type="button" class="link" data-a="slots">Rename, reorder or hide meals</button></p>';
