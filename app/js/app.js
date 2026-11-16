@@ -89,12 +89,46 @@
     var a = state.account;
     return '<section class="card" aria-labelledby="acct-h"><h2 id="acct-h">Account</h2>' +
       '<p class="small muted">Signed in with Google as <b>' + esc(a.email || a.name || 'your Google account') + '</b>.</p>' +
-      '<div class="actions"><button type="button" class="btn ghost" data-a="signout">Sign out</button></div></section>';
+      '<div class="actions"><button type="button" class="btn ghost" data-a="signout">Sign out</button></div>' +
+      '<p class="small" style="margin-bottom:0"><button type="button" class="link" data-a="delacct">Delete my account</button></p></section>';
+  }
+
+  /* ---------- appearance (ACC-6) ---------- */
+  var T = root.LW.theme;
+  function appearance() { return T.normalize(((state.rows.profile && state.rows.profile.preferences) || {}).appearance || (state.rows.profile ? null : T.saved())); }
+  function phaseType() { var ph = root.LW.model.currentPhase(state.rows.phases); return ph ? ph.type : null; }
+  function applyTheme() { T.apply(state.sheet && state.sheet.kind === 'appearance' ? state.sheet.choice : appearance(), phaseType()); }
+  function appearanceSheet() {
+    var c = state.sheet.choice, ph = phaseType() || 'recomp';
+    return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Appearance"><div class="grab"></div><h2>Appearance</h2>' +
+      '<span class="sec">Mode</span><div class="seg">' + T.MODES.map(function (m) { return '<button type="button" data-a="apmode" data-v="' + m[0] + '" aria-pressed="' + (c.mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+      '<span class="sec">Color</span><div class="opts" role="radiogroup" aria-label="Color palette">' + T.PALETTES.map(function (p) {
+        var pair = T.colors({ palette: p.id, follow: c.follow }, ph);
+        return '<button type="button" class="opt" role="radio" aria-checked="' + (c.palette === p.id) + '" data-a="appal" data-v="' + p.id + '"><span class="row"><b>' + p.name + '</b><i class="swatch" style="background:linear-gradient(135deg,' + pair[0] + ',' + pair[1] + ')"></i></span><span class="small muted">' + p.note + '</span></button>';
+      }).join('') + '</div>' +
+      '<label class="check"><input type="checkbox" data-ap="follow"' + (c.follow ? ' checked' : '') + '> Change color with my phase</label>' +
+      '<p class="small muted">On: each phase has its own color (cut, recomp, lean bulk, maintenance, nutrition). Off: the palette\'s one color everywhere. Mono turns color off for a calmer look.</p>' +
+      '<button type="button" class="btn block" data-a="apsave">Save</button></div>';
+  }
+
+  /* ---------- delete my account (ACC-1) ---------- */
+  function deleteSheet() {
+    var sh = state.sheet, online = root.navigator.onLine !== false;
+    return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Delete my account"><div class="grab"></div><h2>Delete my account</h2>' +
+      '<p class="small">This permanently deletes your Leanward account and everything in it: your diary, foods and meals, weigh-ins, measurements, phases, targets and settings. It can\'t be undone.</p>' +
+      '<p class="small muted">PR Forge is a separate app: nothing there is deleted or changed. Leanward only disconnects from it on this phone.</p>' +
+      '<p class="small muted">Want a copy first? <button type="button" class="link" data-a="exportjson">Export as JSON</button></p>' +
+      (online ? '' : '<p class="small warn">You\'re offline. Deleting your account needs a connection.</p>') +
+      (sh.error ? '<p class="small warn">' + esc(sh.error) + '</p>' : '') +
+      '<div class="field"><label for="del-word">Type DELETE to confirm</label><input type="text" id="del-word" data-del="word" autocomplete="off" autocapitalize="characters" value="' + esc(sh.word || '') + '"></div>' +
+      '<button type="button" class="btn block danger" data-a="delacctgo"' + (sh.busy ? ' disabled' : '') + '>' + (sh.busy ? 'Deleting…' : 'Delete my account and all my data') + '</button>' +
+      '<button type="button" class="btn ghost block" data-a="close">Keep my account</button></div>';
   }
 
   function settingsCard() {
     var pfs = state.pf.status === 'on' ? 'Connected' + (state.pf.email ? ' as ' + state.pf.email : '') : state.pf.status === 'checking' ? 'Checking…' : 'Not connected';
     return '<section class="card" aria-labelledby="set-h"><h2 id="set-h">Settings</h2>' +
+      '<div class="status"><span>Appearance</span><button type="button" class="link" data-a="appearance">Color and light or dark</button></div>' +
       '<div class="status"><span>Meals</span><button type="button" class="link" data-a="slots">Rename, reorder or hide</button></div>' +
       '<div class="status"><span>Targets and phase</span><button type="button" class="link" data-a="tab" data-v="phase">Open Phase</button></div>' +
       '<div class="status"><span>PR Forge <span class="small muted">' + esc(pfs) + '</span></span><button type="button" class="link" data-a="tab" data-v="progress">' + (state.pf.status === 'on' ? 'Key lifts' : 'Connect') + '</button></div></section>';
@@ -187,6 +221,8 @@
 
   function sheet() {
     if (!state.sheet) return '';
+    if (state.sheet.kind === 'appearance') return appearanceSheet();
+    if (state.sheet.kind === 'delacct') return deleteSheet();
     return diaryui.sheetView() || progressui.sheetView() || foodui.sheetView() || screens.sheetView() || '';
   }
 
@@ -206,6 +242,7 @@
 
   function draw() {
     var app = doc.getElementById('app');
+    applyTheme();
     if (!state.account) { app.innerHTML = signInView(); return; }
     if (state.ob) { app.innerHTML = screens.onboardingView().replace(/<\/main>$/, versionLine() + '</main>'); return; }
     if (!state.loaded || !screens.hasSetup()) {
@@ -242,6 +279,30 @@
       PF.disconnect().then(function () { return cloud.auth.signOut(); }).then(function () { return id ? root.LW.db.destroy(id) : null; }).then(function () { setAccount(null); state.tab = 'home'; store.set('tab', 'home'); render(); });
     },
     retrysync: function () { if (syncer) syncer.now(); },
+    appearance: function () { state.sheet = { kind: 'appearance', choice: appearance() }; render(); },
+    apmode: function (v) { state.sheet.choice.mode = v; render(); },
+    appal: function (v) { state.sheet.choice.palette = v; render(); },
+    apsave: function () {
+      var p = state.rows.profile, choice = T.normalize(state.sheet.choice);
+      if (!p) return;
+      save([['lw_profiles', Object.assign({}, p, { preferences: Object.assign({}, p.preferences || {}, { appearance: choice }) })]]).then(function () { state.sheet = false; toast('Appearance saved'); render(); });
+    },
+    delacct: function () { state.sheet = { kind: 'delacct', word: '', busy: false, error: '' }; render(); },
+    delacctgo: function () {
+      var sh = state.sheet;
+      if (String(sh.word || '').trim().toUpperCase() !== 'DELETE') { toast('Type DELETE to confirm'); return; }
+      if (root.navigator.onLine === false) { toast('You\'re offline. Deleting needs a connection.'); return; }
+      sh.busy = true; sh.error = ''; render();
+      var id = state.account && state.account.id;
+      cloud.auth.deleteAccount().then(function () {
+        // The account is gone on the server; now clear this phone: PR Forge connection, the local copy, the session.
+        stopData();
+        return PF.disconnect().then(function () { return cloud.auth.signOut(); }).then(function () { return id ? root.LW.db.destroy(id) : null; }, function () { return null; })
+          .then(function () { setAccount(null); state.tab = 'home'; store.set('tab', 'home'); state.sheet = false; render(); toast('Your account and data were deleted'); });
+      }, function (e) {
+        if (state.sheet && state.sheet.kind === 'delacct') { state.sheet.busy = false; state.sheet.error = 'Your account was not deleted: ' + ((e && e.message) || 'try again') + ' Nothing was removed.'; render(); }
+      });
+    },
     exportjson: function () { exportData('json'); },
     exportcsv: function () { exportData('csv'); },
     recheck: function () { state.ping = { ok: null, reason: 'Checking…' }; render(); checkConnection(); },
@@ -258,11 +319,13 @@
   });
   // Typing updates the form without redrawing it; choices that change the screen redraw on change.
   doc.addEventListener('input', function (e) {
+    if (e.target.dataset.del === 'word' && state.sheet && state.sheet.kind === 'delacct') { state.sheet.word = e.target.value; return; }
     if (/^(number|text|search)$/.test(e.target.type) && (progressui.onInput(e.target) || foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
     if (/^(number|text)$/.test(e.target.type)) screens.onInput(e.target);
   });
   doc.addEventListener('change', function (e) {
     if (/^(select-one|date|time)$/.test(e.target.type) && (progressui.onInput(e.target) || foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
+    if (e.target.dataset.ap === 'follow' && state.sheet && state.sheet.kind === 'appearance') { state.sheet.choice.follow = e.target.checked; render(); return; }
     if (/^(checkbox|select-one|date)$/.test(e.target.type)) screens.onInput(e.target);
     // Fields that change the whole calculation (e.g. a known maintenance) redraw when you leave them.
     else if (e.target.dataset.redraw) render();

@@ -74,6 +74,7 @@ app/
 │   ├── prforge.js         key lifts from PR Forge, read-only: summary rules (pure, tested) and the second client
 │   ├── maint.js           the maintenance check: logged days, window, suggestion and decision record (pure, tested)
 │   ├── home.js            Home's daily insight and the data export as JSON and CSV (pure, tested)
+│   ├── theme.js           appearance: palettes, color by phase, dark / light / match (pure part tested)
 │   ├── cloud.js           Google sign-in, connection check, error sending, Supabase pull/push and the Syncer
 │   ├── app.js             the shell UI
 │   ├── calc/              calculation engine (M1): pure, tested, every result with its working

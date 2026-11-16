@@ -354,6 +354,29 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Delete my account (ACC-1). Called by the signed-in person from the app. It removes their
+-- sign-in record, and with it every row they own in every lw_ table (each table's user_id is
+-- "on delete cascade"), plus their error reports. It can only ever delete the caller's own
+-- account: it takes no arguments and uses auth.uid(). PR Forge is a separate project and is
+-- not touched.
+-- ---------------------------------------------------------------------------
+create or replace function public.lw_delete_account() returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    raise exception 'Not signed in' using errcode = '28000';
+  end if;
+  delete from public.lw_errors where user_id = uid;
+  delete from auth.users where id = uid;
+end;
+$$;
+revoke all on function public.lw_delete_account() from public, anon;
+grant execute on function public.lw_delete_account() to authenticated;
+
+
+-- ---------------------------------------------------------------------------
 -- M4: the shared food catalog (PRD §7). Filled by tools/food-import (a GitHub Actions workflow that
 -- uses the database connection, not the app). The app can only read it and search it.
 -- Nutrients are per 100 g (or 100 ml for drinks), keyed by Leanward nutrient ids (tools/food-import/usda.js).
