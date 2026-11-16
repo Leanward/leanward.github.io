@@ -174,3 +174,6 @@ input[type=search] { width: 100%; font: inherit; font-size: 16px; color: var(--f
 input[type=time] { width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--input); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; -webkit-appearance: none; appearance: none; }
 .lift { padding: 12px 0; border-top: 1px solid var(--line); }
 .lift:first-of-type { border-top: 0; }
+.macros.three { grid-template-columns: repeat(3, 1fr); }
+.cardbtn { display: block; width: 100%; text-align: left; font-family: var(--font); color: var(--fg); cursor: pointer; }
+.cardbtn:focus-visible { outline: 2px solid var(--g1); outline-offset: 2px; }

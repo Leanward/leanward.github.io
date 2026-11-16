@@ -170,6 +170,23 @@
     return Object.keys(n).filter(function (k) { return n[k] >= 2; }).sort(function (a, b) { return n[b] - n[a]; }).slice(0, limit || 10).map(function (k) { return { entry: last[k], count: n[k] }; });
   }
 
+  /**
+   * Quick log (HOM-3): the foods most often logged in this slot over the last 30 days, each with its
+   * most recent amount, leaving out ones already logged in that slot today. Most frequent first.
+   */
+  function quickPicks(entries, slot, today, limit) {
+    var since = addDays(today, -30), n = {}, last = {}, done = {};
+    entries.forEach(function (e) {
+      if (e.deleted || e.slot !== slot || !e.food_ref || e.food_source === 'quick') return;
+      if (e.date === today) { done[e.food_ref] = 1; return; }
+      if (e.date < since || e.date > today) return;
+      n[e.food_ref] = (n[e.food_ref] || 0) + 1;
+      if (!last[e.food_ref] || (last[e.food_ref].date + (last[e.food_ref].created_at || '')) <= (e.date + (e.created_at || ''))) last[e.food_ref] = e;
+    });
+    return Object.keys(n).filter(function (k) { return !done[k]; })
+      .sort(function (a, b) { return n[b] - n[a] || (last[a].date < last[b].date ? 1 : -1); }).slice(0, limit || 5).map(function (k) { return last[k]; });
+  }
+
   /** Copy entries to another date (and optionally slot) as new entries (LOG-10). */
   function copyEntries(list, toDate, toSlot) {
     return list.filter(function (e) { return !e.deleted; }).map(function (e) {
@@ -195,7 +212,7 @@
 
   var api = { SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
     updateEntry: updateEntry, quickAdd: quickAdd, totals: totals, versusTarget: versusTarget, recents: recents, frequents: frequents,
-    copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
+    quickPicks: quickPicks, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
   if (node) module.exports = api;
   else { root.LW.diary = api; }
 })(this);

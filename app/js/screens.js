@@ -356,13 +356,32 @@
       return '<div class="targets"><div><b>' + fmt(t.kcal) + '</b><span>kcal</span></div><div><b>' + t.protein_g + '</b><span>protein g</span></div><div><b>' + t.carbs_g + '</b><span>carbs g</span></div><div><b>' + t.fat_g + '</b><span>fat g</span></div></div>';
     }
 
-    function progressCard(ph, t) {
+    /** The progress read for the current phase, or null if it can't be worked out. */
+    function readNow(ph, t) {
       var weights = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return { date: w.date, kg: Number(w.kg), at: w.measured_at }; });
       var waist = (S.rows.waist || []).map(function (w) { return { date: w.date, cm: Number(w.cm) }; });
       var r;
       try {
         r = C.progress.read({ phase: { type: ph.type, startDate: ph.start_date, expectedWeeklyPct: t && t.calc_inputs ? t.calc_inputs.expectedWeeklyPct : null }, today: today(), weights: weights, waist: waist, lifts: ctx.lifts ? ctx.lifts() : {} }, { units: (S.rows.profile && S.rows.profile.units) || 'us' });
-      } catch (e) { return ''; }
+      } catch (e) { return null; }
+      return r;
+    }
+    /** Home (HOM-2): phase name, day count and one headline signal; tap to open the Phase tab. */
+    function phaseHomeCard() {
+      var ph = M.currentPhase(S.rows.phases), t = currentTargets();
+      if (!ph || !t) return '';
+      var d = M.dayOf(ph, today()), r = readNow(ph, t), pos = d.total ? Math.min(100, d.day / d.total * 100) : 100;
+      var read = r ? r.signals.filter(function (s) { return s.status !== 'collecting'; }) : [];
+      var worst = read.filter(function (s) { return s.status === 'off-track'; })[0] || read.filter(function (s) { return s.status === 'watch'; })[0] || read[0];
+      var pill = worst ? (SIGNAL[worst.status] || SIGNAL.collecting) : SIGNAL.collecting;
+      return '<button type="button" class="card cardbtn" data-a="tab" data-v="phase" aria-label="' + PHASE_NAME[ph.type] + ', ' + d.label + '. Open the Phase tab.">' +
+        '<div class="row"><span><b style="font-size:17px">' + PHASE_NAME[ph.type] + '</b> <span class="small muted">' + d.label + '</span></span><span class="pill ' + pill[0] + '">' + pill[1] + '</span></div>' +
+        '<div class="route"><i style="width:' + pos + '%"></i></div>' +
+        '<p class="small muted" style="margin:0">' + esc(r ? r.summary : 'Open the Phase tab for your targets.') + ' ›</p></button>';
+    }
+    function progressCard(ph, t) {
+      var r = readNow(ph, t);
+      if (!r) return '';
       return '<section class="card"><h2>Is it working?</h2><p class="small">' + esc(r.summary) + '</p>' +
         r.signals.map(function (s) {
           var p = SIGNAL[s.status] || SIGNAL.collecting;
@@ -473,7 +492,7 @@
       var cp = profileNow(), age = cp.dob ? core.ageOn(cp.dob, today()) : null;
       return '<section class="card"><h2>Your details</h2><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
         '<div class="row" style="margin-top:8px"><span class="small">Units</span><div class="seg" style="width:170px">' + [['us', 'US'], ['metric', 'Metric']].map(function (u) { return '<button type="button" data-a="units" data-v="' + u[0] + '" aria-pressed="' + (p.units === u[0]) + '">' + u[1] + '</button>'; }).join('') + '</div></div>' +
-        '<p class="small muted">Editing these details arrives in M7. To change your goal or phase, use Phase → Start a new phase.</p></section>';
+        '<p class="small muted">To change your goal or phase, use Phase → Start a new phase. Editing these details comes in the next update.</p></section>';
     }
     function activityLabel(id) { try { return C.energy.activityById(id).label.toLowerCase(); } catch (e) { return null; } }
 
@@ -544,7 +563,7 @@
 
     return {
       startOnboarding: startOnboarding, onboardingView: onboardingView, onInput: onInput, actions: actions,
-      hasSetup: hasSetup, phaseView: phaseView, homeCard: homeCard, profileCard: profileCard, sheetView: sheetView
+      hasSetup: hasSetup, phaseView: phaseView, homeCard: homeCard, phaseHomeCard: phaseHomeCard, profileCard: profileCard, sheetView: sheetView
     };
   }
 

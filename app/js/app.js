@@ -92,6 +92,55 @@
       '<div class="actions"><button type="button" class="btn ghost" data-a="signout">Sign out</button></div></section>';
   }
 
+  function settingsCard() {
+    var pfs = state.pf.status === 'on' ? 'Connected' + (state.pf.email ? ' as ' + state.pf.email : '') : state.pf.status === 'checking' ? 'Checking…' : 'Not connected';
+    return '<section class="card" aria-labelledby="set-h"><h2 id="set-h">Settings</h2>' +
+      '<div class="status"><span>Meals</span><button type="button" class="link" data-a="slots">Rename, reorder or hide</button></div>' +
+      '<div class="status"><span>Targets and phase</span><button type="button" class="link" data-a="tab" data-v="phase">Open Phase</button></div>' +
+      '<div class="status"><span>PR Forge <span class="small muted">' + esc(pfs) + '</span></span><button type="button" class="link" data-a="tab" data-v="progress">' + (state.pf.status === 'on' ? 'Key lifts' : 'Connect') + '</button></div></section>';
+  }
+  function dataCard() {
+    return '<section class="card" aria-labelledby="data-h"><h2 id="data-h">Your data</h2>' +
+      '<p class="small muted">Download everything you\'ve saved in Leanward: diary, your foods and meals, weigh-ins, measurements, phases and targets.</p>' +
+      '<div class="actions"><button type="button" class="btn ghost" data-a="exportjson">Export as JSON</button><button type="button" class="btn ghost" data-a="exportcsv">Export as CSV</button></div>' +
+      '<p class="small muted">JSON is one complete file. CSV is one spreadsheet file per kind of data. Lifts read from PR Forge stay in PR Forge and aren\'t included.</p></section>';
+  }
+  function supportCard() {
+    return '<section class="card" aria-labelledby="sup-h"><h2 id="sup-h">Support</h2>' +
+      '<p class="small muted">If tracking food or weight starts to feel stressful or takes over, you don\'t have to keep going alone. The National Alliance for Eating Disorders offers free support and help finding care.</p>' +
+      '<p class="small"><a class="link" href="https://www.allianceforeatingdisorders.com/" target="_blank" rel="noopener">allianceforeatingdisorders.com</a></p>' +
+      '<p class="small"><a class="link" href="privacy.html">Privacy</a></p></section>';
+  }
+
+  /* ---------- export (ACC-2) ---------- */
+  /** Hands files to the person: the share sheet where it takes files (iPhone), otherwise a download for each. */
+  function deliver(files) {
+    var list = files.map(function (f) { return new root.File([f.text], f.name, { type: f.type }); });
+    if (root.navigator.canShare && root.navigator.share && root.navigator.canShare({ files: list })) {
+      return root.navigator.share({ files: list, title: 'Leanward export' }).then(function () { return 'shared'; }, function (e) { if (e && e.name === 'AbortError') return 'cancelled'; throw e; });
+    }
+    list.forEach(function (file, i) {
+      root.setTimeout(function () {
+        var url = root.URL.createObjectURL(file), a = doc.createElement('a');
+        a.href = url; a.download = file.name; doc.body.appendChild(a); a.click(); a.remove();
+        root.setTimeout(function () { root.URL.revokeObjectURL(url); }, 4000);
+      }, i * 400);
+    });
+    return Promise.resolve('downloaded');
+  }
+  function exportData(kind) {
+    if (!data) { toast('Your data isn\'t open yet. Try again in a moment.'); return; }
+    var d = data, names = root.LW.sync.TABLES, H = root.LW.home, stamp = today();
+    Promise.all(names.map(function (t) { return d.all(t); })).then(function (lists) {
+      var tables = {}; names.forEach(function (t, i) { tables[t] = lists[i]; });
+      var files = kind === 'json'
+        ? [{ name: 'leanward-export-' + stamp + '.json', type: 'application/json', text: JSON.stringify(H.toExport(tables, { version: C.VERSION, exportedAt: new Date().toISOString(), email: state.account && state.account.email }), null, 2) }]
+        : H.csvFiles(tables).map(function (f) { return { name: f.name.replace(/\.csv$/, '-' + stamp + '.csv'), type: 'text/csv', text: f.text }; });
+      if (!files.length) { toast('Nothing to export yet'); return null; }
+      return deliver(files).then(function (how) { if (how !== 'cancelled') toast(how === 'shared' ? 'Export ready' : 'Exported ' + files.length + ' file' + (files.length === 1 ? '' : 's')); });
+    }).catch(function (e) { toast('Export didn\'t work: ' + ((e && e.message) || 'try again')); });
+  }
+
   function syncRow() {
     var s = state.sync, waiting = s.pending ? ' · ' + s.pending + ' waiting' : '';
     var map = { idle: [null, 'Starting…'], syncing: [null, 'Syncing…'], synced: [true, 'Up to date' + waiting], offline: [null, 'Offline' + waiting], signin: [false, 'Sign in again'], error: [false, 'Problem' + waiting] };
@@ -121,8 +170,9 @@
     if (id === 'diary') return diaryui.view();
     if (id === 'progress') return progressui.view();
     var soon = '<section class="card"><span class="chip"><i></i>Coming in ' + esc(t[2]) + '</span><p>' + esc(t[3]) + '</p></section>';
-    if (id === 'home') return '<header class="top"><h1>Today</h1></header>' + diaryui.homeCard() + progressui.homeCard() + soon;
-    if (id === 'profile') return '<header class="top"><h1>Profile</h1></header>' + screens.profileCard() + accountCard() + aboutCard() + '<section class="card"><a class="link" href="privacy.html">Privacy</a></section>';
+    // Home (HOM-5): at most four cards: calories, phase, weight and, some days, one insight.
+    if (id === 'home') return '<header class="top"><h1>Today</h1></header>' + diaryui.homeCard() + screens.phaseHomeCard() + progressui.homeCard() + diaryui.insightCard();
+    if (id === 'profile') return '<header class="top"><h1>Profile</h1></header>' + screens.profileCard() + settingsCard() + dataCard() + accountCard() + supportCard() + aboutCard();
     return '<header class="top"><h1>' + esc(t[1]) + '</h1></header>' + soon;
   }
 
@@ -192,6 +242,8 @@
       PF.disconnect().then(function () { return cloud.auth.signOut(); }).then(function () { return id ? root.LW.db.destroy(id) : null; }).then(function () { setAccount(null); state.tab = 'home'; store.set('tab', 'home'); render(); });
     },
     retrysync: function () { if (syncer) syncer.now(); },
+    exportjson: function () { exportData('json'); },
+    exportcsv: function () { exportData('csv'); },
     recheck: function () { state.ping = { ok: null, reason: 'Checking…' }; render(); checkConnection(); },
     testerror: function () {
       reporter.report({ message: 'Test error from About this build (' + new Date().toISOString() + ')', source: root.location.href, line: 1, col: 1 })
