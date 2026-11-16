@@ -230,6 +230,8 @@ Each milestone has an **exit criteria** list. A milestone is done when every ite
 
 **Status (2026-11-16, M6b part 1 built):** Connect PR Forge (read-only second client), choose up to 5 key lifts, estimated-1RM chart per lift, and lift signals in the progress read (MEA-5). No manual lift entry (PRD v1.5). Checked in Chromium against a mocked PR Forge project: connect, return, read, pick, offline reload, disconnect; Leanward's sign-in untouched; zero writes to PR Forge. **Not yet verified:** the real PR Forge project and Google (needs the owner's redirect-URL step). **Still to do in M6:** maintenance check (PRG-5), body-fat entries (MEA-4), persona seeds.
 
+**Status (2026-11-16, M6b part 2 built):** maintenance check on the Phase tab (collecting → suggestion with working and new targets → accept or keep; weekly wait; PRG-5) and body-fat entries (MEA-4). Checked in Chromium with seeded data: 9 logged days shows what's missing; 20 logged days at 2,300 kcal with a falling trend suggests 2,751 → 2,801 kcal; accepting writes the known maintenance, a new target version and the decision. **M6 remaining:** persona seed checks and the exit checks on the owner's iPhone (real PR Forge numbers, chart speed).
+
 **Testing:** progress-read logic is tested in M1; here, seeded data for each persona (Alex recomp, Maya cut, Sam nutrition-only), plus your real PR Forge history, checked on screen against the expected read.
 
 **Exit criteria:** each persona's data produces the expected read and copy; your PR Forge lifts appear with the same e1RMs PR Forge shows; charts draw 6 months of daily data smoothly on the iPhone.

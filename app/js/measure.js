@@ -59,6 +59,18 @@
     return { id: o.id || newId(), date: o.date, site: site.id, cm: core.round(cm, 0.1), method: null };
   }
 
+  var BF_METHODS = [['scale', 'Smart scale'], ['calipers', 'Calipers'], ['dexa', 'DEXA scan'], ['guess', 'Visual guess'], ['other', 'Other']];
+  /** A body-fat entry (MEA-4), always an estimate. o: { id?, value (%), method, date, today } */
+  function bodyFatRow(o) {
+    var v = num(o.value);
+    if (v == null || !(v > 0)) throw new Error('Enter the body-fat percentage.');
+    if (v < 3 || v >= 70) throw new Error('That body-fat percentage looks off. Check the number.');
+    if (!BF_METHODS.some(function (m) { return m[0] === o.method; })) throw new Error('Choose how it was measured.');
+    if (!isDate(o.date)) throw new Error('Choose the day.');
+    if (o.today && o.date > o.today) throw new Error('That day hasn\'t happened yet.');
+    return { id: o.id || newId(), date: o.date, pct: core.round(v, 0.1), method: o.method };
+  }
+
   /** The first day a range shows: `days` back from today, or the first data day for "all". */
   function rangeStart(rangeId, today, firstDate) {
     var r = RANGES.filter(function (x) { return x.id === rangeId; })[0] || RANGES[0];
@@ -155,7 +167,7 @@
   }
 
   var api = { SITES: SITES, RANGES: RANGES, weightUnit: weightUnit, lengthUnit: lengthUnit, kgToUnits: kgToUnits, cmToUnits: cmToUnits,
-    weightRow: weightRow, measurementRow: measurementRow, rangeStart: rangeStart, weightView: weightView, siteView: siteView, intakeView: intakeView,
+    BF_METHODS: BF_METHODS, weightRow: weightRow, measurementRow: measurementRow, bodyFatRow: bodyFatRow, rangeStart: rangeStart, weightView: weightView, siteView: siteView, intakeView: intakeView,
     scale: scale, weightSummary: weightSummary };
   if (node) module.exports = api;
   else { root.LW.measure = api; }

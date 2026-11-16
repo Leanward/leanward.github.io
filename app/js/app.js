@@ -39,7 +39,7 @@
     // pf: the optional read-only PR Forge connection (js/prforge.js). data is the last summary read, kept on the phone.
     pf: { status: 'checking', email: '', data: null, busy: false, error: '' } };
   var data = null, syncer = null;   // the signed-in person's phone copy (js/db.js) and its sync
-  function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], measures: [], diary: [], customs: [], meals: [] }; }
+  function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], measures: [], diary: [], customs: [], meals: [], recs: [], bodyfat: [] }; }
 
   /** Today as the user's local calendar day. */
   function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -302,11 +302,12 @@
   function loadRows() {
     if (!data) return Promise.resolve();
     var d = data;
-    return Promise.all([d.get('lw_profiles', 'me'), d.all('lw_goals'), d.all('lw_phases'), d.all('lw_target_sets'), d.all('lw_weights'), d.all('lw_measurements'), d.all('lw_diary_entries'), d.all('lw_custom_foods'), d.all('lw_saved_meals')])
+    return Promise.all([d.get('lw_profiles', 'me'), d.all('lw_goals'), d.all('lw_phases'), d.all('lw_target_sets'), d.all('lw_weights'), d.all('lw_measurements'), d.all('lw_diary_entries'), d.all('lw_custom_foods'), d.all('lw_saved_meals'), d.all('lw_recommendations'), d.all('lw_body_fat')])
       .then(function (r) {
         if (d !== data) return;
         state.rows = { profile: r[0] || null, goals: r[1], phases: r[2], sets: r[3], weights: r[4], waist: r[5].filter(function (m) { return m.site === 'waist' && !m.deleted; }), measures: r[5], diary: r[6],
-          customs: r[7].filter(function (x) { return !x.deleted; }), meals: r[8].filter(function (x) { return !x.deleted; }) };
+          customs: r[7].filter(function (x) { return !x.deleted; }), meals: r[8].filter(function (x) { return !x.deleted; }),
+          recs: r[9].filter(function (x) { return !x.deleted; }), bodyfat: r[10] };
         state.loaded = true;
         refresh();
       });
