@@ -133,3 +133,11 @@ test('quality and top contributors (NUT-7)', () => {
   const top = R.contributors(es, 'sodium');
   assert.deepEqual(top.map((x) => [x.name, x.amount, x.share]), [['Lunch', 1200, 0.6], ['Soup', 800, 0.4]]);
 });
+
+test('saved meals are found by search, by their name or what\'s in them (LOG-3)', () => {
+  const meals = [{ id: 'm1', name: 'Usual breakfast', items: [{ name: 'Greek yogurt' }, { name: 'Oats' }] }, { id: 'm2', name: 'Post-workout', items: [{ name: 'Whey protein' }] }, { id: 'm3', name: 'Old oats', deleted: true, items: [] }];
+  assert.deepEqual(L.matchMeals(meals, 'breakfast').map((m) => m.id), ['m1']);
+  assert.deepEqual(L.matchMeals(meals, 'OATS yogurt').map((m) => m.id), ['m1']);
+  assert.deepEqual(L.matchMeals(meals, 'whey').map((m) => m.id), ['m2']);
+  assert.deepEqual(L.matchMeals(meals, ''), []);
+});

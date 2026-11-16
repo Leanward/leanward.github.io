@@ -156,3 +156,23 @@ test('Home, Diary and the Phase tab use the same targets for today', () => {
   assert.equal(M2.targetsFor(hist, hs, '2026-11-10', '2026-11-16'), null);
   assert.equal(M2.targetsFor([], [], '2026-11-16', '2026-11-16'), null);
 });
+
+test('goal weight: optional, plausible, in the phase\'s direction, never below BMI 18.5 (ONB-2, PHS-1)', () => {
+  const M2 = require('../js/model.js');
+  const base = { units: 'us', cm: 180, phaseType: 'cut', currentKg: 80 };
+  // 170 lb × 0.45359237 = 77.1 kg
+  assert.equal(M2.goalWeightKg(Object.assign({}, base, { value: '170' })), 77.1);
+  assert.equal(M2.goalWeightKg(Object.assign({}, base, { value: '' })), null);
+  // BMI 18.5 at 180 cm = 59.94 kg = 132 lb
+  assert.throws(() => M2.goalWeightKg(Object.assign({}, base, { value: 125 })), /below the healthy range.*about 132 lb/);
+  assert.throws(() => M2.goalWeightKg(Object.assign({}, base, { value: 190 })), /cut's goal weight is below/);
+  assert.throws(() => M2.goalWeightKg(Object.assign({}, base, { value: 170, phaseType: 'bulk' })), /lean bulk's goal weight is above/);
+  assert.throws(() => M2.goalWeightKg(Object.assign({}, base, { value: 170, phaseType: 'nutrition' })), /no weight goal/);
+  assert.equal(M2.goalWeightKg({ value: 75, units: 'metric', cm: 180, phaseType: 'recomp', currentKg: 80 }), 75);
+  // 77.1 − 80 = −2.9 kg at −0.4 kg a week = 7.25 → 8 weeks; moving away or flat: no estimate
+  assert.equal(M2.weeksToGoal(77.1, 80, -0.4), 8);
+  assert.equal(M2.weeksToGoal(77.1, 80, 0.3), null);
+  assert.equal(M2.weeksToGoal(77.1, 80, -0.01), null);
+  assert.equal(M2.weeksToGoal(77.1, 77.0, -0.4), 0);
+  assert.equal(M2.weeksToGoal(77.1, 80, null), null);
+});
