@@ -35,7 +35,9 @@
   var state = { tab: store.get('tab', 'home'), sheet: false, ping: { ok: null, reason: 'Checking…' }, sw: 'Checking…',
     account: store.get('account', null), signingIn: false, sync: { state: 'idle', pending: 0 },
     // rows: the signed-in person's saved data, read from the phone's database (M3).
-    rows: emptyRows(), loaded: false, everSynced: false, ob: null };
+    rows: emptyRows(), loaded: false, everSynced: false, ob: null,
+    // pf: the optional read-only PR Forge connection (js/prforge.js). data is the last summary read, kept on the phone.
+    pf: { status: 'checking', email: '', data: null, busy: false, error: '' } };
   var data = null, syncer = null;   // the signed-in person's phone copy (js/db.js) and its sync
   function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], measures: [], diary: [], customs: [], meals: [] }; }
 
@@ -186,7 +188,8 @@
       if (!root.confirm(msg)) return;
       var id = state.account && state.account.id;
       stopData();
-      cloud.auth.signOut().then(function () { return id ? root.LW.db.destroy(id) : null; }).then(function () { setAccount(null); state.tab = 'home'; store.set('tab', 'home'); render(); });
+      // Signing out of Leanward also ends the read-only PR Forge connection on this phone.
+      PF.disconnect().then(function () { return cloud.auth.signOut(); }).then(function () { return id ? root.LW.db.destroy(id) : null; }).then(function () { setAccount(null); state.tab = 'home'; store.set('tab', 'home'); render(); });
     },
     retrysync: function () { if (syncer) syncer.now(); },
     recheck: function () { state.ping = { ok: null, reason: 'Checking…' }; render(); checkConnection(); },
@@ -221,9 +224,66 @@
   }
 
   /* ---------- M3 screens ---------- */
-  var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today });
+  var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); } });
   var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today });
-  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today });
+  /* ---------- PR Forge, read-only (M6b) ---------- */
+  var PF = root.LW.prforge;
+  var pf = {
+    /** After the phone copy opens: the saved summary, then whether PR Forge is connected, then a fresh read. */
+    start: function (d) {
+      var back = PF.returning(), why = PF.returnError();
+      d.getMeta('prforge', null).then(function (saved) {
+        if (d !== data) return null;
+        state.pf.data = saved || null;
+        return PF.session();
+      }).then(function (s) {
+        if (d !== data) return;
+        state.pf.status = s ? 'on' : 'off'; state.pf.email = s ? s.email : '';
+        if (back) {
+          PF.cleanUrl();
+          toast(s ? 'PR Forge connected' : 'PR Forge didn\'t connect' + (why ? ': ' + why : '. Try again.'));
+        }
+        refresh();
+        if (s && root.navigator.onLine !== false) pf.refresh(false);
+      });
+    },
+    connect: function () {
+      if (root.navigator.onLine === false) { toast('You\'re offline. Connecting needs the internet.'); return; }
+      PF.connect().catch(function (e) { toast((e && e.message) || 'The connection didn\'t start. Try again.'); });
+    },
+    refresh: function (byHand) {
+      if (state.pf.busy || !data) return;
+      var d = data;
+      state.pf.busy = true; state.pf.error = ''; refresh();
+      PF.session().then(function (s) {
+        if (!s) { state.pf.status = 'off'; throw new Error('PR Forge needs you to sign in again.'); }
+        return PF.load(s.id);
+      }).then(function (summary) {
+        if (d !== data) return;
+        state.pf.data = summary; state.pf.busy = false;
+        return d.setMeta('prforge', summary).then(function () { if (byHand) toast('Lifts updated'); refresh(); });
+      }).catch(function (e) {
+        state.pf.busy = false;
+        state.pf.error = root.navigator.onLine === false ? '' : 'Couldn\'t read PR Forge: ' + ((e && e.message) || 'try again later') + (state.pf.data ? ' Showing what was read last time.' : '');
+        if (byHand && root.navigator.onLine === false) toast('You\'re offline. Showing what was read last time.');
+        refresh();
+      });
+    },
+    disconnect: function () {
+      if (!root.confirm('Disconnect PR Forge? Leanward stops reading your lifts and forgets the ones it read. Nothing changes in PR Forge.')) return;
+      var d = data;
+      PF.disconnect().then(function () {
+        state.pf = { status: 'off', email: '', data: null, busy: false, error: '' };
+        return d ? d.setMeta('prforge', null) : null;
+      }).then(function () { toast('PR Forge disconnected'); render(); });
+    },
+    /** The chosen lifts for the progress read (calc/progress.js). */
+    lifts: function () {
+      var picks = ((state.rows.profile && state.rows.profile.preferences) || {}).keyLifts || [];
+      return state.pf.data ? PF.forProgress(state.pf.data.exercises, picks) : {};
+    }
+  };
+  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, pf: pf });
   var foodui = root.LW.foodui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, slotLabel: diaryui.slotLabel, slotOptions: diaryui.slotOptions, dayName: diaryui.dayName });
 
   /** Deletes a record (a tombstone until the cloud has it), reloads, and asks the Syncer to back it up. */
@@ -267,7 +327,7 @@
           state.sync = Object.assign({}, st);
           if (st.state === 'synced') { state.everSynced = true; loadRows(); } else refresh();
         });
-        return loadRows().then(function () { syncer.now(); });
+        return loadRows().then(function () { syncer.now(); pf.start(d); });
       });
     }, function (e) { state.sync = { state: 'error', pending: 0, message: e && e.message }; state.loaded = true; render(); });
   }
@@ -277,6 +337,7 @@
     syncer = null; data = null;
     state.sync = { state: 'idle', pending: 0 };
     state.rows = emptyRows(); state.loaded = false; state.everSynced = false; state.ob = null; state.sheet = false;
+    state.pf = { status: 'checking', email: '', data: null, busy: false, error: '' };
   }
 
   cloud.auth.init(function (account, event) {

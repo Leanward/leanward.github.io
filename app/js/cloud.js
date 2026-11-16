@@ -21,6 +21,8 @@
   }
 
   /* ---------- sign-in ---------- */
+  // True when the address is a return from "Connect PR Forge", which belongs to js/prforge.js, not to this sign-in.
+  function pfReturn() { return /[?&]pf=1(&|$)/.test(root.location.search); }
   function accountOf(s) {
     var u = s && s.user;
     if (!u) return null;
@@ -39,14 +41,16 @@
       });
     },
     /** True while Google has just sent the user back and the sign-in is being finished. */
-    returning: function () { return /[?&]code=/.test(root.location.search); },
+    returning: function () { return /[?&]code=/.test(root.location.search) && !pfReturn(); },
     /** The reason Google or Supabase gave if a sign-in failed, else ''. */
     error: function () {
+      if (pfReturn()) return '';
       var m = /[?&#]error_description=([^&#]*)/.exec(root.location.search + root.location.hash);
       return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
     },
     /** Removes ?code= / error details from the address once they've been used. */
     cleanUrl: function () {
+      if (pfReturn()) return;   // a "Connect PR Forge" return: js/prforge.js reads and clears it
       if (/[?&](code|error)=/.test(root.location.search) || /error=/.test(root.location.hash)) {
         try { root.history.replaceState(null, '', root.location.pathname); } catch (e) { /* ignore */ }
       }

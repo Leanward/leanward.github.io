@@ -71,6 +71,7 @@ app/
 │   ├── diaryui.js         the Diary tab, edit sheet, meals, Nutrients and the Home calories card
 │   ├── measure.js         weigh-ins, circumferences, chart ranges and scales (pure, tested)
 │   ├── progressui.js      the Progress tab: weight trend, waist, intake charts, log and edit sheets
+│   ├── prforge.js         key lifts from PR Forge, read-only: summary rules (pure, tested) and the second client
 │   ├── cloud.js           Google sign-in, connection check, error sending, Supabase pull/push and the Syncer
 │   ├── app.js             the shell UI
 │   ├── calc/              calculation engine (M1): pure, tested, every result with its working

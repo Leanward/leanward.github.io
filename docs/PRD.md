@@ -1,6 +1,6 @@
 # Leanward — Product Requirements Document
 
-> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a) · **Date:** 2026-11-06 · **Owner:** Kevin Chavez
+> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now) · **Date:** 2026-11-16 · **Owner:** Kevin Chavez
 > **Source:** [`blueprint-v2.md`](blueprint-v2.md) (Product Vision v2.0). Where this PRD adds detail, changes scope, or makes a call the blueprint left open, it is marked **[Proposed]** so you can accept or reject it; calls you've confirmed are marked **[Decided]** and logged in [`decisions.md`](decisions.md).
 > **How to review:** react to anything, but the fastest path to sign-off is answering the numbered questions in §15.
 
@@ -146,7 +146,7 @@ Priority: **P0** = MVP can't ship without it · **P1** = MVP, can slip to a fast
 | MEA-2 | Trend weight and weekly average (§8.5) shown alongside the raw weigh-ins, labelled "trend (derived)". | P0 |
 | MEA-3 | Circumferences: waist (P0); hips, chest, arm, thigh, neck (P1). The how-to-measure guidance is shown inline. | P0 |
 | MEA-4 | Body-fat % entries with method (guess, smart scale, calipers, DEXA, other), always shown as "estimate". | P1 |
-| MEA-5 | Strength entries **[Proposed]**: the user picks up to 5 "key lifts" and logs top set weight × reps; the app shows estimated 1RM (Epley) over time. No workouts, programs or set logging. **Connection to PR Forge wanted** (§15 Q6): Leanward reads lift results from PR Forge read-only; manual entry stays for people who don't use PR Forge. **In the MVP**: Leanward has its own Supabase project; the user connects PR Forge once by signing in to it with Google from Leanward, and Leanward then reads the user's own PR Forge workouts read-only through PR Forge's existing row-level security. Nothing is copied into PR Forge or changed there (§15 Q6a/6b, decided; revised in v1.3). | P0 |
+| MEA-5 | Strength entries **[Proposed]**: the user picks up to 5 "key lifts" and logs top set weight × reps; the app shows estimated 1RM (Epley) over time. No workouts, programs or set logging. **Connection to PR Forge wanted** (§15 Q6): Leanward reads lift results from PR Forge read-only; manual entry stays for people who don't use PR Forge. **In the MVP**: Leanward has its own Supabase project; the user connects PR Forge once by signing in to it with Google from Leanward, and Leanward then reads the user's own PR Forge workouts read-only through PR Forge's existing row-level security. Nothing is copied into PR Forge or changed there (§15 Q6a/6b, decided; revised in v1.3). **v1.5 (owner decision 2026-11-16):** lifts come from PR Forge only for now; typing lifts into Leanward is deferred until someone without PR Forge needs it, so Leanward doesn't become a second workout log. The lift summary read from PR Forge is kept on the phone only; the chosen key lifts are saved with the profile. | P0 |
 | MEA-6 | All measurements can be edited and deleted, and are exportable. | P0 |
 
 ### 6.6 Progress (PRG)
@@ -437,6 +437,7 @@ No questions are open. Signed off 2026-11-02. Changes from here go through the f
 | 2026-11-03 | 1.3 | ONB-10 "I know my numbers" (measured BMR/RMR or known maintenance), checks on entered numbers and the accuracy note in §8.1 (owner request after testing: the formula overestimated their maintenance). |
 | 2026-11-03 | 1.3 | ONB-1: Google sign-in only for now; email + password deferred (owner decision). |
 | 2026-11-03 | 1.3 | §8.10 extended for M1b: progress-read bands, adaptive blend, DRI life stages. |
+| 2026-11-16 | 1.5 | MEA-5: key lifts are read from PR Forge only for now; manual lift entry deferred (owner decision). |
 | 2026-11-06 | 1.4 | Owner request: FDB-3a Search online (Open Food Facts text search) when the catalog doesn't have a food; branded coverage gaps seen on the real catalog (e.g. Quest Overload bars, most Transparent Labs products). |
 | 2026-11-03 | 1.3 | §8.10 engine conventions and the "no safe deficit" rule in §8.2, from building the M1 calculation engine. |
 | 2026-11-03 | 1.3 | Brand mark added to §9: leaf L logo, fixed brand green, Onest wordmark, no ® until the trademark is registered (owner asked for a designer's call). |
