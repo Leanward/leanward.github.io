@@ -182,3 +182,4 @@ input[type=time] { width: 100%; min-width: 0; font: inherit; font-size: 16px; co
 .cardbtn:focus-visible { outline: 2px solid var(--g1); outline-offset: 2px; }
 .swatch { width: 44px; height: 16px; border-radius: 8px; display: inline-block; }
 .btn.danger { background: none; border: 1px solid var(--bad); color: var(--bad); }
+.sheet:focus { outline: none; }

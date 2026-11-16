@@ -268,6 +268,8 @@ Each milestone has an **exit criteria** list. A milestone is done when every ite
 
 **Status (2026-11-16, M8 started):** requirements audit written (`docs/requirements-audit.md`): all 48 P0 requirements are built; two gaps found and closed (saved meals in search, LOG-3; optional goal weight with a BMI 18.5 floor, ONB-2/PHS-1). Outstanding: the §10 measurements on the iPhone, an accessibility pass, a look at `lw_errors`, a terms page, instrumentation, and the beta itself.
 
+**2026-11-16, M8 part 2:** owner confirmed offline logging and backup in airplane mode on the iPhone. Added: Text size setting, focus handling for keyboard and VoiceOver, `terms.html`, and the `lw_metrics` view (owner step: run `supabase/schema.sql`). Outstanding: cold start, search and barcode timings on the iPhone, the export share sheet, a VoiceOver run, a look at `lw_errors`, the name checks, and the beta.
+
 **Exit criteria:** every §10 target measured and met (or a logged decision to accept the gap); beta has run long enough to read day-7 retention; no open data-loss bugs.
 
 ### M9 — Launch

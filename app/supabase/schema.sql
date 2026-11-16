@@ -354,6 +354,61 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Beta metrics (PRD §13, ACC-3). Counts only, worked out from rows that already exist: no food
+-- names, no weights, no extra tracking in the app. For the owner, in Supabase → Table Editor →
+-- lw_metrics (or: select * from public.lw_metrics). The app's roles can't read it.
+--   users             people who finished setup
+--   active_7d         of those, people who logged food or weighed in during the last 7 days
+--   d7_eligible/kept  people who set up 14+ days ago / of those, active on days 7 to 13 after setup
+--   d30_eligible/kept people who set up 37+ days ago / of those, active on days 30 to 36
+--   logged_days_28d / two_meal_days_28d   person-days with food logged in the last 28 days / with 2+ meals
+--   weighins_per_week_28d   average weigh-in days a week, last 28 days, people in a cut or lean bulk
+--   entries_28d, via_*      diary entries in the last 28 days, by how they were logged
+--   reports_per_1000        food reports per 1,000 diary entries, all time
+-- ---------------------------------------------------------------------------
+create or replace view public.lw_metrics with (security_invoker = true) as
+with people as (
+  select user_id, (created_at at time zone 'utc')::date as joined from public.lw_profiles where not deleted
+), activity as (
+  select user_id, date as day from public.lw_diary_entries where not deleted
+  union
+  select user_id, date from public.lw_weights where not deleted
+), meal_days as (
+  select user_id, date as day, count(distinct slot) as meals
+  from public.lw_diary_entries where not deleted and date > current_date - 28 group by user_id, date
+), movers as (
+  select distinct user_id from public.lw_phases where not deleted and end_date is null and type in ('cut', 'bulk')
+), weigh as (
+  select w.user_id, count(distinct w.date)::numeric / 4 as per_week
+  from public.lw_weights w join movers m using (user_id)
+  where not w.deleted and w.date > current_date - 28 group by w.user_id
+), recent as (
+  select logged_via from public.lw_diary_entries where not deleted and date > current_date - 28
+)
+select
+  (select count(*) from people) as users,
+  (select count(distinct a.user_id) from activity a join people p using (user_id) where a.day > current_date - 7) as active_7d,
+  (select count(*) from people where joined <= current_date - 14) as d7_eligible,
+  (select count(*) from people p where p.joined <= current_date - 14
+     and exists (select 1 from activity a where a.user_id = p.user_id and a.day between p.joined + 7 and p.joined + 13)) as d7_kept,
+  (select count(*) from people where joined <= current_date - 37) as d30_eligible,
+  (select count(*) from people p where p.joined <= current_date - 37
+     and exists (select 1 from activity a where a.user_id = p.user_id and a.day between p.joined + 30 and p.joined + 36)) as d30_kept,
+  (select count(*) from meal_days) as logged_days_28d,
+  (select count(*) from meal_days where meals >= 2) as two_meal_days_28d,
+  (select round(avg(per_week), 1) from weigh) as weighins_per_week_28d,
+  (select count(*) from recent) as entries_28d,
+  (select count(*) from recent where logged_via = 'search') as via_search,
+  (select count(*) from recent where logged_via = 'recent') as via_recent,
+  (select count(*) from recent where logged_via = 'barcode') as via_barcode,
+  (select count(*) from recent where logged_via = 'quick') as via_quick,
+  (select count(*) from recent where logged_via = 'meal') as via_meal,
+  (select count(*) from recent where logged_via = 'copy') as via_copy,
+  (select round(1000.0 * (select count(*) from public.lw_food_reports where not deleted)
+     / nullif((select count(*) from public.lw_diary_entries where not deleted), 0), 1)) as reports_per_1000;
+revoke all on public.lw_metrics from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Delete my account (ACC-1). Called by the signed-in person from the app. It removes their
 -- sign-in record, and with it every row they own in every lw_ table (each table's user_id is
 -- "on delete cascade"), plus their error reports. It can only ever delete the caller's own

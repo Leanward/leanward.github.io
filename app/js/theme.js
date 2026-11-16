@@ -24,7 +24,9 @@
       c: { cut: ['#c9cdd8', '#8e94a8'], recomp: ['#c9cdd8', '#8e94a8'], bulk: ['#c9cdd8', '#8e94a8'], maintenance: ['#c9cdd8', '#8e94a8'], nutrition: ['#c9cdd8', '#8e94a8'] } }
   ];
   var MODES = [['match', 'Match iPhone'], ['dark', 'Dark'], ['light', 'Light']];
-  var DEFAULT = { palette: 'aurora', follow: true, mode: 'match' };
+  // Text size (§9, accessibility): the whole app scales, so nothing is cut off at the larger sizes.
+  var TEXT = [['default', 'Default', 1], ['large', 'Large', 1.12], ['larger', 'Larger', 1.25]];
+  var DEFAULT = { palette: 'aurora', follow: true, mode: 'match', text: 'default' };
 
   /** A saved choice made safe: unknown values fall back to the defaults. */
   function normalize(a) {
@@ -32,7 +34,8 @@
     return {
       palette: PALETTES.some(function (p) { return p.id === a.palette; }) ? a.palette : DEFAULT.palette,
       follow: a.follow == null ? DEFAULT.follow : !!a.follow,
-      mode: MODES.some(function (m) { return m[0] === a.mode; }) ? a.mode : DEFAULT.mode
+      mode: MODES.some(function (m) { return m[0] === a.mode; }) ? a.mode : DEFAULT.mode,
+      text: TEXT.some(function (t) { return t[0] === a.text; }) ? a.text : DEFAULT.text
     };
   }
   /** The two colors for a choice and the current phase type ('cut', 'recomp', 'bulk', 'maintenance', 'nutrition'). */
@@ -48,7 +51,9 @@
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
   }
 
-  var api = { PALETTES: PALETTES, MODES: MODES, DEFAULT: DEFAULT, normalize: normalize, colors: colors, rgb: rgb, contrast: contrast };
+  function textScale(choice) { var a = normalize(choice); return TEXT.filter(function (t) { return t[0] === a.text; })[0][2]; }
+
+  var api = { PALETTES: PALETTES, MODES: MODES, TEXT: TEXT, textScale: textScale, DEFAULT: DEFAULT, normalize: normalize, colors: colors, rgb: rgb, contrast: contrast };
   if (node) { module.exports = api; return; }
 
   /* ---------- browser ---------- */
@@ -64,6 +69,8 @@
   function apply(choice, phaseType) {
     var a = normalize(choice), el = root.document.documentElement, phase = phaseType || saved().phase, pair = colors(a, phase);
     if (a.mode === 'match') el.removeAttribute('data-theme'); else el.setAttribute('data-theme', a.mode);
+    var scale = textScale(a);
+    el.style.zoom = scale === 1 ? '' : String(scale);
     el.style.setProperty('--g1-rgb', rgb(pair[0])); el.style.setProperty('--g2-rgb', rgb(pair[1]));
     var dark = a.mode === 'dark' || (a.mode === 'match' && !(root.matchMedia && root.matchMedia('(prefers-color-scheme: light)').matches));
     var meta = root.document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', dark ? '#0b0c12' : '#f5f6fa');

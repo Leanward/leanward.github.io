@@ -18,8 +18,9 @@ test('the color follows the phase, or stays on the palette\'s signature color', 
   assert.deepEqual(T.colors({ palette: 'aurora', follow: false }, 'cut'), ['#8a7cf8', '#e37bb3']);   // Aurora's signature is recomp
   assert.deepEqual(T.colors({ palette: 'ocean', follow: false }, 'bulk'), ['#3e7bfa', '#53c7f0']);
   assert.deepEqual(T.colors({ palette: 'nope' }, 'unknown-phase'), ['#8a7cf8', '#e37bb3']);          // defaults
-  assert.deepEqual(T.normalize({ palette: 'moss', follow: 0, mode: 'sepia' }), { palette: 'moss', follow: false, mode: 'match' });
-  assert.deepEqual(T.normalize(null), { palette: 'aurora', follow: true, mode: 'match' });
+  assert.deepEqual(T.normalize({ palette: 'moss', follow: 0, mode: 'sepia' }), { palette: 'moss', follow: false, mode: 'match', text: 'default' });
+  assert.deepEqual(T.normalize(null), { palette: 'aurora', follow: true, mode: 'match', text: 'default' });
+  assert.deepEqual([T.textScale({}), T.textScale({ text: 'large' }), T.textScale({ text: 'larger' }), T.textScale({ text: 'huge' })], [1, 1.12, 1.25, 1]);
   assert.equal(T.rgb('#8a7cf8'), '138, 124, 248');
 });
 
