@@ -244,9 +244,17 @@ test('the progress read speaks the user\'s units (US: lb and in)', () => {
   const us = P.read(input, { units: 'us' });
   // waist 87.46 − 90 = −2.54 cm = −1.0 in; the 0.5 cm noise band = 0.2 in
   assert.match(us.signals[0].value, /lb a week/);
-  assert.equal(us.signals[1].value, '−1.0 in since 2026-11-02');
+  assert.equal(us.signals[1].value, '−1.0 in since Nov\u00a02');
   assert.match(us.signals[1].rule, /under 0\.2 in count as flat/);
   assert.match(us.summary, /waist −1\.0 in/);
   const metric = P.read(input);
   assert.match(metric.signals[1].value, /−2\.5 cm/); assert.match(metric.signals[1].rule, /under 0\.5 cm/);
+});
+
+test('dates for people: month and day, the year only when it differs', () => {
+  const core = require('../js/calc/core.js');
+  assert.equal(core.niceDate('2026-10-07', 2026), 'Oct 7');
+  assert.equal(core.niceDate('2025-12-31', '2026'), 'Dec 31, 2025');
+  assert.equal(core.niceDate('2026-01-01'), 'Jan 1, 2026');
+  assert.equal(core.niceDate('not a date'), 'not a date');
 });

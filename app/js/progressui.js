@@ -17,7 +17,7 @@
     function units() { return (S.rows.profile && S.rows.profile.units) || 'us'; }
     function range() { return S.progressRange || '4w'; }
     function rangeLabel() { var r = ME.RANGES.filter(function (x) { return x.id === range(); })[0]; return r.id === 'all' ? 'all time' : 'last ' + r.label; }
-    function day(iso, long) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', long ? { weekday: 'short', month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' }); }
+    function day(iso, long) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', long ? { weekday: 'short', month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' }).replace(/(\w{3}) (\d)/, '$1\u00a0$2'); }
     function nowTime() { var d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function timeOf(iso) { var d = new Date(iso); return isNaN(d) ? '12:00' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function targetOn(date) {

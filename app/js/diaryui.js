@@ -91,7 +91,7 @@
         (picks.length ? '<span class="sec" style="display:block;margin:14px 2px 6px">Quick log · ' + esc(slotLabel(slot)) + '</span><div class="chips2">' + picks.map(function (e) {
           return '<button type="button" data-a="quicklog" data-v="' + esc(e.id) + '" aria-label="Log ' + esc(e.name) + ', ' + fmt(Number(e.kcal)) + ' kcal, to ' + esc(slotLabel(slot)) + '">+ ' + esc(String(e.name).split(' · ')[0].slice(0, 28)) + ' <span class="muted">' + fmt(Number(e.kcal)) + '</span></button>';
         }).join('') + '</div>' : '') +
-        '<button type="button" class="btn block" data-a="addto" data-v="">Log food</button></section>';
+        '</section>';
     }
     /** Home (HOM-4): at most one insight card. */
     function insightCard() {
@@ -169,7 +169,7 @@
     }
 
     /* ---------- Nutrient review (NUT-6, NUT-7) ---------- */
-    function amount(v, unit) { return (v >= 100 ? fmt(v) : v >= 10 ? fmt(v, 1) : fmt(v, v >= 1 ? 1 : 2)) + ' ' + unit; }
+    function amount(v, unit) { if (!v) return '0 ' + unit; return (v >= 100 ? fmt(v) : v >= 10 ? fmt(v, 1) : fmt(v, v >= 1 ? 1 : 2)) + ' ' + unit; }
     function ageOn(dob, date) { if (!dob) return null; var a = +date.slice(0, 4) - +dob.slice(0, 4); if (date.slice(5) < dob.slice(5)) a--; return a; }
     /** DRI targets for this person, only once the tables are verified against their source (dri.VERIFIED). */
     function driTargets(date) {

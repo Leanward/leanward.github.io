@@ -29,7 +29,7 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 #app { min-height: 100%; }
-.view { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(110px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 12px; align-content: start; }
+.view { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(164px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 12px; align-content: start; }
 .top h1 { margin: 6px 0 2px; font-size: 26px; letter-spacing: -.01em; }
 h2 { font-size: 16px; margin: 0 0 8px; }
 p { margin: 8px 0 0; }
@@ -189,3 +189,17 @@ input[type=time] { width: 100%; min-width: 0; font: inherit; font-size: 16px; co
 .swatch { width: 44px; height: 16px; border-radius: 8px; display: inline-block; }
 .btn.danger { background: none; border: 1px solid var(--bad); color: var(--bad); }
 .sheet:focus { outline: none; }
+
+/* Design pass 1 (2026-11-16): one primary action per screen.
+ * The gradient is for the single main action: the + button, and the one full-width button in a sheet.
+ * Small buttons in card headers are tonal; text links that are really actions are quiet chips. */
+.btn.sm { background: var(--acc-soft); color: var(--fg); border: 1px solid rgba(var(--g1-rgb), .35); }
+.btn.sm.ghost { background: var(--card); border-color: var(--line); }
+button.link { text-decoration: none; background: var(--track); border-radius: 999px; padding: 7px 12px; font: 600 12.5px var(--font); min-height: 32px; }
+button.link:active { opacity: .7; }
+.linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* Numbers line up in columns. */
+.k, .targets b, .macros b, .status .pill, .item .s, .chart text { font-variant-numeric: tabular-nums; }
+.chart text { font-size: 11px; }
+/* The page ends clear of the + button (padding on .view), so it never rests on the last card. */
+details.advanced > summary { color: var(--muted); font-weight: 600; font-size: 13px; }
