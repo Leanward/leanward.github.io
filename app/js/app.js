@@ -78,7 +78,7 @@
         '<button type="button" class="btn block google" data-a="signin"' + (busy ? ' disabled' : '') + '>' + GOOGLE + 'Continue with Google</button>' +
         '<p class="small muted center">For adults 18 and over.</p>' +
       '</section>' +
-      '<p class="small center"><a class="link" href="privacy.html">Privacy</a></p>' + versionLine() +
+      '<p class="small center"><a class="link" href="privacy.html">Privacy</a> · <a class="link" href="terms.html">Terms</a></p>' + versionLine() +
     '</main>';
   }
 
@@ -102,6 +102,7 @@
     var c = state.sheet.choice, ph = phaseType() || 'recomp';
     return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Appearance"><div class="grab"></div><h2>Appearance</h2>' +
       '<span class="sec">Mode</span><div class="seg">' + T.MODES.map(function (m) { return '<button type="button" data-a="apmode" data-v="' + m[0] + '" aria-pressed="' + (c.mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+      '<span class="sec">Text size</span><div class="seg">' + T.TEXT.map(function (m) { return '<button type="button" data-a="aptext" data-v="' + m[0] + '" aria-pressed="' + (c.text === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
       '<span class="sec">Color</span><div class="opts" role="radiogroup" aria-label="Color palette">' + T.PALETTES.map(function (p) {
         var pair = T.colors({ palette: p.id, follow: c.follow }, ph);
         return '<button type="button" class="opt" role="radio" aria-checked="' + (c.palette === p.id) + '" data-a="appal" data-v="' + p.id + '"><span class="row"><b>' + p.name + '</b><i class="swatch" style="background:linear-gradient(135deg,' + pair[0] + ',' + pair[1] + ')"></i></span><span class="small muted">' + p.note + '</span></button>';
@@ -143,7 +144,7 @@
     return '<section class="card" aria-labelledby="sup-h"><h2 id="sup-h">Support</h2>' +
       '<p class="small muted">If tracking food or weight starts to feel stressful or takes over, you don\'t have to keep going alone. The National Alliance for Eating Disorders offers free support and help finding care.</p>' +
       '<p class="small"><a class="link" href="https://www.allianceforeatingdisorders.com/" target="_blank" rel="noopener">allianceforeatingdisorders.com</a></p>' +
-      '<p class="small"><a class="link" href="privacy.html">Privacy</a></p></section>';
+      '<p class="small"><a class="link" href="privacy.html">Privacy</a> · <a class="link" href="terms.html">Terms</a></p></section>';
   }
 
   /* ---------- export (ACC-2) ---------- */
@@ -232,12 +233,34 @@
   function refresh() { if (!state.ob && !state.sheet) render(); }
 
   // A redraw can blur a focused field, which fires "change", which asks for another redraw. Run them one at a time.
-  var drawing = false, again = false;
+  var drawing = false, again = false, shownSheet = '';
   function render() {
     if (drawing) { again = true; return; }
     drawing = true;
-    try { draw(); } finally { drawing = false; }
+    try { var keep = focusKey(); draw(); restoreFocus(keep); } finally { drawing = false; }
     if (again) { again = false; render(); }
+  }
+  /* Keyboard and VoiceOver (§9): a redraw replaces the page, which would drop the focus. Remember the
+   * focused button and put the focus back on its replacement; when a sheet opens, move the focus into
+   * it. Text fields are left alone so the iPhone keyboard never pops up by itself. */
+  function focusKey() {
+    var el = doc.activeElement;
+    if (!el || el === doc.body || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return null;
+    return { id: el.id || '', a: el.dataset ? el.dataset.a || '' : '', v: el.dataset ? el.dataset.v || '' : '', inSheet: !!(el.closest && el.closest('.sheet')) };
+  }
+  function restoreFocus(keep) {
+    var kind = state.sheet ? state.sheet.kind || 'sheet' : '', box = doc.querySelector('.sheet');
+    var opened = kind && kind !== shownSheet;
+    shownSheet = kind;
+    if (opened && box) { box.setAttribute('tabindex', '-1'); try { box.focus({ preventScroll: true }); } catch (e) { /* older browsers */ } return; }
+    if (!keep || (!keep.id && !keep.a)) return;
+    var scope = keep.inSheet && box ? box : doc, target = null;
+    if (keep.id) target = doc.getElementById(keep.id);
+    if (!target && keep.a) {
+      var list = scope.querySelectorAll('[data-a="' + keep.a + '"]');
+      for (var i = 0; i < list.length; i++) if ((list[i].dataset.v || '') === keep.v) { target = list[i]; break; }
+    }
+    if (target && target !== doc.activeElement && !target.disabled) { try { target.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
   }
 
   function draw() {
@@ -281,6 +304,7 @@
     retrysync: function () { if (syncer) syncer.now(); },
     appearance: function () { state.sheet = { kind: 'appearance', choice: appearance() }; render(); },
     apmode: function (v) { state.sheet.choice.mode = v; render(); },
+    aptext: function (v) { state.sheet.choice.text = v; render(); },
     appal: function (v) { state.sheet.choice.palette = v; render(); },
     apsave: function () {
       var p = state.rows.profile, choice = T.normalize(state.sheet.choice);

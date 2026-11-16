@@ -33,7 +33,7 @@ Every must-have (P0) requirement, where it lives, and how far it has been checke
 | LOG-9 | Saved meals, one tap, scaling | Done | `library.js` | Tests, Browser |
 | LOG-10 | Copy a meal or day; repeat yesterday's breakfast | Done | `diaryui.js` | Tests, Owner |
 | LOG-11 | Edit, delete, move entries | Done | `diary.updateEntry` | Tests, Browser |
-| LOG-12 | Offline logging, sync without duplicates | Done | `sync.js`, `db.js` | Tests, Browser. **Not yet checked on the iPhone in airplane mode** |
+| LOG-12 | Offline logging, sync without duplicates | Done | `sync.js`, `db.js` | Tests, Browser, Owner (airplane mode on the iPhone, 2026-11-16: logged food and a weigh-in offline; both backed up after reconnecting) |
 | LOG-13 | Over target shown neutrally | Done | `diary.versusTarget` | Tests |
 | NUT-1 | Day totals vs target, fiber | Done | `diaryui.js` | Browser |
 | NUT-2 | Detail nutrients | Done for every nutrient the source provides | `diary.NUTRIENTS` | Tests |
@@ -69,7 +69,8 @@ HOM-3 quick log · HOM-4 daily insight · NUT-7 (top contributors, ratios; "food
 | Cold start to Home < 2 s | Not measured on the iPhone |
 | Search: cached < 300 ms, server < 800 ms p95 | Server function measured at 0.09–0.5 s on the real catalog (Actions, 2026-11-06); not measured from the phone |
 | Barcode result < 1.5 s | Owner reported scans work; the app shows the read time; no set of 50 items measured |
-| Offline: diary, quick add, custom foods, recents, saved meals | Built and browser-tested; airplane-mode run on the iPhone outstanding |
+| Offline: diary, quick add, custom foods, recents, saved meals | Owner confirmed logging food and a weigh-in in airplane mode on the iPhone, with backup after reconnecting (2026-11-16) |
 | Crash-free ≥ 99.5% | `lw_errors` not reviewed yet |
-| Accessibility: text scaling, VoiceOver, contrast | Charts have spoken summaries; button text contrast tested for every palette; no VoiceOver or text-size pass yet |
-| Privacy policy matches the app | Updated with every data change; terms page not written |
+| Accessibility: text scaling, VoiceOver, contrast | Charts have spoken summaries; button text contrast tested for every palette; a Text size setting (Default, Large, Larger) scales the whole app with nothing cut off in Chromium at phone width; the focus stays on the pressed button across redraws and moves into a sheet when it opens. **No VoiceOver run on the iPhone yet** |
+| Privacy policy matches the app | Updated with every data change; plain-language terms page added (`terms.html`), not reviewed by a lawyer |
+| Beta metrics (§13) | `lw_metrics` view: counts only, from existing rows; the app's roles can't read it. Time-to-log, search success and barcode hit rate aren't measured (they would need events from the app) |
