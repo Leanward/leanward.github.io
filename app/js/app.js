@@ -356,6 +356,47 @@
   });
   doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && state.sheet) actions.close(); });
 
+  /* Pull a sheet down to close it. The pull starts on the sheet's top strip (the handle and title
+   * row), or anywhere on the sheet once its contents are scrolled to the top and the finger isn't on
+   * a control. Letting go past a third of the way closes it; otherwise it settles back. */
+  var drag = null, GRIP_PX = 64, CLOSE_PX = 110;
+  doc.addEventListener('touchstart', function (e) {
+    var box = e.target.closest && e.target.closest('.sheet');
+    if (!box || e.touches.length !== 1) { drag = null; return; }
+    var y = e.touches[0].clientY, top = box.getBoundingClientRect().top;
+    var onControl = !!e.target.closest('input, select, textarea, button, a, video, [data-a]');
+    var inGrip = y - top <= GRIP_PX && !e.target.closest('input, select, textarea');
+    if (!(inGrip || (box.scrollTop <= 0 && !onControl))) { drag = null; return; }
+    drag = { box: box, y0: y, dy: 0, moved: false, inGrip: inGrip };
+  }, { passive: true });
+  doc.addEventListener('touchmove', function (e) {
+    if (!drag) return;
+    var dy = e.touches[0].clientY - drag.y0;
+    if (!drag.moved) {
+      if (dy < 8) { if (dy < -8) drag = null; return; }      // an upward move is a scroll, not a pull
+      if (!drag.inGrip && drag.box.scrollTop > 0) { drag = null; return; }
+      drag.moved = true; drag.box.classList.add('dragging');
+    }
+    drag.dy = Math.max(0, dy);
+    drag.box.style.transform = 'translateY(' + drag.dy + 'px)';
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  function endDrag() {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (!d.moved) return;
+    d.box.classList.remove('dragging');
+    if (d.dy >= Math.min(CLOSE_PX, d.box.offsetHeight / 3)) {
+      if (doc.activeElement && doc.activeElement.blur) doc.activeElement.blur();
+      actions.close();
+    } else {
+      d.box.classList.add('settling'); d.box.style.transform = '';
+      root.setTimeout(function () { d.box.classList.remove('settling'); }, 220);
+    }
+  }
+  doc.addEventListener('touchend', endDrag);
+  doc.addEventListener('touchcancel', endDrag);
+
   function toast(msg) {
     var t = doc.getElementById('toast');
     t.textContent = msg; t.hidden = false;
