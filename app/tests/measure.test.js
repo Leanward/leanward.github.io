@@ -89,3 +89,11 @@ test('spoken summary for the weight chart (§9)', () => {
   assert.match(s, /Last 14 days: [−-]0\.\d\d kg a week\./);
   assert.equal(M.weightSummary(M.weightView([], 'us', 'a', 'b'), 'us', 'x'), 'No weigh-ins yet.');
 });
+
+test('a body-fat entry is an estimate with its method (MEA-4)', () => {
+  const r = M.bodyFatRow({ value: '18.25', method: 'scale', date: '2026-11-16', today: '2026-11-16' });
+  assert.deepEqual([r.pct, r.method, r.date], [18.3, 'scale', '2026-11-16']);
+  assert.throws(() => M.bodyFatRow({ value: 2, method: 'scale', date: '2026-11-16' }), /looks off/);
+  assert.throws(() => M.bodyFatRow({ value: 18, method: 'tape', date: '2026-11-16' }), /how it was measured/);
+  assert.throws(() => M.bodyFatRow({ value: '', method: 'dexa', date: '2026-11-16' }), /Enter the body-fat/);
+});

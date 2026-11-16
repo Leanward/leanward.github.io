@@ -73,23 +73,28 @@
       var u = ME.lengthUnit(units()), all = (S.rows.measures || []).filter(function (m) { return !m.deleted; });
       var w = ME.siteView(all, 'waist', units(), from, today);
       var head = '<div class="row"><h2 style="margin:0">Waist and measurements</h2><button type="button" class="btn sm" data-a="measure">Add</button></div>';
-      if (!all.length) return '<section class="card">' + head + '<p class="small muted">Waist is the simplest sign of fat change when the scale barely moves, as in a recomp. Measure every week or two, same spot and time of day.</p></section>';
+      if (!all.length && !(S.rows.bodyfat || []).some(function (x) { return !x.deleted; })) return '<section class="card">' + head + '<p class="small muted">Waist is the simplest sign of fat change when the scale barely moves, as in a recomp. Measure every week or two, same spot and time of day.</p></section>';
       var last = w.all[w.all.length - 1];
       var summary = 'Waist, ' + rangeLabel() + '. ' + w.points.length + ' measurement' + (w.points.length === 1 ? '' : 's') + (last ? '. Latest ' + fmt(last.v, 1) + ' ' + u + ' on ' + last.date : '') + (w.change != null ? '. Change over this range ' + fmtS(w.change, 1) + ' ' + u : '') + '.';
       var others = ME.SITES.slice(1).map(function (s) {
         var v = ME.siteView(all, s.id, units(), from, today), l = v.all[v.all.length - 1];
         return l ? '<div class="item"><span><span class="t">' + s.label + '</span><span class="s">' + esc(day(l.date)) + (v.change != null ? ' · ' + fmtS(v.change, 1) + ' ' + u + ' over this range' : '') + '</span></span><span class="k">' + fmt(l.v, 1) + '<small>' + u + '</small></span></div>' : '';
       }).join('');
-      var list = all.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (String(a.created_at || '') < String(b.created_at || '') ? 1 : -1); }).slice(0, S.progressAllMeasures ? 500 : 5);
+      var bf = (S.rows.bodyfat || []).filter(function (x) { return !x.deleted; });
+      var bfLast = bf.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+      if (bfLast) others += '<div class="item"><span><span class="t">Body fat <span class="muted">(estimate)</span></span><span class="s">' + esc(day(bfLast.date)) + ' · ' + esc(methodLabel(bfLast.method)) + '</span></span><span class="k">' + fmt(Number(bfLast.pct), 1) + '<small>%</small></span></div>';
+      var merged = all.concat(bf.map(function (x) { return Object.assign({ bf: true }, x); }));
+      var list = merged.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (String(a.created_at || '') < String(b.created_at || '') ? 1 : -1); }).slice(0, S.progressAllMeasures ? 500 : 5);
       return '<section class="card">' + head +
         (last ? '<div class="row" style="margin-top:8px"><span><b style="font-size:26px">' + fmt(last.v, 1) + '</b> <span class="small muted">' + u + ' waist</span></span><span class="small muted">' + (w.change != null ? fmtS(w.change, 1) + ' ' + u + ' over the ' + esc(rangeLabel()) : esc(day(last.date, true))) + '</span></div>' +
           (w.points.length ? chart({ from: from, to: today, dots: w.points, line: w.points, dp: 1, summary: summary }) : '<p class="small muted">No waist measurements in this range.</p>') : '') +
         (others ? '<div class="list">' + others + '</div>' : '') +
         '<span class="sec">Entries</span><div class="list">' + list.map(function (m) {
+          if (m.bf) return '<button type="button" class="item food" data-a="bfedit" data-v="' + esc(m.id) + '"><span><span class="t">Body fat (estimate)</span><span class="s">' + esc(day(m.date, true)) + ' · ' + esc(methodLabel(m.method)) + '</span></span><span class="k">' + fmt(Number(m.pct), 1) + '<small>%</small></span></button>';
           var s = ME.SITES.filter(function (x) { return x.id === m.site; })[0];
           return '<button type="button" class="item food" data-a="measureedit" data-v="' + esc(m.id) + '"><span><span class="t">' + (s ? s.label : esc(m.site)) + '</span><span class="s">' + esc(day(m.date, true)) + '</span></span><span class="k">' + fmt(ME.cmToUnits(Number(m.cm), units()), 1) + '<small>' + u + '</small></span></button>';
         }).join('') + '</div>' +
-        (all.length > 5 ? '<button type="button" class="link" data-a="measureall">' + (S.progressAllMeasures ? 'Show fewer' : 'Show all ' + all.length) + '</button>' : '') + '</section>';
+        (merged.length > 5 ? '<button type="button" class="link" data-a="measureall">' + (S.progressAllMeasures ? 'Show fewer' : 'Show all ' + merged.length) + '</button>' : '') + '</section>';
     }
 
     function intakeCard(from, today) {
@@ -180,10 +185,21 @@
         '<p class="small muted">Same scale, same time of day, before eating if you can. More than one a day is fine: the trend uses the first.</p>' +
         '<button type="button" class="btn block" data-a="weighsave">Save</button>' + (sh.id ? '<button type="button" class="btn ghost block" data-a="weighdelete">Delete</button>' : ''));
     }
+    function methodLabel(id) { var m = ME.BF_METHODS.filter(function (x) { return x[0] === id; })[0]; return m ? m[1] : id; }
     function measureSheet() {
       var sh = S.sheet, u = ME.lengthUnit(units()), site = ME.SITES.filter(function (s) { return s.id === sh.site; })[0] || ME.SITES[0];
+      var chips = '<div class="chips2">' + ME.SITES.map(function (s) { return '<button type="button" data-a="measuresite" data-v="' + s.id + '" aria-pressed="' + (sh.site === s.id) + '">' + s.label + '</button>'; }).join('') +
+        '<button type="button" data-a="measuresite" data-v="bodyfat" aria-pressed="' + (sh.site === 'bodyfat') + '">Body fat %</button></div>';
+      if (sh.site === 'bodyfat') {
+        return wrap(sh.id ? 'Edit body fat' : 'Add body fat', '<h2>' + (sh.id ? 'Edit body fat' : 'Add a measurement') + '</h2>' + (sh.id ? '' : chips) +
+          '<p class="small muted">Body-fat numbers are estimates. Smart scales and calipers can be several points off, so watch the direction over weeks, measured the same way, more than any single reading.</p>' +
+          '<div class="grid2"><div class="field"><label for="ms-v">Body fat <span class="muted">%</span></label><input type="number" id="ms-v" inputmode="decimal" step="any" data-m="value" value="' + (sh.value == null ? '' : esc(String(sh.value))) + '"></div>' +
+          '<div class="field"><label for="ms-d">Day</label><input type="date" id="ms-d" data-m="date" value="' + esc(sh.date) + '" max="' + ctx.today() + '"></div></div>' +
+          '<div class="field"><label for="ms-m">How it was measured</label><select id="ms-m" data-m="method">' + ME.BF_METHODS.map(function (m) { return '<option value="' + m[0] + '"' + (m[0] === (sh.method || 'scale') ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('') + '</select></div>' +
+          '<button type="button" class="btn block" data-a="bfsave">Save</button>' + (sh.id ? '<button type="button" class="btn ghost block" data-a="bfdelete">Delete</button>' : ''));
+      }
       return wrap(sh.id ? 'Edit measurement' : 'Add a measurement', '<h2>' + (sh.id ? 'Edit measurement' : 'Add a measurement') + '</h2>' +
-        '<div class="chips2">' + ME.SITES.map(function (s) { return '<button type="button" data-a="measuresite" data-v="' + s.id + '" aria-pressed="' + (s.id === site.id) + '">' + s.label + '</button>'; }).join('') + '</div>' +
+        (sh.id ? '' : chips) +
         '<p class="small muted"><b>How to measure:</b> ' + esc(site.how) + '</p>' +
         '<div class="grid2"><div class="field"><label for="ms-v">' + site.label + ' <span class="muted">' + u + '</span></label><input type="number" id="ms-v" inputmode="decimal" step="any" data-m="value" value="' + (sh.value == null ? '' : esc(String(sh.value))) + '"></div>' +
         '<div class="field"><label for="ms-d">Day</label><input type="date" id="ms-d" data-m="date" value="' + esc(sh.date) + '" max="' + ctx.today() + '"></div></div>' +
@@ -247,6 +263,18 @@
         var prefs = Object.assign({}, p.preferences || {}, { keyLifts: S.sheet.picks.slice(0, PF.MAX_LIFTS) });
         ctx.save([['lw_profiles', Object.assign({}, p, { preferences: prefs })]]).then(function () { S.sheet = false; ctx.toast('Key lifts saved'); ctx.render(); });
       },
+      bfedit: function (id) {
+        var x = (S.rows.bodyfat || []).filter(function (r) { return r.id === id; })[0];
+        if (!x) return;
+        S.sheet = { kind: 'measure', site: 'bodyfat', id: id, value: Number(x.pct), date: x.date, method: x.method }; ctx.render();
+      },
+      bfsave: function () {
+        var sh = S.sheet, row, old = sh.id && (S.rows.bodyfat || []).filter(function (x) { return x.id === sh.id; })[0];
+        try { row = ME.bodyFatRow({ id: sh.id, value: sh.value, method: sh.method || 'scale', date: sh.date, today: ctx.today() }); } catch (e) { ctx.toast(e.message); return; }
+        if (old) row = Object.assign({}, old, row);
+        ctx.save([['lw_body_fat', row]]).then(function () { S.sheet = false; ctx.toast(old ? 'Saved' : 'Body fat added'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
+      },
+      bfdelete: function () { var id = S.sheet.id; ctx.remove('lw_body_fat', id).then(function () { S.sheet = false; ctx.toast('Deleted'); ctx.render(); }); },
       measuredelete: function () { var id = S.sheet.id; ctx.remove('lw_measurements', id).then(function () { S.sheet = false; ctx.toast('Deleted'); ctx.render(); }); }
     };
 

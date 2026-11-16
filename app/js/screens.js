@@ -326,6 +326,8 @@
       knownmode: function (v) { var o = S.ob ? S.ob.a : S.sheet; o.knownMode = v; o.knownErr = ''; if (S.ob) S.ob.manual = {}; ctx.render(); },
       editmaint: function () { S.sheet = Object.assign({ kind: 'maint' }, knownFromProfile(S.rows.profile)); ctx.render(); },
       savemaint: function () { saveMaint(); },
+      maintaccept: function () { maintDecide(true); },
+      maintdecline: function () { maintDecide(false); },
       newphase: function () { startNewPhase(); ctx.render(); root.scrollTo(0, 0); },
       edittargets: function () { var t = currentTargets(); S.sheet = { kind: 'targets', when: '0', kcal: t.kcal, proteinG: t.protein_g, fatG: t.fat_g }; ctx.render(); },
       etwhen: function (v) { S.sheet.when = v; ctx.render(); },
@@ -369,6 +371,59 @@
         '<p class="small muted">A read needs at least 14 days of the phase and 8 weigh-ins (2 for waist or a key lift). Log weight and waist on the Progress tab; key lifts come from PR Forge.</p></section>';
     }
 
+    /* ---------- maintenance check (PRG-5, §8.6) ---------- */
+    function maintCheck() {
+      var t = currentTargets();
+      return root.LW.maint.check({ today: today(), diary: S.rows.diary, weights: S.rows.weights, recommendations: S.rows.recs,
+        previousTdee: t && t.calc_inputs ? t.calc_inputs.tdee : null,
+        targetOn: function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); } });
+    }
+    /** New targets if the suggested maintenance were accepted (same phase, calculated from it). */
+    function maintPlan(to) {
+      var prof = M.profileOf(Object.assign({}, profileNowRaw(), { knownMode: 'tdee', knownTdee: to, knownTdeeSource: 'tracking', knownBmr: null }));
+      var r = M.editTargets({ now: new Date().toISOString(), phase: M.currentPhase(S.rows.phases), profile: prof, from: today(), manual: null });
+      r.rows[0][1].origin = 'recommendation';
+      return { prof: prof, rows: r.rows, set: r.rows[0][1] };
+    }
+    function niceDay(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+    function maintCard(t) {
+      var c;
+      try { c = maintCheck(); } catch (e) { return ''; }
+      if (c.state === 'unavailable') return '';
+      var head = '<section class="card"><h2>Maintenance check</h2>';
+      var span = c.windowStart ? niceDay(c.windowStart) + ' – ' + niceDay(c.windowEnd) : '';
+      if (c.state === 'collecting') {
+        return head + '<p class="small">Once you have 3 weeks of food logging and weigh-ins, Leanward compares what you ate with how your weight trend moved and checks whether your maintenance (' + fmt(t.calc_inputs.tdee) + ' kcal) fits you.</p>' +
+          '<div class="sig"><div class="row"><b style="font-size:13.5px">Days logged</b><span class="pill ' + (c.logged >= c.neededDays ? 'ok' : 'wait') + '">' + c.logged + ' of ' + c.neededDays + '</span></div><p>In the last 21 days (' + esc(span) + '). A day counts when it reaches at least half your calorie target' + (c.partialDays ? '; ' + c.partialDays + ' partly logged day' + (c.partialDays === 1 ? ' doesn\'t' : 's don\'t') + ' count' : '') + '.</p></div>' +
+          '<div class="sig"><div class="row"><b style="font-size:13.5px">Weigh-ins each week</b><span class="pill ' + (Math.min.apply(null, c.weeks) >= 4 ? 'ok' : 'wait') + '">' + c.weeks.join(' · ') + '</span></div><p>Needs 4 or more in each of the 3 weeks.</p></div></section>';
+      }
+      if (c.state === 'waiting') {
+        var p = c.last.proposed || {};
+        return head + '<p class="small">You ' + (c.last.status === 'accepted' ? 'accepted' : 'kept your targets instead of') + ' a change from ' + fmt(p.from) + ' to ' + fmt(p.to) + ' kcal on ' + esc(niceDay(String(c.last.decided_at).slice(0, 10))) + '. The next check is on ' + esc(niceDay(c.until)) + ', so each change has a week to show up.</p></section>';
+      }
+      var working = '<details><summary>How this is worked out</summary><div class="working">' + c.estimate.steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>' +
+        '<p class="small muted">An estimate from your own logging, as good as the logging is. 7,700 kcal per kg of body weight is a standard approximation.</p></details>';
+      if (c.state === 'matches') return head + '<p class="small">Your last 21 days (' + esc(span) + ') fit your maintenance of <b>' + fmt(c.tdee) + ' kcal</b>. No change suggested.</p>' + working + '</section>';
+      var plan;
+      try { plan = maintPlan(c.to); } catch (e) { return head + '<p class="small warn">' + esc(e.message) + '</p></section>'; }
+      var n = plan.set;
+      return head + '<p class="small">Your last 21 days (' + esc(span) + ') suggest your maintenance is about <b>' + fmt(c.to) + ' kcal</b>, not ' + fmt(c.from) + ' (' + C.core.fmtSigned(c.to - c.from) + ').</p>' +
+        '<div class="sig"><b style="font-size:13.5px">If you accept, from today</b><p>Targets: ' + fmt(n.kcal) + ' kcal · P ' + n.protein_g + ' g · C ' + n.carbs_g + ' g · F ' + n.fat_g + ' g (now ' + fmt(t.kcal) + ' kcal · P ' + t.protein_g + ' · C ' + t.carbs_g + ' · F ' + t.fat_g + ').' +
+          (t.origin === 'manual' ? ' This replaces the targets you set by hand; you can edit them again afterwards.' : '') + '</p></div>' + working +
+        '<button type="button" class="btn block" data-a="maintaccept">Accept the new maintenance</button><button type="button" class="btn ghost block" data-a="maintdecline">Keep my current targets</button>' +
+        '<p class="small muted">Changes are limited to 150 kcal at a time. Nothing changes unless you accept.</p></section>';
+    }
+    function maintDecide(accept) {
+      var c = maintCheck(), ph = M.currentPhase(S.rows.phases);
+      if (c.state !== 'proposed' || !ph) return;
+      var now = new Date().toISOString(), rows = [['lw_recommendations', root.LW.maint.decisionRow(c, accept ? 'accepted' : 'declined', ph.id, now)]];
+      if (accept) {
+        var plan = maintPlan(c.to);
+        rows = [['lw_profiles', Object.assign({ id: 'me' }, M.knownColumns(plan.prof))]].concat(plan.rows, rows);
+      }
+      ctx.save(rows).then(function () { ctx.toast(accept ? 'Maintenance updated to ' + fmt(c.to) + ' kcal' : 'Kept your current targets'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
+    }
+
     function phaseView() {
       var ph = M.currentPhase(S.rows.phases), t = currentTargets(), g = currentGoal();
       if (!ph || !t) return '';
@@ -382,17 +437,17 @@
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' +
           '<div class="route"><i style="width:' + pos + '%"></i></div>' +
           '<div class="row small muted"><span>Started ' + ph.start_date + '</span><span>' + (ph.planned_end ? 'Planned end ~' + ph.planned_end : 'Open-ended') + '</span></div></section>' +
-        progressCard(ph, t) +
+        progressCard(ph, t) + maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
           (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type) + '</div>' : '') +
           '<button type="button" class="link" data-a="editmaint" style="margin-top:6px">Know your real maintenance or BMR?</button>' +
-          '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : 'calculated') + ' from ' + t.effective_from + '</p>' +
+          '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + t.effective_from + '</p>' +
           '<details><summary>How these are worked out</summary><div class="working">' + steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') +
             (t.origin === 'manual' && t.calc_inputs && t.calc_inputs.calculated ? '<div>Changed by you. Calculated: ' + fmt(t.calc_inputs.calculated.kcal) + ' kcal · P ' + t.calc_inputs.calculated.proteinG + ' · C ' + t.calc_inputs.calculated.carbsG + ' · F ' + t.calc_inputs.calculated.fatG + '</div>' : '') +
-            '</div><p class="small muted">All estimates. From Phase 2, Leanward checks maintenance against your real intake and weight trend and suggests changes. Targets never change without your OK.</p></details>' +
+            '</div><p class="small muted">All estimates. After 3 weeks of logging and weigh-ins, the maintenance check compares them with your real intake and weight trend and may suggest a change. Targets never change without your OK.</p></details>' +
           (sets.length > 1 ? '<details style="margin-top:8px"><summary>Target history (' + sets.length + ' versions)</summary><div class="list">' + sets.map(function (s) {
-            return '<div class="item"><span><span class="t">' + fmt(s.kcal) + ' kcal · P ' + s.protein_g + ' · C ' + s.carbs_g + ' · F ' + s.fat_g + '</span><span class="s">From ' + s.effective_from + ' · ' + (s.origin === 'manual' ? 'set by you' : 'calculated') + '</span></span></div>';
+            return '<div class="item"><span><span class="t">' + fmt(s.kcal) + ' kcal · P ' + s.protein_g + ' · C ' + s.carbs_g + ' · F ' + s.fat_g + '</span><span class="s">From ' + s.effective_from + ' · ' + (s.origin === 'manual' ? 'set by you' : s.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + '</span></span></div>';
           }).join('') + '</div></details>' : '') + '</section>' +
         '<section class="card"><h2>Phase history</h2><div class="list">' +
           '<div class="item"><span><span class="t">' + PHASE_NAME[ph.type] + ' · current</span><span class="s">Since ' + ph.start_date + '</span></span><span class="small">Day ' + d.day + '</span></div>' +
