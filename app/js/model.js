@@ -209,7 +209,7 @@
   }
 
   /**
-   * The phase in effect on a date. Today's is always the current phase (the same one the Phase tab
+   * The phase in effect on a date. Today's is always the current phase (the same one the Plan tab
    * shows); for earlier days, the phase that covered the day, newest first, with the same tie-break
    * as currentPhase so two phases that start on the same day never give different answers.
    */
@@ -219,7 +219,7 @@
     return (phases || []).filter(function (p) { return !p.deleted && p.start_date <= date && (!p.end_date || p.end_date >= date); })
       .sort(function (x, y) { return x.start_date < y.start_date ? 1 : x.start_date > y.start_date ? -1 : (x.created_at < y.created_at ? 1 : -1); })[0] || null;
   }
-  /** The targets for a day: that day's phase and its target set; today falls back to the phase's first set, as the Phase tab does. */
+  /** The targets for a day: that day's phase and its target set; today falls back to the phase's first set, as the Plan tab does. */
   function targetsFor(phases, sets, date, today) {
     var ph = phaseOn(phases, date, today);
     if (!ph) return null;

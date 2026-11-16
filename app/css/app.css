@@ -29,7 +29,7 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 #app { min-height: 100%; }
-.view { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(164px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 12px; align-content: start; }
+.view { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(104px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 12px; align-content: start; }
 .top h1 { margin: 6px 0 2px; font-size: 26px; letter-spacing: -.01em; }
 h2 { font-size: 16px; margin: 0 0 8px; }
 p { margin: 8px 0 0; }
@@ -49,11 +49,13 @@ p { margin: 8px 0 0; }
 .pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); } .pill.wait { color: var(--muted); }
 :focus-visible { outline: 2px solid var(--g1); outline-offset: 2px; }
 
-.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px max(6px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); background: var(--tab); border-top: 1px solid var(--line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: 5; }
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 72px 1fr 1fr; align-items: end; padding: 8px max(6px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); background: var(--tab); border-top: 1px solid var(--line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: 5; }
 .tabs button { background: none; border: 0; font: 11px var(--font); color: var(--muted); display: grid; justify-items: center; gap: 3px; cursor: pointer; padding: 4px 0; min-height: 44px; }
 .tabs svg { width: 24px; height: 24px; }
 .tabs [aria-current="page"] { color: var(--fg); font-weight: 700; }
-.plus { position: fixed; right: max(18px, env(safe-area-inset-right, 0px)); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); width: 56px; height: 56px; border-radius: 50%; border: 0; background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--ink); font-size: 30px; line-height: 1; cursor: pointer; z-index: 6; box-shadow: 0 8px 20px rgba(0, 0, 0, .3); }
+/* The + sits in the middle of the tab bar, raised a little: the one primary action, on every tab (LOG-2). */
+.tabs .plus { justify-self: center; width: 56px; height: 56px; margin: -18px 0 2px; border-radius: 50%; border: 0; background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--ink); font: 400 30px/1 var(--font); cursor: pointer; display: grid; place-content: center; box-shadow: 0 6px 18px rgba(var(--g1-rgb), .35), 0 0 0 5px var(--bg); }
+.tabs .plus:active { transform: scale(.96); }
 
 .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 10; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--sheet); border-radius: 22px 22px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 11; max-width: 560px; margin: 0 auto; }
@@ -199,7 +201,29 @@ button.link { text-decoration: none; background: var(--track); border-radius: 99
 button.link:active { opacity: .7; }
 .linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 /* Numbers line up in columns. */
-.k, .targets b, .macros b, .status .pill, .item .s, .chart text { font-variant-numeric: tabular-nums; }
+.k, .item .s, .chart text { font-variant-numeric: tabular-nums; }
 .chart text { font-size: 11px; }
 /* The page ends clear of the + button (padding on .view), so it never rests on the last card. */
 details.advanced > summary { color: var(--muted); font-weight: 600; font-size: 13px; }
+
+/* Design pass 2 and 3 (2026-11-16): the day's hero, two tiles, four tabs. */
+.card.hero { padding: 18px 16px 14px; }
+.herogrid { display: grid; grid-template-columns: 136px 1fr; gap: 16px; align-items: center; }
+.ring { position: relative; width: 136px; height: 136px; }
+.ring svg { width: 100%; height: 100%; display: block; }
+.ring .rt { fill: none; stroke: var(--track); stroke-width: 10; }
+.ring .rp { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+.ringtxt { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ringtxt b { font-size: 30px; line-height: 1; letter-spacing: -.02em; }
+.ringtxt span { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.heromacros { display: grid; gap: 7px; min-width: 0; }
+.hm .bar { margin-top: 5px; }
+.hm b { font-variant-numeric: tabular-nums; }
+.herofoot { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); gap: 10px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile { display: grid; gap: 4px; align-content: start; justify-items: start; padding: 14px; min-width: 0; }
+.tile b { font-size: 17px; }
+.tile .route { width: 100%; margin: 6px 0 4px; }
+.tile .pill { max-width: 100%; margin-top: 2px; }
+.verdict { font-size: 15.5px; line-height: 1.4; font-weight: 600; margin: 8px 0 4px; }
+@media (max-width: 350px) { .herogrid { grid-template-columns: 112px 1fr; gap: 12px; } .ring { width: 112px; height: 112px; } .ringtxt b { font-size: 25px; } }

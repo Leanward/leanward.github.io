@@ -211,7 +211,7 @@
     }
     function mealsHtml() {
       var list = (S.rows.meals || []).slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-      if (!list.length) return '<p class="small muted">No saved meals yet. In the Diary, log a meal once, then tap "Save as meal" under it.</p>';
+      if (!list.length) return '<p class="small muted">No saved meals yet. On Today, log a meal once, then tap "Save as meal" under it.</p>';
       return '<div class="list">' + list.map(mealRow).join('') + '</div>';
     }
     var FACTORS = [[0.5, '½'], [1, '×1'], [1.5, '×1.5'], [2, '×2']];
@@ -304,8 +304,8 @@
       ctx.render(); focusSearch();
     }
     var actions = {
-      add: function () { var now = new Date(); S.sheet = false; openAdd(DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'diary' && S.diaryDate ? S.diaryDate : ctx.today()); },
-      addto: function (slot) { var now = new Date(); S.sheet = false; openAdd(slot || DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'diary' && S.diaryDate ? S.diaryDate : ctx.today()); },
+      add: function () { var now = new Date(); S.sheet = false; openAdd(DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); },
+      addto: function (slot) { var now = new Date(); S.sheet = false; openAdd(slot || DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); },
       addtab: function (v) { S.sheet.tab = v; ctx.render(); if (v === 'foods') focusSearch(); },
       food: function (id) { var a = S.sheet, back = a && a.kind === 'add' ? { q: a.q, results: a.results, online: a.online } : null; openFood(id, back, { slot: a.slot, date: a.date, via: 'search' }); },
       recent: function (id) {

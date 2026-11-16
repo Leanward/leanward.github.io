@@ -16,7 +16,7 @@ A message to send to the first few testers, and what to ask them. Edit freely.
 > **What to try:**
 > - Log what you eat for a few days: search, scan a barcode, or quick add.
 > - Weigh in most mornings (Progress → Log weight).
-> - After a few days, look at Home and the Phase tab.
+> - After a few days, look at Today and the Progress tab.
 >
 > **Please tell me:**
 > - Anything confusing, slow or wrong, with a screenshot if you can.

@@ -1,4 +1,4 @@
-/* Leanward — M3 screens: onboarding (ONB-2…9), starting a new phase (PHS-2/3), the Phase tab (PHS-4),
+/* Leanward — M3 screens: onboarding (ONB-2…9), starting a new phase (PHS-2/3), the Plan tab (PHS-4),
  * editing targets (PHS-5), and the Home and Profile cards that show them.
  * Flows and wording follow the prototype (prototype/app/index.html). Numbers come from js/calc via
  * js/model.js; saving goes through ctx.save (the phone's database, then sync).
@@ -382,28 +382,36 @@
       } catch (e) { return null; }
       return r;
     }
-    /** Home (HOM-2): phase name, day count and one headline signal; tap to open the Phase tab. */
-    function phaseHomeCard() {
+    /** Today (HOM-2): a small tile with the phase, its day and one headline signal; opens the Plan tab. */
+    function phaseTile() {
       var ph = M.currentPhase(S.rows.phases), t = currentTargets();
       if (!ph || !t) return '';
       var d = M.dayOf(ph, today()), r = readNow(ph, t), pos = d.total ? Math.min(100, d.day / d.total * 100) : 100;
       var read = r ? r.signals.filter(function (s) { return s.status !== 'collecting'; }) : [];
       var worst = read.filter(function (s) { return s.status === 'off-track'; })[0] || read.filter(function (s) { return s.status === 'watch'; })[0] || read[0];
       var pill = worst ? (SIGNAL[worst.status] || SIGNAL.collecting) : SIGNAL.collecting;
-      return '<button type="button" class="card cardbtn" data-a="tab" data-v="phase" aria-label="' + PHASE_NAME[ph.type] + ', ' + d.label + '. Open the Phase tab.">' +
-        '<div class="row"><span><b style="font-size:17px">' + PHASE_NAME[ph.type] + '</b> <span class="small muted">' + d.label + '</span></span><span class="pill ' + pill[0] + '">' + pill[1] + '</span></div>' +
-        '<div class="route"><i style="width:' + pos + '%"></i></div>' +
-        '<p class="small muted" style="margin:0">' + esc(r ? r.summary : 'Open the Phase tab for your targets.') + ' ›</p></button>';
+      return '<button type="button" class="card tile cardbtn" data-a="tab" data-v="progress" aria-label="' + PHASE_NAME[ph.type] + ', ' + d.label + ', ' + pill[1] + '. Open Progress.">' +
+        '<span class="small muted">' + PHASE_NAME[ph.type] + '</span><b>' + d.label + '</b>' +
+        '<div class="route"><i style="width:' + pos + '%"></i></div><span class="pill ' + pill[0] + '">' + pill[1] + '</span></button>';
     }
-    function progressCard(ph, t) {
+    /**
+     * "Is it working?" (PRG-2/3/4), on the Progress tab: the verdict first, each signal with its
+     * number, and how each is judged one tap away.
+     */
+    function readCard() {
+      var ph = M.currentPhase(S.rows.phases), t = currentTargets();
+      if (!ph || !t) return '';
       var r = readNow(ph, t);
       if (!r) return '';
-      return '<section class="card"><h2>Is it working?</h2><p class="small">' + esc(r.summary) + '</p>' +
+      var d = M.dayOf(ph, today());
+      return '<section class="card"><div class="row"><h2 style="margin:0">Is it working?</h2><span class="small muted">' + PHASE_NAME[ph.type] + ' · ' + d.label + '</span></div>' +
+        '<p class="verdict">' + esc(r.summary) + '</p>' +
         r.signals.map(function (s) {
           var p = SIGNAL[s.status] || SIGNAL.collecting;
-          return '<div class="sig"><div class="row"><b style="font-size:13.5px">' + esc(s.label) + '</b><span class="pill ' + p[0] + '">' + p[1] + '</span></div><span style="font-size:13px">' + esc(s.value) + '</span><p>' + esc(s.rule) + '</p></div>';
+          return '<div class="sig"><div class="row"><b style="font-size:13.5px">' + esc(s.label) + '</b><span class="pill ' + p[0] + '">' + p[1] + '</span></div><span style="font-size:13px">' + esc(s.value) + '</span></div>';
         }).join('') +
-        '<p class="small muted">A read needs at least 14 days of the phase and 8 weigh-ins (2 for waist or a key lift). Log weight and waist on the Progress tab; key lifts come from PR Forge.</p></section>';
+        '<details><summary>How each is judged</summary>' + r.signals.map(function (s) { return '<p class="small muted"><b>' + esc(s.label) + ':</b> ' + esc(s.rule) + '</p>'; }).join('') +
+        '<p class="small muted">A read needs at least 14 days of the phase and 8 weigh-ins (2 for waist or a key lift). Key lifts come from PR Forge.</p></details></section>';
     }
 
     /* ---------- maintenance check (PRG-5, §8.6) ---------- */
@@ -471,13 +479,13 @@
       var sets = (S.rows.sets || []).filter(function (s) { return s.phase_id === ph.id && !s.deleted; }).sort(function (x, y) { return x.effective_from < y.effective_from ? 1 : -1; });
       var past = (S.rows.phases || []).filter(function (p) { return p.end_date && !p.deleted; }).sort(function (x, y) { return x.start_date < y.start_date ? 1 : -1; });
       var steps = (t.calc_inputs && t.calc_inputs.steps) || [];
-      return '<header class="top row"><h1>Phase</h1><button type="button" class="btn ghost sm" data-a="newphase">Start a new phase</button></header>' +
+      return '<header class="top row"><h1>Plan</h1><button type="button" class="btn ghost sm" data-a="newphase">Start a new phase</button></header>' +
         '<section class="card"><span class="small muted">Goal: ' + (g ? esc(M.goalById(g.type).label) : '—') + '</span>' +
           '<div style="font-size:22px;font-weight:700;margin-top:2px">' + PHASE_NAME[ph.type] + '</div>' +
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' +
           '<div class="route"><i style="width:' + pos + '%"></i></div>' +
           '<div class="row small muted"><span>Started ' + nd(ph.start_date) + '</span><span>' + (ph.planned_end ? 'Planned end ~' + nd(ph.planned_end) : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
-        progressCard(ph, t) + maintCard(t) +
+        maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
           (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type, fromCheck(t) ? 'tracking-check' : null) + '</div>' : '') +
@@ -509,7 +517,7 @@
       return '<section class="card"><h2>Your details</h2><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
         '<div class="row" style="margin-top:8px"><span class="small">Units</span><div class="seg" style="width:170px">' + [['us', 'US'], ['metric', 'Metric']].map(function (u) { return '<button type="button" data-a="units" data-v="' + u[0] + '" aria-pressed="' + (p.units === u[0]) + '">' + u[1] + '</button>'; }).join('') + '</div></div>' +
         '<button type="button" class="btn ghost block" data-a="editdetails">Edit details</button>' +
-        '<p class="small muted">Your weight comes from your latest weigh-in. To change your goal or phase, use Phase → Start a new phase.</p></section>';
+        '<p class="small muted">Your weight comes from your latest weigh-in. To change your goal or phase, use Plan → Start a new phase.</p></section>';
     }
     function activityLabel(id) { try { return C.energy.activityById(id).label.toLowerCase(); } catch (e) { return null; } }
 
@@ -671,7 +679,7 @@
 
     return {
       startOnboarding: startOnboarding, onboardingView: onboardingView, onInput: onInput, actions: actions,
-      hasSetup: hasSetup, phaseView: phaseView, homeCard: homeCard, phaseHomeCard: phaseHomeCard, profileCard: profileCard, sheetView: sheetView
+      hasSetup: hasSetup, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView
     };
   }
 
