@@ -362,14 +362,14 @@
       var waist = (S.rows.waist || []).map(function (w) { return { date: w.date, cm: Number(w.cm) }; });
       var r;
       try {
-        r = C.progress.read({ phase: { type: ph.type, startDate: ph.start_date, expectedWeeklyPct: t && t.calc_inputs ? t.calc_inputs.expectedWeeklyPct : null }, today: today(), weights: weights, waist: waist, lifts: {} }, { units: (S.rows.profile && S.rows.profile.units) || 'us' });
+        r = C.progress.read({ phase: { type: ph.type, startDate: ph.start_date, expectedWeeklyPct: t && t.calc_inputs ? t.calc_inputs.expectedWeeklyPct : null }, today: today(), weights: weights, waist: waist, lifts: ctx.lifts ? ctx.lifts() : {} }, { units: (S.rows.profile && S.rows.profile.units) || 'us' });
       } catch (e) { return ''; }
       return '<section class="card"><h2>Is it working?</h2><p class="small">' + esc(r.summary) + '</p>' +
         r.signals.map(function (s) {
           var p = SIGNAL[s.status] || SIGNAL.collecting;
           return '<div class="sig"><div class="row"><b style="font-size:13.5px">' + esc(s.label) + '</b><span class="pill ' + p[0] + '">' + p[1] + '</span></div><span style="font-size:13px">' + esc(s.value) + '</span><p>' + esc(s.rule) + '</p></div>';
         }).join('') +
-        '<p class="small muted">A read needs at least 14 days of the phase and 8 weigh-ins (2 for waist). Log them on the Progress tab.</p></section>';
+        '<p class="small muted">A read needs at least 14 days of the phase and 8 weigh-ins (2 for waist or a key lift). Log weight and waist on the Progress tab; key lifts come from PR Forge.</p></section>';
     }
 
     function phaseView() {

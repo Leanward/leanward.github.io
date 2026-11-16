@@ -1,12 +1,13 @@
 /* Leanward — the Progress tab (M6a): weigh-ins with the trend (MEA-1, MEA-2), waist and other
  * circumferences with how-to-measure guidance (MEA-3), edit and delete (MEA-6), and charts for
  * weight, waist, calories and protein over 4 weeks / 12 weeks / 6 months / all, with phase starts
- * marked (PRG-1). Each chart carries a spoken summary. Logic lives in js/measure.js and calc/trend.js.
+ * marked (PRG-1). Key lifts come from PR Forge, read-only (MEA-5, js/prforge.js). Each chart carries
+ * a spoken summary. Logic lives in js/measure.js and calc/trend.js.
  */
 (function (root) {
   'use strict';
 
-  var ME = root.LW.measure, M = root.LW.model, core = root.LW.calc.core, fmt = core.fmt, fmtS = core.fmtSigned;
+  var ME = root.LW.measure, PF = root.LW.prforge, M = root.LW.model, core = root.LW.calc.core, fmt = core.fmt, fmtS = core.fmtSigned;
   var BOX = { w: 340, h: 150, pad: { l: 38, r: 8, t: 8, b: 18 } };
   var PHASE_NAME = { cut: 'Cut', recomp: 'Recomp', bulk: 'Lean bulk', maintenance: 'Maintenance', nutrition: 'Nutrition' };
 
@@ -110,13 +111,56 @@
         legend([['k-dot', 'Logged day (calories above, protein below)'], ['k-target', 'Target']]) + '</section>';
     }
 
+    /* ---------- key lifts from PR Forge (MEA-5) ---------- */
+    function picks() { return ((S.rows.profile && S.rows.profile.preferences) || {}).keyLifts || []; }
+    function liftsCard(from, today) {
+      var pf = S.pf || {}, u = ME.weightUnit(units()), data = pf.data, on = pf.status === 'on';
+      var head = '<div class="row"><h2 style="margin:0">Key lifts</h2>' + (data ? '<button type="button" class="btn sm" data-a="liftspick">Choose lifts</button>' : '') + '</div>';
+      if (!data) {
+        return '<section class="card">' + head +
+          '<p class="small muted">Strength is the sign the scale can\'t give: lifts holding or rising means you\'re keeping or building muscle. Leanward can read your lifts from PR Forge. It only reads; it never changes anything there.</p>' +
+          (pf.error ? '<p class="small warn">' + esc(pf.error) + '</p>' : '') +
+          (pf.status === 'checking' || pf.busy ? '<p class="small muted">' + (pf.busy ? 'Reading your PR Forge workouts…' : 'Checking the PR Forge connection…') + '</p>'
+            : on ? '<button type="button" class="btn block" data-a="pfrefresh">Read my PR Forge workouts</button>'
+            : '<button type="button" class="btn block" data-a="pfconnect">Connect PR Forge</button><p class="small muted">You\'ll sign in to PR Forge with Google once. Use the same Google account you use there.</p>') + '</section>';
+      }
+      var lifts = PF.series(data.exercises, picks(), units());
+      var body = !lifts.length
+        ? '<p class="small muted">' + (data.exercises.length ? 'Pick up to ' + PF.MAX_LIFTS + ' lifts to follow, such as your main squat, press and pull.' : 'No finished PR Forge workouts with weighted sets yet.') + '</p>'
+        : lifts.map(function (l) {
+          if (l.missing || !l.points.length) return '<div class="sig"><b style="font-size:13.5px">' + esc(l.name) + '</b><p>No sets found in PR Forge for this lift.</p></div>';
+          var inRange = l.points.filter(function (p) { return p.date >= from && p.date <= today; }), last = l.points[l.points.length - 1];
+          var change = inRange.length >= 2 ? inRange[inRange.length - 1].v - inRange[0].v : null;
+          var said = l.name + ' estimated one-rep max, ' + rangeLabel() + '. ' + inRange.length + ' session' + (inRange.length === 1 ? '' : 's') + '. Latest ' + fmt(last.v) + ' ' + u + ' on ' + last.date + (change != null ? '. Change over this range ' + fmtS(change) + ' ' + u : '') + '.';
+          return '<div class="lift"><div class="row"><b style="font-size:14px">' + esc(l.name) + '</b><span class="small muted">' + (change != null ? fmtS(change) + ' ' + u + ' over the ' + esc(rangeLabel()) : '') + '</span></div>' +
+            '<div><b style="font-size:22px">' + fmt(last.v) + '</b> <span class="small muted">' + u + ' est. 1RM · best set ' + fmt(last.weight, last.weight % 1 ? 1 : 0) + ' × ' + last.reps + ' on ' + esc(day(last.date)) + '</span></div>' +
+            (inRange.length ? chart({ from: from, to: today, dots: inRange, line: inRange, summary: said }) : '<p class="small muted">No sessions in this range.</p>') + '</div>';
+        }).join('');
+      return '<section class="card">' + head + body +
+        (pf.error ? '<p class="small warn">' + esc(pf.error) + '</p>' : '') +
+        '<p class="small muted">From PR Forge, read-only' + (data.at ? ' · updated ' + esc(new Date(data.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) : '') + '. Estimated 1RM = weight × (1 + reps ÷ 30), from each day\'s best set of 12 reps or fewer.</p>' +
+        '<div class="row" style="justify-content:flex-start;gap:16px">' +
+          (on ? '<button type="button" class="link" data-a="pfrefresh">' + (pf.busy ? 'Updating…' : 'Update now') + '</button><button type="button" class="link" data-a="pfdisconnect">Disconnect PR Forge</button>'
+            : '<button type="button" class="link" data-a="pfconnect">Reconnect PR Forge</button>') + '</div></section>';
+    }
+    function liftsSheet() {
+      var sh = S.sheet, list = ((S.pf && S.pf.data && S.pf.data.exercises) || []);
+      var chosen = sh.picks.map(function (p) { return p.id; });
+      return wrap('Choose key lifts', '<div class="row"><h2>Key lifts</h2><span class="small muted">' + sh.picks.length + ' of ' + PF.MAX_LIFTS + '</span></div>' +
+        '<p class="small muted">Pick the lifts that best show your strength, up to ' + PF.MAX_LIFTS + '. These are the exercises you\'ve logged in PR Forge with weight, most often first.</p>' +
+        '<div class="list">' + list.map(function (e) {
+          var on = chosen.indexOf(e.id) >= 0, last = e.sessions[e.sessions.length - 1];
+          return '<button type="button" class="item food" data-a="lifttoggle" data-v="' + esc(e.id) + '" aria-pressed="' + on + '"><span><span class="t">' + esc(e.name) + '</span><span class="s">' + e.sessions.length + ' session' + (e.sessions.length === 1 ? '' : 's') + ' · last ' + esc(day(last.date)) + '</span></span><span class="badge' + (on ? ' verified' : '') + '">' + (on ? '✓ Following' : 'Add') + '</span></button>';
+        }).join('') + '</div><button type="button" class="btn block" data-a="liftssave">Save</button>');
+    }
+
     function view() {
       var today = ctx.today(), first = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort()[0];
       var from = ME.rangeStart(range(), today, first);
       return '<header class="top"><h1>Progress</h1></header>' +
         '<div class="seg">' + ME.RANGES.map(function (r) { return '<button type="button" data-a="prange" data-v="' + r.id + '" aria-pressed="' + (range() === r.id) + '">' + r.label + '</button>'; }).join('') + '</div>' +
-        weightCard(from, today) + measureCard(from, today) + intakeCard(from, today) +
-        '<p class="small muted center">Dashed lines mark where a phase started. Is the phase working? See the Phase tab. Key lifts arrive with the PR Forge connection.</p>';
+        weightCard(from, today) + measureCard(from, today) + liftsCard(from, today) + intakeCard(from, today) +
+        '<p class="small muted center">Dashed lines mark where a phase started. Is the phase working? See the Phase tab.</p>';
     }
 
     function homeCard() {
@@ -147,7 +191,7 @@
         '<div class="field"><label for="ms-d">Day</label><input type="date" id="ms-d" data-m="date" value="' + esc(sh.date) + '" max="' + ctx.today() + '"></div></div>' +
         '<button type="button" class="btn block" data-a="measuresave">Save</button>' + (sh.id ? '<button type="button" class="btn ghost block" data-a="measuredelete">Delete</button>' : ''));
     }
-    function sheetView() { var k = S.sheet && S.sheet.kind; return k === 'weigh' ? weighSheet() : k === 'measure' ? measureSheet() : null; }
+    function sheetView() { var k = S.sheet && S.sheet.kind; return k === 'weigh' ? weighSheet() : k === 'measure' ? measureSheet() : k === 'lifts' ? liftsSheet() : null; }
     function focus(id) { root.setTimeout(function () { var i = root.document.getElementById(id); if (i) i.focus(); }, 50); }
 
     function onInput(el) {
@@ -186,6 +230,24 @@
         try { row = ME.measurementRow({ id: sh.id, site: sh.site, value: sh.value, units: units(), date: sh.date, today: ctx.today() }); } catch (e) { ctx.toast(e.message); return; }
         if (old) row = Object.assign({}, old, row);
         ctx.save([['lw_measurements', row]]).then(function () { S.sheet = false; ctx.toast(old ? 'Saved' : 'Measurement added'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
+      },
+      pfconnect: function () { ctx.pf.connect(); },
+      pfrefresh: function () { ctx.pf.refresh(true); },
+      pfdisconnect: function () { ctx.pf.disconnect(); },
+      liftspick: function () { S.sheet = { kind: 'lifts', picks: picks().slice() }; ctx.render(); },
+      lifttoggle: function (id) {
+        var ex = ((S.pf && S.pf.data && S.pf.data.exercises) || []).filter(function (e) { return e.id === id; })[0];
+        if (!ex) return;
+        try { S.sheet.picks = PF.toggle(S.sheet.picks, ex); } catch (e) { ctx.toast(e.message); return; }
+        var box = root.document.querySelector('.sheet'), y = box ? box.scrollTop : 0;
+        ctx.render();
+        box = root.document.querySelector('.sheet'); if (box) box.scrollTop = y;
+      },
+      liftssave: function () {
+        var p = S.rows.profile;
+        if (!p) return;
+        var prefs = Object.assign({}, p.preferences || {}, { keyLifts: S.sheet.picks.slice(0, PF.MAX_LIFTS) });
+        ctx.save([['lw_profiles', Object.assign({}, p, { preferences: prefs })]]).then(function () { S.sheet = false; ctx.toast('Key lifts saved'); ctx.render(); });
       },
       measuredelete: function () { var id = S.sheet.id; ctx.remove('lw_measurements', id).then(function () { S.sheet = false; ctx.toast('Deleted'); ctx.render(); }); }
     };
