@@ -1,4 +1,4 @@
-/* Leanward — the Diary tab (LOG-1, NUT-1), editing, moving and deleting entries (LOG-11),
+/* Leanward — the Today tab: the day's hero and food diary (LOG-1, NUT-1, HOM-1), editing, moving and deleting entries (LOG-11),
  * copying yesterday, a meal or yesterday's breakfast (LOG-10), saving a meal (LOG-9), meal names,
  * order and visibility (LOG-1), the Nutrient review (NUT-6, NUT-7) and the Home "today" card.
  * Over target is shown neutrally (LOG-13). Logic lives in js/diary.js; flows follow the prototype.
@@ -31,17 +31,26 @@
     }
     function wrap(title, body) { return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="grab"></div>' + body + '</div>'; }
 
-    function totalsCard(date) {
+    /**
+     * The day's hero (HOM-1, NUT-1): a ring of calories eaten against the target in the phase color,
+     * with what's left in the middle, and protein, carbs and fat beside it. Over target is shown
+     * plainly ("over"), in the same calm color (LOG-13).
+     */
+    function heroCard(date) {
       var t = DY.totals(entriesOn(date)), tg = targetsFor(date), v = DY.versusTarget(t, tg);
-      if (!v) return '<section class="card"><b>' + fmt(t.kcal) + ' kcal</b><p class="small muted">No targets for this day.</p></section>';
+      if (!v) return '<section class="card"><b style="font-size:22px">' + fmt(t.kcal) + ' kcal</b><p class="small muted">No targets for this day.</p></section>';
+      var C = 2 * Math.PI * 50, share = tg.kcal ? Math.min(1, t.kcal / tg.kcal) : 0, over = v.kcal.left < 0;
       var bar = function (eaten, target) { return '<div class="bar"><i style="width:' + Math.min(100, target ? eaten / target * 100 : 0) + '%"></i></div>'; };
-      var macro = function (label, m, unit) { return '<div><span class="small muted">' + label + '</span><b>' + fmt(m.eaten) + '<span class="small muted"> / ' + fmt(m.target) + ' ' + unit + '</span></b>' + bar(m.eaten, m.target) + '</div>'; };
-      return '<section class="card"><div class="row"><span><b style="font-size:22px">' + fmt(t.kcal) + '</b><span class="small muted"> / ' + fmt(tg.kcal) + ' kcal</span></span>' +
-        '<span class="pill ' + (v.kcal.left >= 0 ? '' : 'wait') + '">' + v.kcal.text + '</span></div>' + bar(t.kcal, tg.kcal) +
-        '<div class="macros">' + macro('Protein', v.protein, 'g') + macro('Carbs', v.carbs, 'g') + macro('Fat', v.fat, 'g') + macro('Fiber', v.fiber, 'g') + '</div>' +
-        (t.entries && !(t.coverage.fiber >= 1) ? '<p class="small muted">Fiber is known for ' + Math.round((t.coverage.fiber || 0) * 100) + '% of this day\'s calories (quick adds and some foods don\'t list it), so the real total may be higher.</p>' : '') +
-        (t.entries ? '<button type="button" class="btn ghost block" data-a="nutrients">Nutrients ›</button>' : '') +
-        '</section>';
+      var macro = function (label, m) { return '<div class="hm"><div class="row"><span class="small muted">' + label + '</span><span class="small"><b>' + fmt(m.eaten) + '</b><span class="muted"> / ' + fmt(m.target) + ' g</span></span></div>' + bar(m.eaten, m.target) + '</div>'; };
+      var said = fmt(Math.abs(v.kcal.left)) + ' calories ' + (over ? 'over' : 'left') + '. ' + fmt(t.kcal) + ' eaten of ' + fmt(tg.kcal) + '.';
+      return '<section class="card hero"><div class="herogrid">' +
+        '<div class="ring" role="img" aria-label="' + esc(said) + '"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--g1)"/><stop offset="1" style="stop-color:var(--g2)"/></linearGradient></defs>' +
+          '<circle class="rt" cx="60" cy="60" r="50"/><circle class="rp" cx="60" cy="60" r="50" stroke="url(#ring-g)" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - share)).toFixed(1) + '" transform="rotate(-90 60 60)"/></svg>' +
+          '<div class="ringtxt"><b>' + fmt(Math.abs(v.kcal.left)) + '</b><span>kcal ' + (over ? 'over' : 'left') + '</span></div></div>' +
+        '<div class="heromacros">' + macro('Protein', v.protein) + macro('Carbs', v.carbs) + macro('Fat', v.fat) + macro('Fiber', v.fiber) + '</div></div>' +
+        '<div class="row herofoot"><span class="small muted">' + fmt(t.kcal) + ' eaten · target ' + fmt(tg.kcal) +
+          (t.entries && !(t.coverage.fiber >= 1) ? ' · fiber known for ' + Math.round((t.coverage.fiber || 0) * 100) + '%' : '') + '</span>' +
+          (t.entries ? '<button type="button" class="link" data-a="nutrients">Nutrients</button>' : '') + '</div></section>';
     }
 
     function entryRow(e) {
@@ -54,9 +63,11 @@
     function view() {
       var date = S.diaryDate || ctx.today(), today = ctx.today(), es = entriesOn(date), y = DY.addDays(date, -1), yEntries = entriesOn(y);
       var out = '<header class="top row"><button type="button" class="iconbtn" data-a="day" data-v="-1" aria-label="Previous day">‹</button>' +
-        '<h1 style="text-align:center;font-size:20px">' + esc(dayName(date)) + '</h1>' +
+        '<h1 style="text-align:center;font-size:22px">' + esc(dayName(date)) + '</h1>' +
         '<button type="button" class="iconbtn" data-a="day" data-v="1" aria-label="Next day"' + (date >= today ? ' disabled style="opacity:.35"' : '') + '>›</button></header>' +
-        totalsCard(date);
+        heroCard(date);
+      // Today only: the phase and weight tiles, at most one insight, and quick log for the time of day.
+      if (date === today) out += (ctx.tiles ? ctx.tiles() : '') + insightCard() + quickLog();
       if (!es.length && yEntries.length) out += '<section class="card"><div class="row"><span class="small">Nothing logged yet.</span><button type="button" class="btn sm" data-a="copyday">Copy ' + (y === DY.addDays(today, -1) ? 'yesterday' : 'the day before') + '</button></div></section>';
       slots().forEach(function (sl) {
         var se = es.filter(function (e) { return e.slot === sl.id; });
@@ -75,23 +86,14 @@
       return out + '<p class="center"><button type="button" class="link" data-a="slots">Rename, reorder or hide meals</button></p>';
     }
 
-    /** Home (HOM-1): calories left with eaten / target, then protein, carbs and fat; quick log for the time of day (HOM-3). */
-    function homeCard() {
-      var today = ctx.today(), t = DY.totals(entriesOn(today)), tg = targetsFor(today), ph = M.currentPhase(S.rows.phases);
-      if (!tg || !ph) return '';
-      var v = DY.versusTarget(t, tg);
-      var bar = function (eaten, target) { return '<div class="bar"><i style="width:' + Math.min(100, target ? eaten / target * 100 : 0) + '%"></i></div>'; };
-      var macro = function (label, m) { return '<div><span class="small muted">' + label + '</span><b>' + fmt(m.eaten) + '<span class="small muted"> / ' + fmt(m.target) + ' g</span></b>' + bar(m.eaten, m.target) + '</div>'; };
+    /** Quick log (HOM-3): the foods you most often log at this time of day, one tap each. */
+    function quickLog() {
       var now = new Date(), slot = DY.slotForTime(now.getHours() * 60 + now.getMinutes());
-      var picks = DY.quickPicks(S.rows.diary || [], slot, today, 5);
-      return '<section class="card"><div class="row"><h2 style="margin:0">Calories</h2><span class="small muted">' + fmt(t.kcal) + ' eaten of ' + fmt(tg.kcal) + '</span></div>' +
-        '<div style="margin-top:6px"><b style="font-size:30px">' + fmt(Math.abs(v.kcal.left)) + '</b> <span class="small muted">kcal ' + (v.kcal.left >= 0 ? 'left' : 'over') + '</span></div>' +
-        bar(t.kcal, tg.kcal) +
-        '<div class="macros three">' + macro('Protein', v.protein) + macro('Carbs', v.carbs) + macro('Fat', v.fat) + '</div>' +
-        (picks.length ? '<span class="sec" style="display:block;margin:14px 2px 6px">Quick log · ' + esc(slotLabel(slot)) + '</span><div class="chips2">' + picks.map(function (e) {
-          return '<button type="button" data-a="quicklog" data-v="' + esc(e.id) + '" aria-label="Log ' + esc(e.name) + ', ' + fmt(Number(e.kcal)) + ' kcal, to ' + esc(slotLabel(slot)) + '">+ ' + esc(String(e.name).split(' · ')[0].slice(0, 28)) + ' <span class="muted">' + fmt(Number(e.kcal)) + '</span></button>';
-        }).join('') + '</div>' : '') +
-        '</section>';
+      var picks = DY.quickPicks(S.rows.diary || [], slot, ctx.today(), 5);
+      if (!picks.length) return '';
+      return '<section class="card slim"><span class="sec" style="display:block;margin:0 0 8px">Quick log · ' + esc(slotLabel(slot)) + '</span><div class="chips2">' + picks.map(function (e) {
+        return '<button type="button" data-a="quicklog" data-v="' + esc(e.id) + '" aria-label="Log ' + esc(e.name) + ', ' + fmt(Number(e.kcal)) + ' kcal, to ' + esc(slotLabel(slot)) + '">+ ' + esc(String(e.name).split(' · ')[0].slice(0, 28)) + ' <span class="muted">' + fmt(Number(e.kcal)) + '</span></button>';
+      }).join('') + '</div></section>';
     }
     /** Home (HOM-4): at most one insight card. */
     function insightCard() {
@@ -100,7 +102,7 @@
       var first = (S.rows.phases || []).filter(function (p) { return !p.deleted; }).map(function (p) { return p.start_date; }).sort()[0] || null;
       var i = root.LW.home.insight({ minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: targetsFor(today), lastWeighDate: lastW, firstUseDate: first });
       if (!i) return '';
-      return '<section class="card"><span class="chip"><i></i>Today</span><b style="display:block;margin-top:6px">' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p>' +
+      return '<section class="card"><span class="chip"><i></i>Tip</span><b style="display:block;margin-top:6px">' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p>' +
         '<button type="button" class="btn ghost sm" data-a="' + i.action.a + '" data-v="">' + esc(i.action.label) + '</button></section>';
     }
 
@@ -291,7 +293,7 @@
         if (!e) return;
         var now = new Date(), slot = DY.slotForTime(now.getHours() * 60 + now.getMinutes());
         var rows = DY.copyEntries([e], ctx.today(), slot).map(function (r) { r.logged_via = 'recent'; return ['lw_diary_entries', r]; });
-        ctx.save(rows).then(function () { ctx.toast('Added to ' + slotLabel(slot) + '. Tap it in the Diary to change it.'); ctx.render(); });
+        ctx.save(rows).then(function () { ctx.toast('Added to ' + slotLabel(slot) + '. Tap it below to change it.'); ctx.render(); });
       },
       repeatbf: function () {
         var date = S.diaryDate || ctx.today();
@@ -300,7 +302,7 @@
       }
     };
 
-    return { view: view, homeCard: homeCard, insightCard: insightCard, sheetView: sheetView, onInput: onInput, actions: actions, entriesOn: entriesOn, slots: slots, slotOptions: slotOptions, slotLabel: slotLabel, dayName: dayName };
+    return { view: view, insightCard: insightCard, sheetView: sheetView, onInput: onInput, actions: actions, entriesOn: entriesOn, slots: slots, slotOptions: slotOptions, slotLabel: slotLabel, dayName: dayName };
   }
 
   root.LW.diaryui = { create: create };

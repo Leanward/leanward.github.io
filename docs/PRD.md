@@ -1,6 +1,6 @@
 # Leanward — Product Requirements Document
 
-> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta) · **Date:** 2026-11-16 · **Owner:** Kevin Chavez
+> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout) · **Date:** 2026-11-16 · **Owner:** Kevin Chavez
 > **Source:** [`blueprint-v2.md`](blueprint-v2.md) (Product Vision v2.0). Where this PRD adds detail, changes scope, or makes a call the blueprint left open, it is marked **[Proposed]** so you can accept or reject it; calls you've confirmed are marked **[Decided]** and logged in [`decisions.md`](decisions.md).
 > **How to review:** react to anything, but the fastest path to sign-off is answering the numbered questions in §15.
 
@@ -170,7 +170,7 @@ Priority: **P0** = MVP can't ship without it · **P1** = MVP, can slip to a fast
 | HOM-2 | Phase card: phase name, day count, single headline progress signal; tap → Phase tab. | P0 |
 | HOM-3 | Quick log: the 5 most likely items for the current time slot (from history), each one tap to log. | P1 |
 | HOM-4 | At most one daily insight card. MVP insight set: protein running low for the day, fiber below 50% of target by evening, no weigh-in for 7 days (gentle). | P1 |
-| HOM-5 | No more than 4 cards on first load. Customization is Phase 2. | P0 |
+| HOM-5 | Above the meals, Today shows no more than: the hero, one row of two tiles, one tip and quick log (v1.7; was "no more than 4 cards" when Home was its own tab). Customization is Phase 2. | P0 |
 
 ### 6.8 Account, privacy and data (ACC)
 | ID | Requirement | Pri |
@@ -199,7 +199,7 @@ Owner request: let users bring in their lab results, from any lab, and connect t
 | LAB-8 | **Privacy:** lab data is stored only in the user's own rows (row-level security), is never used in analytics, is included in export (ACC-2) and account deletion (ACC-1), and the original PDF is not kept unless the user chooses to. Sample or real lab PDFs are never committed to the public repo. |
 
 ### 6.9 Navigation
-Five tabs, per the blueprint: **Home · Diary · Progress · Phase · Profile**, plus the global **+** (LOG-2). Advanced nutrient detail lives one tap deeper (Diary → day → Nutrients) so the default views stay uncluttered.
+**Four tabs (v1.7, owner-approved design pass):** **Today · Progress · Plan · Profile**, with the global **+** in the middle of the tab bar (LOG-2). *Today* is Home and Diary merged: the day's hero (a calorie ring in the phase color with protein, carbs, fat and fiber), then, for today only, a phase tile and a weight tile, at most one tip and quick log, then the meals; ‹ › moves between days. *Progress* opens with "Is it working?" and then the charts. *Plan* holds the phase, goal weight, maintenance check, targets and history. Advanced nutrient detail lives one tap deeper (Today → Nutrients). (v1.0–1.6 had five tabs: Home · Diary · Progress · Phase · Profile.)
 
 ## 7. Food data strategy [Decided 2026-11-02 — §15 Q4]
 
@@ -439,6 +439,7 @@ No questions are open. Signed off 2026-11-02. Changes from here go through the f
 | 2026-11-03 | 1.3 | ONB-10 "I know my numbers" (measured BMR/RMR or known maintenance), checks on entered numbers and the accuracy note in §8.1 (owner request after testing: the formula overestimated their maintenance). |
 | 2026-11-03 | 1.3 | ONB-1: Google sign-in only for now; email + password deferred (owner decision). |
 | 2026-11-03 | 1.3 | §8.10 extended for M1b: progress-read bands, adaptive blend, DRI life stages. |
+| 2026-11-16 | 1.7 | §9 navigation: four tabs (Today · Progress · Plan · Profile) with the + in the tab bar; Home and Diary merge into Today; "Is it working?" moves to Progress. HOM-5 reworded. From the design audit the owner asked for. |
 | 2026-11-16 | 1.6 | ACC-6 default mode is Match iPhone. ACC-5 reminders (P1) move to after the beta: web push on iPhone needs a push server and only works for home-screen apps. |
 | 2026-11-16 | 1.5 | §8.10: maintenance check rules (what counts as a logged day, window, 50 kcal threshold, weekly wait). |
 | 2026-11-16 | 1.5 | MEA-5: key lifts are read from PR Forge only for now; manual lift entry deferred (owner decision). |

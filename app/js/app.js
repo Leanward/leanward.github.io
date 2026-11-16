@@ -24,15 +24,16 @@
   E.install(root, reporter);
 
   /* ---------- state ---------- */
+  // Four tabs (PRD §9, v1.7): Today is the day's food with the hero on top; Progress has the read and the
+  // charts; Plan has the phase and targets. The + sits in the middle of the bar.
   var TABS = [
-    ['home', 'Home', 'M7', 'Your phase card and one tip.'],
-    ['diary', 'Diary', 'M5', 'Your day by meal.'],
-    ['progress', 'Progress', 'M6', 'Weight trend, waist, key lifts from PR Forge and the charts.'],
-    ['phase', 'Phase', 'M3, M6', 'Your current phase, targets with the working, and whether it is working.'],
-    ['profile', 'Profile', 'M7', 'Settings, appearance, export and account.']
+    ['home', 'Today'],
+    ['progress', 'Progress'],
+    ['phase', 'Plan'],
+    ['profile', 'Profile']
   ];
   // account: who signed in on this phone, kept locally so the app still opens offline.
-  var state = { tab: store.get('tab', 'home'), sheet: false, ping: { ok: null, reason: 'Checking…' }, sw: 'Checking…',
+  var state = { tab: tabOf(store.get('tab', 'home')), sheet: false, ping: { ok: null, reason: 'Checking…' }, sw: 'Checking…',
     account: store.get('account', null), signingIn: false, sync: { state: 'idle', pending: 0 },
     // rows: the signed-in person's saved data, read from the phone's database (M3).
     rows: emptyRows(), loaded: false, everSynced: false, ob: null,
@@ -41,14 +42,16 @@
   var data = null, syncer = null;   // the signed-in person's phone copy (js/db.js) and its sync
   function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], measures: [], diary: [], customs: [], meals: [], recs: [], bodyfat: [] }; }
 
+  /** A saved tab from before the four-tab layout still opens somewhere sensible ('diary' is now Today). */
+  function tabOf(id) { return id === 'diary' ? 'home' : ['home', 'progress', 'phase', 'profile'].indexOf(id) >= 0 ? id : 'home'; }
+
   /** Today as the user's local calendar day. */
   function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
   var ICONS = {
     home: '<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z" stroke-linejoin="round"/>',
-    diary: '<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3" stroke-linecap="round"/>',
     progress: '<path d="M4 18l5-6 4 3 7-9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke-linecap="round"/>',
-    phase: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none" opacity=".6"/>',
+    phase: '<path d="M5 20V5m0 1h11l-2.5 3.5L16 13H5" stroke-linecap="round" stroke-linejoin="round"/>',
     profile: '<circle cx="12" cy="9" r="3.5"/><path d="M5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5" stroke-linecap="round"/>'
   };
 
@@ -131,7 +134,7 @@
     return '<section class="card" aria-labelledby="set-h"><h2 id="set-h">Settings</h2>' +
       '<div class="status"><span>Appearance</span><button type="button" class="link" data-a="appearance">Color and light or dark</button></div>' +
       '<div class="status"><span>Meals</span><button type="button" class="link" data-a="slots">Rename, reorder or hide</button></div>' +
-      '<div class="status"><span>Targets and phase</span><button type="button" class="link" data-a="tab" data-v="phase">Open Phase</button></div>' +
+      '<div class="status"><span>Targets and phase</span><button type="button" class="link" data-a="tab" data-v="phase">Open Plan</button></div>' +
       '<div class="status"><span>PR Forge <span class="small muted">' + esc(pfs) + '</span></span><button type="button" class="link" data-a="tab" data-v="progress">' + (state.pf.status === 'on' ? 'Key lifts' : 'Connect') + '</button></div></section>';
   }
   function dataCard() {
@@ -201,15 +204,10 @@
   }
 
   function tabView(id) {
-    var t = TABS.filter(function (x) { return x[0] === id; })[0];
     if (id === 'phase') return screens.phaseView();
-    if (id === 'diary') return diaryui.view();
     if (id === 'progress') return progressui.view();
-    var soon = '<section class="card"><span class="chip"><i></i>Coming in ' + esc(t[2]) + '</span><p>' + esc(t[3]) + '</p></section>';
-    // Home (HOM-5): at most four cards: calories, phase, weight and, some days, one insight.
-    if (id === 'home') return '<header class="top"><h1>Today</h1></header>' + diaryui.homeCard() + screens.phaseHomeCard() + progressui.homeCard() + diaryui.insightCard();
     if (id === 'profile') return '<header class="top"><h1>Profile</h1></header>' + screens.profileCard() + settingsCard() + dataCard() + accountCard() + supportCard() + aboutCard();
-    return '<header class="top"><h1>' + esc(t[1]) + '</h1></header>' + soon;
+    return diaryui.view();
   }
 
   /** While the account downloads on a new phone, or when there's no connection for the first setup. */
@@ -274,16 +272,18 @@
       if (state.loaded && state.everSynced) { screens.startOnboarding(); app.innerHTML = screens.onboardingView(); return; }
       app.innerHTML = waitView(); return;
     }
+    var tabBtn = function (t) {
+      return '<button type="button" data-a="tab" data-v="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' + ICONS[t[0]] + '</svg>' + t[1] + '</button>';
+    };
     app.innerHTML = '<main class="view" id="view">' + tabView(state.tab) + '</main>' +
-      '<button type="button" class="plus" data-a="add" aria-label="Add">+</button>' +
-      '<nav class="tabs" aria-label="Main">' + TABS.map(function (t) {
-        return '<button type="button" data-a="tab" data-v="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' + ICONS[t[0]] + '</svg>' + t[1] + '</button>';
-      }).join('') + '</nav>' + sheet();
+      '<nav class="tabs" aria-label="Main">' + tabBtn(TABS[0]) + tabBtn(TABS[1]) +
+      '<button type="button" class="plus" data-a="add" aria-label="Log food">+</button>' +
+      tabBtn(TABS[2]) + tabBtn(TABS[3]) + '</nav>' + sheet();
   }
 
   /* ---------- actions ---------- */
   var actions = {
-    tab: function (v) { state.tab = v; store.set('tab', v); render(); },
+    tab: function (v) { state.tab = tabOf(v); store.set('tab', state.tab); render(); root.scrollTo(0, 0); },
     close: function () { foodui.stop(); state.sheet = false; render(); },
     signin: function () {
       state.signingIn = true; render();
@@ -406,7 +406,8 @@
 
   /* ---------- M3 screens ---------- */
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); } });
-  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today });
+  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today,
+    tiles: function () { return '<div class="tiles">' + screens.phaseTile() + progressui.weightTile() + '</div>'; } });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;
   var pf = {
@@ -464,7 +465,7 @@
       return state.pf.data ? PF.forProgress(state.pf.data.exercises, picks) : {};
     }
   };
-  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, pf: pf });
+  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, pf: pf, readCard: function () { return screens.readCard(); } });
   var foodui = root.LW.foodui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, slotLabel: diaryui.slotLabel, slotOptions: diaryui.slotOptions, dayName: diaryui.dayName });
 
   /** Deletes a record (a tombstone until the cloud has it), reloads, and asks the Syncer to back it up. */

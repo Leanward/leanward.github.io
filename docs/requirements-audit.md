@@ -48,7 +48,7 @@ Every must-have (P0) requirement, where it lives, and how far it has been checke
 | MEA-6 | Edit, delete, export measurements | Done | `progressui.js`, `home.js` | Browser |
 | PRG-1 | Charts with ranges and phase boundaries | Done | `progressui.js` | Browser |
 | PRG-2/3/4 | Progress read, collecting state, plain copy | Done | `calc/progress.js` | Tests, Browser |
-| HOM-1/2/5 | Home: calories and macros, phase card, ≤ 4 cards | Done | `diaryui.js`, `screens.js` | Browser |
+| HOM-1/2/5 | Today (Home and Diary merged, PRD v1.7): hero ring with macros, phase and weight tiles, one tip, quick log, then the meals | Done | `diaryui.js`, `screens.js`, `progressui.js` | Browser |
 | ACC-1 | Delete account | Done | `schema.sql`, `app.js` | Tests on real PostgreSQL, Browser. **Not run against the live project** |
 | ACC-2 | Export CSV and JSON | Done | `home.js` | Tests, Browser. **iPhone share sheet not checked** |
 | ACC-3 | No ads, no sharing; first-party analytics only | Done by absence: there is no analytics code at all yet | | Code review |

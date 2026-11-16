@@ -160,18 +160,20 @@
     function view() {
       var today = ctx.today(), first = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort()[0];
       var from = ME.rangeStart(range(), today, first);
-      return '<header class="top"><h1>Progress</h1></header>' +
+      return '<header class="top"><h1>Progress</h1></header>' + (ctx.readCard ? ctx.readCard() : '') +
         '<div class="seg">' + ME.RANGES.map(function (r) { return '<button type="button" data-a="prange" data-v="' + r.id + '" aria-pressed="' + (range() === r.id) + '">' + r.label + '</button>'; }).join('') + '</div>' +
         weightCard(from, today) + measureCard(from, today) + liftsCard(from, today) + intakeCard(from, today) +
-        '<p class="small muted center">Dashed lines mark where a phase started. Is the phase working? See the Phase tab.</p>';
+        '<p class="small muted center">Dashed lines mark where a phase started.</p>';
     }
 
-    function homeCard() {
+    /** Today: a small weight tile with the trend; tap to log (or shows that today is done). */
+    function weightTile() {
       var today = ctx.today(), u = ME.weightUnit(units()), v = ME.weightView(S.rows.weights, units(), core.addDays(today, -27), today);
       var weighed = (S.rows.weights || []).some(function (w) { return !w.deleted && w.date === today; });
-      return '<section class="card"><div class="row"><h2 style="margin:0">Weight</h2>' + (weighed ? '<span class="pill ok">Weighed in today</span>' : '<button type="button" class="btn sm" data-a="weigh">Log weight</button>') + '</div>' +
-        (v.latest ? '<p class="small muted" style="margin-bottom:0">Trend ' + fmt(v.latest.trend, 1) + ' ' + u + (v.rate ? ' · ' + fmtS(v.rate.perWeek, 2) + ' ' + u + ' a week' : '') + ' · last ' + fmt(v.latest.v, 1) + ' ' + u + ' on ' + esc(day(v.latest.date)) + '</p>'
-          : '<p class="small muted" style="margin-bottom:0">Weigh in most mornings to see your trend.</p>') + '</section>';
+      return '<button type="button" class="card tile cardbtn" data-a="weigh" aria-label="Weight' + (v.latest ? ', trend ' + fmt(v.latest.trend, 1) + ' ' + u : '') + '. Log a weigh-in.">' +
+        '<span class="small muted">Weight' + (v.latest ? ' trend' : '') + '</span><b>' + (v.latest ? fmt(v.latest.trend, 1) + ' ' + u : 'No weigh-ins') + '</b>' +
+        '<span class="small muted">' + (v.rate ? fmtS(v.rate.perWeek, 2) + ' ' + u + ' a week' : v.latest ? 'last ' + esc(day(v.latest.date)) : 'Weigh in most mornings') + '</span>' +
+        '<span class="pill ' + (weighed ? 'ok' : '') + '">' + (weighed ? 'Weighed in' : 'Log weight') + '</span></button>';
     }
 
     /* ---------- sheets ---------- */
@@ -278,7 +280,7 @@
       measuredelete: function () { var id = S.sheet.id; ctx.remove('lw_measurements', id).then(function () { S.sheet = false; ctx.toast('Deleted'); ctx.render(); }); }
     };
 
-    return { view: view, homeCard: homeCard, sheetView: sheetView, onInput: onInput, actions: actions };
+    return { view: view, weightTile: weightTile, sheetView: sheetView, onInput: onInput, actions: actions };
   }
 
   root.LW.progressui = { create: create };
