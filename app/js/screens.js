@@ -331,6 +331,13 @@
         S.sheet = { kind: 'details', dob: p.dob, sex: p.sex || 'unspecified', cm: core.round(Number(p.height_cm)), ft: f.ft, inch: f.in, activity: p.activity, pob: !!p.pregnant_or_breastfeeding };
         ctx.render();
       },
+      goalw: function () {
+        var ph = M.currentPhase(S.rows.phases), g = ph && ph.target_weight_kg != null ? Number(ph.target_weight_kg) : null;
+        S.sheet = { kind: 'goalw', had: g != null, value: g == null ? null : core.round(metric(S.rows.profile.units) ? g : core.kgToLb(g), 0.1) };
+        ctx.render();
+      },
+      goalwsave: function () { goalSave(false); },
+      goalwclear: function () { goalSave(true); },
       detset: function (v) { var i = v.indexOf(':'); S.sheet[v.slice(0, i)] = v.slice(i + 1); ctx.render(); },
       detsave: function (v) { detailsSave(v); },
       maintaccept: function () { maintDecide(true); },
@@ -467,7 +474,7 @@
           '<div style="font-size:22px;font-weight:700;margin-top:2px">' + PHASE_NAME[ph.type] + '</div>' +
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' +
           '<div class="route"><i style="width:' + pos + '%"></i></div>' +
-          '<div class="row small muted"><span>Started ' + ph.start_date + '</span><span>' + (ph.planned_end ? 'Planned end ~' + ph.planned_end : 'Open-ended') + '</span></div></section>' +
+          '<div class="row small muted"><span>Started ' + ph.start_date + '</span><span>' + (ph.planned_end ? 'Planned end ~' + ph.planned_end : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
         progressCard(ph, t) + maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
@@ -537,6 +544,39 @@
     /** The saved profile as onboarding-style answers (for recalculating with changed known numbers). */
     function profileNowRaw() { var p = profileNow(); return Object.assign({}, p, { bodyFatSource: S.rows.profile.body_fat_source }); }
 
+    /* ---------- optional goal weight (ONB-2, PHS-1) ---------- */
+    function trendNow() {
+      var w = (S.rows.weights || []).filter(function (x) { return !x.deleted; }).map(function (x) { return { date: x.date, kg: Number(x.kg), at: x.measured_at }; });
+      if (!w.length) return null;
+      var series = C.trend.trendSeries(w, { endDate: today() }).filter(function (d) { return d.date <= today(); });
+      var rate = C.trend.rateOfChange(series);
+      return { kg: series[series.length - 1].trendKg, perWeek: rate ? rate.kgPerWeek : null };
+    }
+    function goalLine(ph) {
+      if (ph.type === 'nutrition') return '';
+      var u = S.rows.profile.units, g = ph.target_weight_kg == null ? null : Number(ph.target_weight_kg);
+      if (g == null) return '<p class="small" style="margin:8px 0 0"><button type="button" class="link" data-a="goalw">Add a goal weight (optional)</button></p>';
+      var t = trendNow(), left = t ? g - t.kg : null, weeks = t ? M.weeksToGoal(g, t.kg, t.perWeek) : null;
+      var diff = function (kg) { return metric(u) ? fmt(Math.abs(kg), 1) + ' kg' : fmt(Math.abs(core.kgToLb(kg)), 1) + ' lb'; };
+      return '<div class="row small" style="margin-top:8px"><span>Goal weight <b>' + wt(g, u) + '</b>' +
+        (left == null ? '' : Math.abs(left) < 0.2 ? ' · reached' : ' · ' + diff(left) + ' to go' + (weeks ? ' · about ' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' at your current trend' : '')) +
+        '</span><button type="button" class="link" data-a="goalw">Change</button></div>';
+    }
+    function goalSheet() {
+      var sh = S.sheet, u = S.rows.profile.units;
+      return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Goal weight"><div class="grab"></div><h2>Goal weight</h2>' +
+        '<p class="small muted">Optional. It doesn\'t change your targets: it shows how far you have to go and, once your trend has a rate, roughly how long at that pace.</p>' +
+        '<div class="field"><label for="gw-v">Goal weight <span class="muted">' + (metric(u) ? 'kg' : 'lb') + '</span></label><input type="number" id="gw-v" inputmode="decimal" step="any" data-g="value" value="' + (sh.value == null ? '' : sh.value) + '"></div>' +
+        '<button type="button" class="btn block" data-a="goalwsave">Save</button>' +
+        (sh.had ? '<button type="button" class="btn ghost block" data-a="goalwclear">Remove the goal weight</button>' : '') + '</div>';
+    }
+    function goalSave(clear) {
+      var ph = M.currentPhase(S.rows.phases), p = profileNow(), kg;
+      try { kg = M.goalWeightKg({ value: clear ? '' : S.sheet.value, units: S.rows.profile.units, cm: p.cm, phaseType: ph.type, currentKg: p.kg }); } catch (e) { ctx.toast(e.message); return; }
+      if (!clear && kg == null) { ctx.toast('Enter a goal weight'); return; }
+      ctx.save([['lw_phases', Object.assign({}, ph, { target_weight_kg: kg })]]).then(function () { S.sheet = false; ctx.toast(kg == null ? 'Goal weight removed' : 'Goal weight saved'); ctx.render(); });
+    }
+
     /* ---------- edit profile details ---------- */
     function detailsValues(sh) {
       var cm = metric(S.rows.profile.units) ? num(sh.cm) : (sh.ft != null || sh.inch != null ? core.ftInToCm(num(sh.ft) || 0, num(sh.inch) || 0) : null);
@@ -594,6 +634,7 @@
     function sheetView() {
       var sh = S.sheet;
       if (sh && sh.kind === 'details') return detailsSheet();
+      if (sh && sh.kind === 'goalw') return goalSheet();
       if (sh && sh.kind === 'maint') return maintSheet();
       if (!sh || sh.kind !== 'targets') return '';
       var pv = sheetPreview();
@@ -609,6 +650,7 @@
     }
     function onSheetInput(el) {
       if (detailsInput(el)) return;
+      if (el.dataset.g === 'value' && S.sheet && S.sheet.kind === 'goalw') { S.sheet.value = el.value; return; }
       if (S.sheet && S.sheet.kind === 'maint') { if (knownInput(S.sheet, el) && el.dataset.f === 'knownSrc') ctx.render(); return; }
       var k = el.dataset.e;
       if (!k || !S.sheet) return;

@@ -180,6 +180,35 @@
     return (phases || []).filter(function (p) { return !p.deleted && !p.end_date; }).sort(function (x, y) { return x.start_date < y.start_date ? 1 : x.start_date > y.start_date ? -1 : (x.created_at < y.created_at ? 1 : -1); })[0] || null;
   }
   /**
+   * An optional goal weight for the current phase (ONB-2, PHS-1), in kg, checked: a plausible weight,
+   * in the direction the phase moves, and never below a BMI of 18.5 for the person's height.
+   * o: { value (user's units), units, cm, phaseType, currentKg }. Returns kg, or null to clear it.
+   */
+  function goalWeightKg(o) {
+    if (o.value === '' || o.value == null) return null;
+    if (o.phaseType === 'nutrition') throw new Error('A nutrition phase has no weight goal.');
+    var v = Number(o.value), kg = o.units === 'metric' ? v : calc.core.lbToKg(v);
+    if (!(kg >= 30 && kg <= 300)) throw new Error('Check the goal weight.');
+    var floor = o.cm ? calc.core.weightAtBmi(18.5, o.cm) : null;
+    if (floor && kg < floor) {
+      var f = o.units === 'metric' ? calc.core.fmt(floor, 1) + ' kg' : calc.core.fmt(calc.core.kgToLb(floor), 0) + ' lb';
+      throw new Error('That\'s below the healthy range for your height (BMI 18.5, about ' + f + '). Leanward doesn\'t set goals under it.');
+    }
+    if (o.currentKg && o.phaseType === 'cut' && kg > o.currentKg) throw new Error('A cut\'s goal weight is below your current weight.');
+    if (o.currentKg && o.phaseType === 'bulk' && kg < o.currentKg) throw new Error('A lean bulk\'s goal weight is above your current weight.');
+    return calc.core.round(kg, 0.1);
+  }
+  /** Weeks to the goal at the current trend rate, or null when it isn't moving toward it (or there's no rate yet). */
+  function weeksToGoal(goalKg, trendKg, kgPerWeek) {
+    if (goalKg == null || trendKg == null || !kgPerWeek) return null;
+    var left = goalKg - trendKg;
+    if (Math.abs(left) < 0.2) return 0;
+    if (left * kgPerWeek <= 0 || Math.abs(kgPerWeek) < 0.05) return null;
+    var w = left / kgPerWeek;
+    return w > 104 ? null : Math.ceil(w);
+  }
+
+  /**
    * The phase in effect on a date. Today's is always the current phase (the same one the Phase tab
    * shows); for earlier days, the phase that covered the day, newest first, with the same tie-break
    * as currentPhase so two phases that start on the same day never give different answers.
@@ -247,7 +276,7 @@
 
   var api = {
     GOALS: GOALS, PLANNED_WEEKS: PLANNED_WEEKS, goalById: goalById, newId: newId, goalOptions: goalOptions, preview: preview, setup: setup,
-    profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, detailsRow: detailsRow, currentPhase: currentPhase, phaseOn: phaseOn, targetsFor: targetsFor, targetsOn: targetsOn, dayOf: dayOf,
+    profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, detailsRow: detailsRow, goalWeightKg: goalWeightKg, weeksToGoal: weeksToGoal, currentPhase: currentPhase, phaseOn: phaseOn, targetsFor: targetsFor, targetsOn: targetsOn, dayOf: dayOf,
     startPhase: startPhase, editTargets: editTargets
   };
   if (node) module.exports = api;

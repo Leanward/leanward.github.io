@@ -166,6 +166,17 @@
     return DY.totals((meal.items || []).map(function (it) { return scaleEntry(it, factor || 1); }));
   }
 
+  /** Saved meals matching a search (LOG-3): every word in the meal's name or in one of its items. */
+  function matchMeals(meals, q) {
+    var words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    return (meals || []).filter(function (m) {
+      if (m.deleted) return false;
+      var hay = (m.name + ' ' + (m.items || []).map(function (i) { return i.name; }).join(' ')).toLowerCase();
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+  }
+
   /* ---------- meal slots (LOG-1) ---------- */
 
   /**
@@ -192,7 +203,7 @@
   }
 
   var api = { LABEL_NUTRIENTS: LABEL_NUTRIENTS, fromLabel: fromLabel, energyCheck: energyCheck, foodOfCustom: foodOfCustom, labelOf: labelOf, matchCustom: matchCustom,
-    customByBarcode: customByBarcode, mealFromEntries: mealFromEntries, scaleEntry: scaleEntry, entriesFromMeal: entriesFromMeal, mealTotals: mealTotals,
+    customByBarcode: customByBarcode, matchMeals: matchMeals, mealFromEntries: mealFromEntries, scaleEntry: scaleEntry, entriesFromMeal: entriesFromMeal, mealTotals: mealTotals,
     slotsFor: slotsFor, withSlots: withSlots };
   if (node) module.exports = api;
   else { root.LW.library = api; }

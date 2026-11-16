@@ -43,6 +43,8 @@
     function resultsHtml() {
       var a = S.sheet, mine = L.matchCustom(S.rows.customs, a.q);
       var own = mine.length ? '<span class="sec">Your foods</span><div class="list">' + mine.map(resultRow).join('') + '</div>' : '';
+      var meals = L.matchMeals(S.rows.meals, a.q);
+      if (meals.length) own += '<span class="sec">Your saved meals</span><div class="list">' + meals.map(mealRow).join('') + '</div>';
       var create = '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
       if (a.error) return own + '<p class="small warn">' + esc(a.error) + '</p>' + onlineHtml(false) + create;
       if (a.q.trim().length < 2) return '<p class="small muted">Type at least 2 letters, or scan a barcode.</p>';
@@ -203,13 +205,14 @@
     }
 
     /* ---------- saved meals (LOG-9) ---------- */
+    function mealRow(m) {
+        var t = L.mealTotals(m, 1);
+        return '<button type="button" class="item food" data-a="meal" data-v="' + esc(m.id) + '"><span><span class="t">' + esc(m.name) + '</span><span class="s">' + m.items.length + ' item' + (m.items.length === 1 ? '' : 's') + ' · P ' + fmt(t.protein_g) + ' g · C ' + fmt(t.carbs_g) + ' g · F ' + fmt(t.fat_g) + ' g</span></span><span class="k">' + fmt(t.kcal) + '<small>kcal</small></span></button>';
+    }
     function mealsHtml() {
       var list = (S.rows.meals || []).slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       if (!list.length) return '<p class="small muted">No saved meals yet. In the Diary, log a meal once, then tap "Save as meal" under it.</p>';
-      return '<div class="list">' + list.map(function (m) {
-        var t = L.mealTotals(m, 1);
-        return '<button type="button" class="item food" data-a="meal" data-v="' + esc(m.id) + '"><span><span class="t">' + esc(m.name) + '</span><span class="s">' + m.items.length + ' item' + (m.items.length === 1 ? '' : 's') + ' · P ' + fmt(t.protein_g) + ' g · C ' + fmt(t.carbs_g) + ' g · F ' + fmt(t.fat_g) + ' g</span></span><span class="k">' + fmt(t.kcal) + '<small>kcal</small></span></button>';
-      }).join('') + '</div>';
+      return '<div class="list">' + list.map(mealRow).join('') + '</div>';
     }
     var FACTORS = [[0.5, '½'], [1, '×1'], [1.5, '×1.5'], [2, '×2']];
     function mealView() {
