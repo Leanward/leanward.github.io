@@ -24,7 +24,7 @@
     function resultRow(f) {
       var b = FD.badge(f), per = f.per === 'ml' ? 'ml' : 'g';
       var serving = f.serving_g ? ' · ' + esc(f.serving_label || fmt(f.serving_g) + ' ' + per) + ' = ' + fmt(Number(f.kcal) * f.serving_g / 100) + ' kcal' : '';
-      return '<button type="button" class="item food" data-a="food" data-v="' + esc(f.id) + '"><span><span class="t">' + esc(f.name) + '</span>' +
+      return '<button type="button" class="item food" data-a="food" data-v="' + esc(f.id) + '"><span><span class="t">' + esc(DY.calmName(f.name)) + '</span>' +
         '<span class="s">' + (f.brand ? esc(f.brand) + ' · ' : '') + fmt(Number(f.kcal)) + ' kcal · P ' + fmt(Number(f.protein_g), 1) + ' g per 100 ' + per + serving + '</span></span>' +
         '<span class="badge ' + b.kind + '">' + b.text + '</span></button>';
     }
@@ -61,7 +61,7 @@
         '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
       if (!rec.length) return '<p class="small muted">Foods you log show up here, so you can add them again in one tap, even offline.</p>' + own;
       var row = function (e, extra) {
-        return '<button type="button" class="item food" data-a="recent" data-v="' + esc(e.id) + '"><span><span class="t">' + esc(e.name) + '</span><span class="s">' + esc(e.unit || '') + ' · ' + fmt(Number(e.kcal)) + ' kcal' + (extra || '') + '</span></span><span class="badge">+</span></button>';
+        return '<button type="button" class="item food" data-a="recent" data-v="' + esc(e.id) + '"><span><span class="t">' + esc(DY.calmName(e.name)) + '</span><span class="s">' + esc(DY.amountText(e)) + ' · ' + fmt(Number(e.kcal)) + ' kcal' + (extra || '') + '</span></span><span class="badge">+</span></button>';
       };
       return (freq.length ? '<span class="sec">Frequent</span><div class="list">' + freq.map(function (f) { return row(f.entry, ' · ' + f.count + '× this month'); }).join('') + '</div>' : '') +
         '<span class="sec">Recent</span><div class="list">' + rec.map(function (e) { return row(e); }).join('') + '</div>' + own;
@@ -138,7 +138,7 @@
       var units = DY.unitsFor(f), ui = d.unitIdx || 0, u = units[ui], qty = d.qty == null ? 1 : d.qty;
       return wrap(f.name,
         '<div class="row"><span class="badge ' + b.kind + '">' + b.text + '</span>' + (f.brand ? '<span class="small muted">' + esc(f.brand) + '</span>' : '') + '</div>' +
-        '<h2>' + esc(f.name) + '</h2>' +
+        '<h2>' + esc(DY.calmName(f.name)) + '</h2>' +
         '<div class="amount"><div class="field"><label for="lg-q">Amount</label><input type="number" id="lg-q" inputmode="decimal" step="any" data-l="qty" value="' + qty + '"></div>' +
           '<div class="field"><span class="lab">Unit <span class="muted" id="lg-out">' + esc(gramsLine(f, qty, u)) + '</span></span><div class="chips2" role="group" aria-label="Unit">' + units.map(function (x, i) {
             return '<button type="button" data-a="lgunit" data-v="' + i + '" aria-pressed="' + (i === ui) + '">' + esc(x.label) + '</button>';

@@ -90,3 +90,19 @@ test('slot by time of day, and date maths', () => {
   assert.equal(D.addDays('2026-12-31', 1), '2027-01-01');
   assert.equal(D.addDays('2026-03-01', -1), '2026-02-28');
 });
+
+test('amounts and names read naturally in the diary', () => {
+  const a = (unit, grams) => D.amountText({ unit, grams });
+  assert.equal(a('1 × 1 bagel (46 g)', 46), '1 bagel (46 g)');             // not "1 × 1 bagel (46 g) · 46 g"
+  assert.equal(a('2 × 1 bagel (46 g)', 92), '2 × 1 bagel (46 g) · 92 g');
+  assert.equal(a('8 × oz', 226.8), '8 oz · 226.8 g');
+  assert.equal(a('1.5 × cup', 354.9), '1.5 cup · 354.9 g');
+  assert.equal(a('150 g', 150), '150 g');
+  assert.equal(a('1 × 1 Scoop', 33), '1 Scoop · 33 g');
+  assert.equal(a('1 × 1 cup (54 g)', 54), '1 cup (54 g)');
+  assert.equal(a('1 × 1 fillet (138 g)', 138), '1 fillet (138 g)');
+  assert.equal(a(null, null), '');
+  assert.equal(D.calmName('SUNFLOWER CEREAL Real Cocoa · SEVEN SUNDAYS'), 'Sunflower Cereal Real Cocoa · Seven Sundays');
+  assert.equal(D.calmName("Thomas' BBQ Chips, USDA"), "Thomas' BBQ Chips, USDA");
+  assert.equal(D.calmName('KIND Bar'), 'KIND Bar');
+});
