@@ -186,7 +186,8 @@
   function aboutCard() {
     var online = root.navigator.onLine !== false;
     return '<section class="card" aria-labelledby="about-h">' +
-      '<h2 id="about-h">About this build</h2>' +
+      '<div class="row"><h2 id="about-h" style="margin:0">About</h2><span class="small muted">Version ' + esc(C.VERSION) + '</span></div>' +
+      '<details class="advanced"><summary>Advanced: connection and backup</summary>' +
       statusRow('Version', true, C.VERSION) +
       statusRow('Network', online, online ? 'Online' : 'Offline') +
       statusRow('Database', state.ping.ok, state.ping.ok ? state.ping.message : state.ping.ok === false ? 'Not connected' : 'Checking…') +
@@ -196,7 +197,7 @@
       '<div class="actions"><button type="button" class="btn ghost" data-a="recheck">Check again</button>' +
       '<button type="button" class="btn ghost" data-a="testerror">Send a test error</button></div>' +
       '<p class="small muted">The test error goes to Leanward\'s own error table. It holds only technical details, never food or body data.</p>' +
-      '</section>';
+      '</details></section>';
   }
 
   function tabView(id) {

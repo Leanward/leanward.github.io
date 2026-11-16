@@ -23,6 +23,8 @@
     /* ---------- units ---------- */
     function metric(u) { return (u || (S.rows.profile && S.rows.profile.units) || 'us') === 'metric'; }
     function wt(kg, u, dp) { return metric(u) ? fmt(kg, dp == null ? 1 : dp) + ' kg' : fmt(core.kgToLb(kg), dp == null ? 1 : dp) + ' lb'; }
+    /** A date for people: 'Oct 7' this year, 'Oct 7, 2025' otherwise. */
+    function nd(iso) { return core.niceDate(iso, today().slice(0, 4)); }
     function ht(cm, u) { if (metric(u)) return fmt(cm) + ' cm'; var f = core.cmToFtIn(cm); return f.ft + '′' + f.in + '″'; }
     function weekly(kg, u) { var v = metric(u) ? kg : core.kgToLb(kg); return core.fmtSigned(v, 2) + (metric(u) ? ' kg' : ' lb') + '/week'; }
     function rateLabel(type, rate) { return type === 'recomp' ? (rate ? '−' + rate + '% vs maintenance' : 'at maintenance') : rate + '% a week'; }
@@ -474,22 +476,22 @@
           '<div style="font-size:22px;font-weight:700;margin-top:2px">' + PHASE_NAME[ph.type] + '</div>' +
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' +
           '<div class="route"><i style="width:' + pos + '%"></i></div>' +
-          '<div class="row small muted"><span>Started ' + ph.start_date + '</span><span>' + (ph.planned_end ? 'Planned end ~' + ph.planned_end : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
+          '<div class="row small muted"><span>Started ' + nd(ph.start_date) + '</span><span>' + (ph.planned_end ? 'Planned end ~' + nd(ph.planned_end) : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
         progressCard(ph, t) + maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
           (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type, fromCheck(t) ? 'tracking-check' : null) + '</div>' : '') +
           '<button type="button" class="link" data-a="editmaint" style="margin-top:6px">Know your real maintenance or BMR?</button>' +
-          '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + t.effective_from + '</p>' +
+          '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + nd(t.effective_from) + '</p>' +
           '<details><summary>How these are worked out</summary><div class="working">' + steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') +
             (t.origin === 'manual' && t.calc_inputs && t.calc_inputs.calculated ? '<div>Changed by you. Calculated: ' + fmt(t.calc_inputs.calculated.kcal) + ' kcal · P ' + t.calc_inputs.calculated.proteinG + ' · C ' + t.calc_inputs.calculated.carbsG + ' · F ' + t.calc_inputs.calculated.fatG + '</div>' : '') +
             '</div><p class="small muted">All estimates. After 3 weeks of logging and weigh-ins, the maintenance check compares them with your real intake and weight trend and may suggest a change. Targets never change without your OK.</p></details>' +
           (sets.length > 1 ? '<details style="margin-top:8px"><summary>Target history (' + sets.length + ' versions)</summary><div class="list">' + sets.map(function (s) {
-            return '<div class="item"><span><span class="t">' + fmt(s.kcal) + ' kcal · P ' + s.protein_g + ' · C ' + s.carbs_g + ' · F ' + s.fat_g + '</span><span class="s">From ' + s.effective_from + ' · ' + (s.origin === 'manual' ? 'set by you' : s.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + '</span></span></div>';
+            return '<div class="item"><span><span class="t">' + fmt(s.kcal) + ' kcal · P ' + s.protein_g + ' · C ' + s.carbs_g + ' · F ' + s.fat_g + '</span><span class="s">From ' + nd(s.effective_from) + ' · ' + (s.origin === 'manual' ? 'set by you' : s.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + '</span></span></div>';
           }).join('') + '</div></details>' : '') + '</section>' +
         '<section class="card"><h2>Phase history</h2><div class="list">' +
-          '<div class="item"><span><span class="t">' + PHASE_NAME[ph.type] + ' · current</span><span class="s">Since ' + ph.start_date + '</span></span><span class="small">Day ' + d.day + '</span></div>' +
-          past.map(function (p) { return '<div class="item"><span><span class="t">' + PHASE_NAME[p.type] + '</span><span class="s">' + p.start_date + ' – ' + p.end_date + '</span></span></div>'; }).join('') +
+          '<div class="item"><span><span class="t">' + PHASE_NAME[ph.type] + ' · current</span><span class="s">Since ' + nd(ph.start_date) + '</span></span><span class="small">Day ' + d.day + '</span></div>' +
+          past.map(function (p) { return '<div class="item"><span><span class="t">' + PHASE_NAME[p.type] + '</span><span class="s">' + nd(p.start_date) + ' – ' + nd(p.end_date) + '</span></span></div>'; }).join('') +
         '</div></section>';
     }
 

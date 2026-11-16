@@ -83,6 +83,14 @@
 
   var SEXES = ['male', 'female', 'unspecified'];
   function checkSex(sex) { if (SEXES.indexOf(sex) < 0) throw new Error('sex must be male, female or unspecified'); return sex; }
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  /** '2026-10-07' → 'Oct 7, 2026' (or 'Oct 7' when the year is the same as `thisYear`). The space before the day doesn't break. */
+  function niceDate(iso, thisYear) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    if (!m) return String(iso || '');
+    var txt = MONTHS[+m[2] - 1] + '\u00a0' + (+m[3]);
+    return thisYear != null && String(thisYear) === m[1] ? txt : txt + ', ' + m[1];
+  }
   function checkPositive(name, x) { if (!(typeof x === 'number' && isFinite(x) && x > 0)) throw new Error(name + ' must be a positive number'); return x; }
 
   var api = {
@@ -91,7 +99,7 @@
     lbToKg: lbToKg, kgToLb: kgToLb, inToCm: inToCm, cmToIn: cmToIn, ftInToCm: ftInToCm, cmToFtIn: cmToFtIn, flOzToMl: flOzToMl,
     bmi: bmi, weightAtBmi: weightAtBmi,
     parseDate: parseDate, formatDate: formatDate, addDays: addDays, daysBetween: daysBetween, ageOn: ageOn,
-    fmt: fmt, fmtSigned: fmtSigned, SEXES: SEXES, checkSex: checkSex, checkPositive: checkPositive
+    fmt: fmt, fmtSigned: fmtSigned, niceDate: niceDate, SEXES: SEXES, checkSex: checkSex, checkPositive: checkPositive
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else { root.LW = root.LW || {}; root.LW.calc = root.LW.calc || {}; root.LW.calc.core = api; }

@@ -18,7 +18,7 @@
     function wrap(title, body, extra) {
       return '<div class="scrim" data-a="close"></div><div class="sheet' + (extra || '') + '" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="grab"></div>' + body + '</div>';
     }
-    function amount(v, unit) { return (v >= 100 ? fmt(v) : v >= 10 ? fmt(v, 1) : fmt(v, v >= 1 ? 1 : 2)) + ' ' + unit; }
+    function amount(v, unit) { if (!v) return '0 ' + unit; return (v >= 100 ? fmt(v) : v >= 10 ? fmt(v, 1) : fmt(v, v >= 1 ? 1 : 2)) + ' ' + unit; }
 
     /* ---------- Find a food ---------- */
     function resultRow(f) {

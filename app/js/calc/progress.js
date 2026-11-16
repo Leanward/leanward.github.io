@@ -80,7 +80,7 @@
     if (w.length < MIN_ENTRIES) need.push(plural(MIN_ENTRIES - w.length, 'waist measurement'));
     if (need.length) return collecting('waist', label, need.join(' and '));
     var d = w[w.length - 1].cm - w[0].cm;
-    var value = fmtS(U.l(d), 1) + ' ' + U.lu + ' since ' + w[0].date;
+    var value = fmtS(U.l(d), 1) + ' ' + U.lu + ' since ' + core.niceDate(w[0].date, ctx.today.slice(0, 4));
     var n = WAIST_NOISE_CM, nText = fmt(U.l(n), U.us ? 1 : 1) + ' ' + U.lu;
     if (phase.type === 'cut') {
       return sig('waist', label, d <= -n ? 'on-track' : d < n ? 'watch' : 'off-track', value,
@@ -118,7 +118,7 @@
         return;
       }
       var first = l[0].e1rm, last = l[l.length - 1].e1rm, pct = (last - first) / first * 100;
-      var value = 'Estimated 1RM ' + fmtS(pct, 1) + '% since ' + l[0].date;
+      var value = 'Estimated 1RM ' + fmtS(pct, 1) + '% since ' + core.niceDate(l[0].date, ctx.today.slice(0, 4));
       if (phase.type === 'cut') {
         out.push(sig('lift:' + name, label, pct >= -5 ? 'on-track' : pct >= -10 ? 'watch' : 'off-track', value,
           'On track within 5% of your phase-start estimate; watch down to −10%.', { changePct: pct }));
