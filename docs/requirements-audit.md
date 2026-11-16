@@ -66,9 +66,9 @@ HOM-3 quick log · HOM-4 daily insight · NUT-7 (top contributors, ratios; "food
 ## Still to check for M8 (PRD §10)
 | Target | State |
 |---|---|
-| Cold start to Home < 2 s | Not measured on the iPhone |
-| Search: cached < 300 ms, server < 800 ms p95 | Server function measured at 0.09–0.5 s on the real catalog (Actions, 2026-11-06); not measured from the phone |
-| Barcode result < 1.5 s | Owner reported scans work; the app shows the read time; no set of 50 items measured |
+| Cold start to Home < 2 s | Owner on the iPhone, 2026-11-16: "opens quickly". Not timed with a stopwatch |
+| Search: cached < 300 ms, server < 800 ms p95 | Server function measured at 0.09–0.5 s on the real catalog (Actions, 2026-11-06). Owner on the iPhone, 2026-11-16: "fast enough" |
+| Barcode result < 1.5 s | Owner on the iPhone, 2026-11-16: scanned items "have been working". No set of 50 items measured, so the 85% hit-rate target (§13) is unmeasured |
 | Offline: diary, quick add, custom foods, recents, saved meals | Owner confirmed logging food and a weigh-in in airplane mode on the iPhone, with backup after reconnecting (2026-11-16) |
 | Crash-free ≥ 99.5% | `lw_errors` not reviewed yet |
 | Accessibility: text scaling, VoiceOver, contrast | Charts have spoken summaries; button text contrast tested for every palette; a Text size setting (Default, Large, Larger) scales the whole app with nothing cut off in Chromium at phone width; the focus stays on the pressed button across redraws and moves into a sheet when it opens. **No VoiceOver run on the iPhone yet** |

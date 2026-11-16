@@ -270,6 +270,8 @@ Each milestone has an **exit criteria** list. A milestone is done when every ite
 
 **2026-11-16, M8 part 2:** owner confirmed offline logging and backup in airplane mode on the iPhone. Added: Text size setting, focus handling for keyboard and VoiceOver, `terms.html`, and the `lw_metrics` view (owner step: run `supabase/schema.sql`). Outstanding: cold start, search and barcode timings on the iPhone, the export share sheet, a VoiceOver run, a look at `lw_errors`, the name checks, and the beta.
 
+**2026-11-16, owner checks on the iPhone:** the app opens quickly, search is fast enough, and barcode scans have been working (by feel, not timed). `lw_metrics` is live. Still open before the beta: the export share sheet, Text size on the iPhone, a VoiceOver run, a look at `lw_errors`. Beta invite text: `docs/beta-invite.md`.
+
 **Exit criteria:** every §10 target measured and met (or a logged decision to accept the gap); beta has run long enough to read day-7 retention; no open data-loss bugs.
 
 ### M9 — Launch
