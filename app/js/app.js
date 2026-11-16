@@ -356,6 +356,12 @@
     else if (e.target.dataset.redraw) render();
   });
   doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && state.sheet) actions.close(); });
+  // A section the person opened stays open when the screen redraws (data-keep names where it's remembered).
+  doc.addEventListener('toggle', function (e) {
+    var k = e.target && e.target.dataset && e.target.dataset.keep;
+    if (!k) return;
+    if (state.sheet && e.target.closest('.sheet')) state.sheet[k] = e.target.open; else state['open_' + k] = e.target.open;
+  }, true);
 
   /* Pull a sheet down to close it. The pull starts on the sheet's top strip (the handle and title
    * row), or anywhere on the sheet once its contents are scrolled to the top and the finger isn't on
@@ -466,7 +472,7 @@
     }
   };
   var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, pf: pf, readCard: function () { return screens.readCard(); } });
-  var foodui = root.LW.foodui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, slotLabel: diaryui.slotLabel, slotOptions: diaryui.slotOptions, dayName: diaryui.dayName });
+  var foodui = root.LW.foodui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, slotLabel: diaryui.slotLabel, slotOptions: diaryui.slotOptions, slots: diaryui.slots, dayName: diaryui.dayName });
 
   /** Deletes a record (a tombstone until the cloud has it), reloads, and asks the Syncer to back it up. */
   function remove(table, id) {

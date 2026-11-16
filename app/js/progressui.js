@@ -8,7 +8,7 @@
   'use strict';
 
   var ME = root.LW.measure, PF = root.LW.prforge, M = root.LW.model, core = root.LW.calc.core, fmt = core.fmt, fmtS = core.fmtSigned;
-  var BOX = { w: 340, h: 150, pad: { l: 38, r: 8, t: 8, b: 18 } };
+  var BOX = { w: 340, h: 160, pad: { l: 38, r: 12, t: 10, b: 20 } }, chartSeq = 0;
   var PHASE_NAME = { cut: 'Cut', recomp: 'Recomp', bulk: 'Lean bulk', maintenance: 'Maintenance', nutrition: 'Nutrition' };
 
   function create(ctx) {
@@ -38,10 +38,17 @@
         var x = sc.x(ph.start_date).toFixed(1);
         return '<line class="phase" x1="' + x + '" x2="' + x + '" y1="' + p.t + '" y2="' + (BOX.h - p.b) + '"/><text x="' + (Number(x) + 3) + '" y="' + (p.t + 8) + '">' + esc(PHASE_NAME[ph.type] || '') + '</text>';
       }).join('');
-      return '<svg class="chart" viewBox="0 0 ' + BOX.w + ' ' + BOX.h + '" role="img" aria-label="' + esc(o.summary) + '">' + grid + phases +
+      var line = o.line && o.line.length > 1 ? o.line : null, base = (BOX.h - p.b).toFixed(1);
+      var area = line && o.area !== false ? '<polygon class="area" points="' + sc.x(line[0].date).toFixed(1) + ',' + base + ' ' + pts(line) + ' ' + sc.x(line[line.length - 1].date).toFixed(1) + ',' + base + '"/>' : '';
+      var lastSrc = line || (o.dots && o.dots.length ? o.dots : null), last = lastSrc ? lastSrc[lastSrc.length - 1] : null;
+      var gid = 'cg' + (++chartSeq);
+      return '<svg class="chart" viewBox="0 0 ' + BOX.w + ' ' + BOX.h + '" role="img" aria-label="' + esc(o.summary) + '">' +
+        '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--g1);stop-opacity:.28"/><stop offset="1" style="stop-color:var(--g1);stop-opacity:0"/></linearGradient></defs>' +
+        grid + phases + area.replace('class="area"', 'class="area" fill="url(#' + gid + ')"') +
         (o.target && o.target.length > 1 ? '<polyline class="target" points="' + pts(o.target) + '"/>' : '') +
-        (o.line && o.line.length > 1 ? '<polyline class="trend" points="' + pts(o.line) + '"/>' : '') +
-        (o.dots || []).map(function (q) { return '<circle class="dot" cx="' + sc.x(q.date).toFixed(1) + '" cy="' + sc.y(q.v).toFixed(1) + '" r="' + ((o.dots.length > 60) ? 1.6 : 2.4) + '"/>'; }).join('') +
+        (line ? '<polyline class="trend" points="' + pts(line) + '"/>' : '') +
+        (o.dots || []).map(function (q) { return '<circle class="dot" cx="' + sc.x(q.date).toFixed(1) + '" cy="' + sc.y(q.v).toFixed(1) + '" r="' + ((o.dots.length > 60) ? 1.5 : 2.2) + '"/>'; }).join('') +
+        (last ? '<circle class="lasthalo" cx="' + sc.x(last.date).toFixed(1) + '" cy="' + sc.y(last.v).toFixed(1) + '" r="7"/><circle class="last" cx="' + sc.x(last.date).toFixed(1) + '" cy="' + sc.y(last.v).toFixed(1) + '" r="3.6"/>' : '') +
         '<text x="' + p.l + '" y="' + (BOX.h - 4) + '">' + esc(day(o.from)) + '</text><text x="' + (BOX.w - p.r) + '" y="' + (BOX.h - 4) + '" text-anchor="end">' + esc(day(o.to)) + '</text></svg>';
     }
     function legend(items) { return '<p class="legend small muted">' + items.map(function (i) { return '<span><i class="' + i[0] + '"></i>' + i[1] + '</span>'; }).join('') + '</p>'; }
@@ -59,14 +66,14 @@
         '<p class="small muted">' + (v.rate ? 'Last 14 days: ' + fmtS(v.rate.perWeek, 2) + ' ' + u + ' a week (' + fmtS(v.rate.pct, 2) + '% of body weight).' : 'The weekly rate shows after 14 days of trend.') + '</p>' +
         chart({ from: from, to: today, dots: v.dots, line: v.trend, dp: 1, summary: ME.weightSummary(v, units(), rangeLabel()) }) +
         legend([['k-dot', 'Weigh-in (first of the day)'], ['k-trend', 'Trend']]) +
-        '<details><summary>Weekly averages</summary><div class="list">' + v.weeks.map(function (w) {
+        '<details data-keep="weekly"' + (S.open_weekly ? ' open' : '') + '><summary>Weekly averages</summary><div class="list">' + v.weeks.map(function (w) {
           return '<div class="item"><span><span class="t">Week of ' + esc(day(w.weekStart)) + '</span><span class="s">' + w.count + ' weigh-in' + (w.count === 1 ? '' : 's') + '</span></span><span class="k">' + fmt(w.avg, 1) + '<small>' + u + '</small></span></div>';
         }).join('') + '</div><p class="small muted">The trend is a moving average: each day it moves 10% of the way toward that day\'s first weigh-in.</p></details>' +
-        '<span class="sec">Weigh-ins</span><div class="list">' + shown.map(function (w) {
+        '<details data-keep="weighins"' + (S.open_weighins ? ' open' : '') + '><summary>History (' + list.length + ' weigh-in' + (list.length === 1 ? '' : 's') + ')</summary><div class="list">' + shown.map(function (w) {
           return '<button type="button" class="item food" data-a="weighedit" data-v="' + esc(w.id) + '"><span><span class="t">' + esc(day(w.date, true)) + '</span><span class="s">' + esc(timeOf(w.measured_at)) + (w.note ? ' · ' + esc(w.note) : '') + '</span></span>' +
             '<span class="k">' + fmt(ME.kgToUnits(Number(w.kg), units()), 1) + '<small>' + u + '</small></span></button>';
         }).join('') + '</div>' +
-        (list.length > 5 ? '<button type="button" class="link" data-a="weighall">' + (S.progressAllWeights ? 'Show fewer' : 'Show all ' + list.length) + '</button>' : '') + '</section>';
+        (list.length > 5 ? '<button type="button" class="link" data-a="weighall">' + (S.progressAllWeights ? 'Show fewer' : 'Show all ' + list.length) + '</button>' : '') + '</details></section>';
     }
 
     function measureCard(from, today) {
@@ -89,12 +96,12 @@
         (last ? '<div class="row" style="margin-top:8px"><span><b style="font-size:26px">' + fmt(last.v, 1) + '</b> <span class="small muted">' + u + ' waist</span></span><span class="small muted">' + (w.change != null ? fmtS(w.change, 1) + ' ' + u + ' over the ' + esc(rangeLabel()) : esc(day(last.date, true))) + '</span></div>' +
           (w.points.length ? chart({ from: from, to: today, dots: w.points, line: w.points, dp: 1, summary: summary }) : '<p class="small muted">No waist measurements in this range.</p>') : '') +
         (others ? '<div class="list">' + others + '</div>' : '') +
-        '<span class="sec">Entries</span><div class="list">' + list.map(function (m) {
+        '<details data-keep="measures"' + (S.open_measures ? ' open' : '') + '><summary>History (' + merged.length + ' entr' + (merged.length === 1 ? 'y' : 'ies') + ')</summary><div class="list">' + list.map(function (m) {
           if (m.bf) return '<button type="button" class="item food" data-a="bfedit" data-v="' + esc(m.id) + '"><span><span class="t">Body fat (estimate)</span><span class="s">' + esc(day(m.date, true)) + ' · ' + esc(methodLabel(m.method)) + '</span></span><span class="k">' + fmt(Number(m.pct), 1) + '<small>%</small></span></button>';
           var s = ME.SITES.filter(function (x) { return x.id === m.site; })[0];
           return '<button type="button" class="item food" data-a="measureedit" data-v="' + esc(m.id) + '"><span><span class="t">' + (s ? s.label : esc(m.site)) + '</span><span class="s">' + esc(day(m.date, true)) + '</span></span><span class="k">' + fmt(ME.cmToUnits(Number(m.cm), units()), 1) + '<small>' + u + '</small></span></button>';
         }).join('') + '</div>' +
-        (merged.length > 5 ? '<button type="button" class="link" data-a="measureall">' + (S.progressAllMeasures ? 'Show fewer' : 'Show all ' + merged.length) + '</button>' : '') + '</section>';
+        (merged.length > 5 ? '<button type="button" class="link" data-a="measureall">' + (S.progressAllMeasures ? 'Show fewer' : 'Show all ' + merged.length) + '</button>' : '') + '</details></section>';
     }
 
     function intakeCard(from, today) {
@@ -124,8 +131,8 @@
           '<p class="small muted">Strength is the sign the scale can\'t give: lifts holding or rising means you\'re keeping or building muscle. Leanward can read your lifts from PR Forge. It only reads; it never changes anything there.</p>' +
           (pf.error ? '<p class="small warn">' + esc(pf.error) + '</p>' : '') +
           (pf.status === 'checking' || pf.busy ? '<p class="small muted">' + (pf.busy ? 'Reading your PR Forge workouts…' : 'Checking the PR Forge connection…') + '</p>'
-            : on ? '<button type="button" class="btn block" data-a="pfrefresh">Read my PR Forge workouts</button>'
-            : '<button type="button" class="btn block" data-a="pfconnect">Connect PR Forge</button><p class="small muted">You\'ll sign in to PR Forge with Google once. Use the same Google account you use there.</p>') + '</section>';
+            : on ? '<button type="button" class="btn ghost block" data-a="pfrefresh">Read my PR Forge workouts</button>'
+            : '<button type="button" class="btn ghost block" data-a="pfconnect">Connect PR Forge</button><p class="small muted">You\'ll sign in to PR Forge with Google once. Use the same Google account you use there.</p>') + '</section>';
       }
       var lifts = PF.series(data.exercises, picks(), units());
       var body = !lifts.length
@@ -173,7 +180,7 @@
       return '<button type="button" class="card tile cardbtn" data-a="weigh" aria-label="Weight' + (v.latest ? ', trend ' + fmt(v.latest.trend, 1) + ' ' + u : '') + '. Log a weigh-in.">' +
         '<span class="small muted">Weight' + (v.latest ? ' trend' : '') + '</span><b>' + (v.latest ? fmt(v.latest.trend, 1) + ' ' + u : 'No weigh-ins') + '</b>' +
         '<span class="small muted">' + (v.rate ? fmtS(v.rate.perWeek, 2) + ' ' + u + ' a week' : v.latest ? 'last ' + esc(day(v.latest.date)) : 'Weigh in most mornings') + '</span>' +
-        '<span class="pill ' + (weighed ? 'ok' : '') + '">' + (weighed ? 'Weighed in' : 'Log weight') + '</span></button>';
+        '<span class="pill ' + (weighed ? 'dot ok' : '') + '">' + (weighed ? 'Weighed in' : 'Log weight') + '</span></button>';
     }
 
     /* ---------- sheets ---------- */
@@ -185,7 +192,7 @@
         '<div class="field"><label for="we-t">Time</label><input type="time" id="we-t" data-m="time" value="' + esc(sh.time) + '"></div></div>' +
         '<div class="field"><label for="we-n">Note <span class="muted">optional</span></label><input type="text" id="we-n" data-m="note" maxlength="200" value="' + esc(sh.note || '') + '" placeholder="e.g. after travel"></div>' +
         '<p class="small muted">Same scale, same time of day, before eating if you can. More than one a day is fine: the trend uses the first.</p>' +
-        '<button type="button" class="btn block" data-a="weighsave">Save</button>' + (sh.id ? '<button type="button" class="btn ghost block" data-a="weighdelete">Delete</button>' : ''));
+        '<button type="button" class="btn block" data-a="weighsave">Save</button>' + (sh.id ? '<p class="center"><button type="button" class="link quietdanger" data-a="weighdelete">Delete this weigh-in</button></p>' : ''));
     }
     function methodLabel(id) { var m = ME.BF_METHODS.filter(function (x) { return x[0] === id; })[0]; return m ? m[1] : id; }
     function measureSheet() {
@@ -198,14 +205,14 @@
           '<div class="grid2"><div class="field"><label for="ms-v">Body fat <span class="muted">%</span></label><input type="number" id="ms-v" inputmode="decimal" step="any" data-m="value" value="' + (sh.value == null ? '' : esc(String(sh.value))) + '"></div>' +
           '<div class="field"><label for="ms-d">Day</label><input type="date" id="ms-d" data-m="date" value="' + esc(sh.date) + '" max="' + ctx.today() + '"></div></div>' +
           '<div class="field"><label for="ms-m">How it was measured</label><select id="ms-m" data-m="method">' + ME.BF_METHODS.map(function (m) { return '<option value="' + m[0] + '"' + (m[0] === (sh.method || 'scale') ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('') + '</select></div>' +
-          '<button type="button" class="btn block" data-a="bfsave">Save</button>' + (sh.id ? '<button type="button" class="btn ghost block" data-a="bfdelete">Delete</button>' : ''));
+          '<button type="button" class="btn block" data-a="bfsave">Save</button>' + (sh.id ? '<p class="center"><button type="button" class="link quietdanger" data-a="bfdelete">Delete this entry</button></p>' : ''));
       }
       return wrap(sh.id ? 'Edit measurement' : 'Add a measurement', '<h2>' + (sh.id ? 'Edit measurement' : 'Add a measurement') + '</h2>' +
         (sh.id ? '' : chips) +
         '<p class="small muted"><b>How to measure:</b> ' + esc(site.how) + '</p>' +
         '<div class="grid2"><div class="field"><label for="ms-v">' + site.label + ' <span class="muted">' + u + '</span></label><input type="number" id="ms-v" inputmode="decimal" step="any" data-m="value" value="' + (sh.value == null ? '' : esc(String(sh.value))) + '"></div>' +
         '<div class="field"><label for="ms-d">Day</label><input type="date" id="ms-d" data-m="date" value="' + esc(sh.date) + '" max="' + ctx.today() + '"></div></div>' +
-        '<button type="button" class="btn block" data-a="measuresave">Save</button>' + (sh.id ? '<button type="button" class="btn ghost block" data-a="measuredelete">Delete</button>' : ''));
+        '<button type="button" class="btn block" data-a="measuresave">Save</button>' + (sh.id ? '<p class="center"><button type="button" class="link quietdanger" data-a="measuredelete">Delete this measurement</button></p>' : ''));
     }
     function sheetView() { var k = S.sheet && S.sheet.kind; return k === 'weigh' ? weighSheet() : k === 'measure' ? measureSheet() : k === 'lifts' ? liftsSheet() : null; }
     function focus(id) { root.setTimeout(function () { var i = root.document.getElementById(id); if (i) i.focus(); }, 50); }
