@@ -399,6 +399,18 @@
      * "Is it working?" (PRG-2/3/4), on the Progress tab: the verdict first, each signal with its
      * number, and how each is judged one tap away.
      */
+    /** "Next week" (PRG-4): one step with its reasons, after the data-quality checks. */
+    function nextHtml(ph, t, r) {
+      var y = core.addDays(today(), -1), ci = t.calc_inputs || {};
+      var days = root.LW.maint.intakeDays(S.rows.diary || [], function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); }, core.addDays(y, -13), y);
+      var q = { loggedDays14: days.filter(function (d) { return d.complete; }).length, manualTarget: t.origin === 'manual',
+        targetWeeklyPct: ci.tdee > 0 && ci.kg > 0 ? C.targets.pace(t.kcal, ci.tdee, ci.kg).weeklyPct : null };
+      var n = C.progress.nextStep(ph.type, r, q);
+      if (!n) return '';
+      var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait' }[n.kind] || 'watch';
+      return '<div class="next ' + tone + '"><span class="small muted">Next week</span><b>' + esc(n.title) + '</b>' +
+        n.why.map(function (w) { return '<p class="small">' + esc(w) + '</p>'; }).join('') + '</div>';
+    }
     function readCard() {
       var ph = M.currentPhase(S.rows.phases), t = currentTargets();
       if (!ph || !t) return '';
@@ -407,6 +419,7 @@
       var d = M.dayOf(ph, today());
       return '<section class="card"><div class="row"><h2 style="margin:0">Is it working?</h2><span class="small muted">' + PHASE_NAME[ph.type] + ' · ' + d.label + '</span></div>' +
         '<p class="verdict">' + esc(r.summary) + '</p>' +
+        nextHtml(ph, t, r) +
         r.signals.map(function (s) {
           var p = SIGNAL[s.status] || SIGNAL.collecting;
           return '<div class="sig"><div class="row"><b style="font-size:13.5px">' + esc(s.label) + '</b><span class="pill ' + p[0] + '">' + p[1] + '</span></div><span style="font-size:13px">' + esc(s.value) + '</span></div>';
@@ -435,6 +448,14 @@
       return { prof: prof, rows: r.rows, set: r.rows[0][1] };
     }
     function niceDay(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+    /** How much the check can be trusted (PRG-5): high with near-daily logging and weigh-ins, else moderate. */
+    function confHtml(est) {
+      if (!est || !est.confidence) return '';
+      var high = est.confidence === 'high';
+      return '<div class="sig"><div class="row"><b style="font-size:13.5px">Confidence</b><span class="pill dot ' + (high ? 'ok' : 'watch') + '">' + (high ? 'High' : 'Moderate') + '</span></div><p>' +
+        est.loggedDays + ' of 21 days fully logged · at least ' + est.minWeighInsPerWeek + ' weigh-ins each week.' + (high ? '' : ' Logging 20+ days and weighing in 6+ times a week makes it high.') + '</p>' +
+        (est.cautions || []).map(function (x) { return '<p class="warn">' + esc(x) + '</p>'; }).join('') + '</div>';
+    }
     function maintCard(t) {
       var c;
       try { c = maintCheck(); } catch (e) { return ''; }
@@ -452,13 +473,14 @@
       }
       var working = '<details><summary>How this is worked out</summary><div class="working">' + c.estimate.steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>' +
         '<p class="small muted">An estimate from your own logging, as good as the logging is. 7,700 kcal per kg of body weight (3,493 per lb) is a standard approximation.</p></details>';
-      if (c.state === 'matches') return head + '<p class="small">Your last 21 days (' + esc(span) + ') fit your maintenance of <b>' + fmt(c.tdee) + ' kcal</b>. No change suggested.</p>' + working + '</section>';
+      if (c.state === 'matches') return head + '<p class="small">Your last 21 days (' + esc(span) + ') fit your maintenance of <b>' + fmt(c.tdee) + ' kcal</b>. No change suggested.</p>' + confHtml(c.estimate) + working + '</section>';
       var plan;
       try { plan = maintPlan(c.to); } catch (e) { return head + '<p class="small warn">' + esc(e.message) + '</p></section>'; }
       var n = plan.set;
       return head + '<p class="small">Your last 21 days (' + esc(span) + ') suggest your maintenance is about <b>' + fmt(c.to) + ' kcal</b>, not ' + fmt(c.from) + ' (' + C.core.fmtSigned(c.to - c.from) + ').</p>' +
         '<div class="sig"><b style="font-size:13.5px">If you accept, from today</b><p>Targets: ' + fmt(n.kcal) + ' kcal · P ' + n.protein_g + ' g · C ' + n.carbs_g + ' g · F ' + n.fat_g + ' g (now ' + fmt(t.kcal) + ' kcal · P ' + t.protein_g + ' · C ' + t.carbs_g + ' · F ' + t.fat_g + ').' +
           (t.origin === 'manual' ? ' This replaces the targets you set by hand; you can edit them again afterwards.' : '') + '</p></div>' + working +
+        confHtml(c.estimate) +
         '<button type="button" class="btn block" data-a="maintaccept">Accept the new maintenance</button><button type="button" class="btn ghost block" data-a="maintdecline">Keep my current targets</button>' +
         '<p class="small muted">Changes are limited to 150 kcal at a time. Nothing changes unless you accept.</p></section>';
     }

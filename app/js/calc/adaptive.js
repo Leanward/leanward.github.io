@@ -43,9 +43,11 @@
     if (complete.length < needDays) reasons.push(complete.length + ' of 21 days fully logged (needs ' + needDays + ')');
 
     var daily = trend.dailyWeights((input.weights || []).filter(function (w) { return w.date >= start && w.date <= end; }));
+    var minWeek = Infinity;
     for (var wk = 0; wk < 3; wk++) {
       var a = core.addDays(start, wk * 7), b = core.addDays(start, wk * 7 + 6);
       var n = daily.filter(function (d) { return d.date >= a && d.date <= b; }).length;
+      minWeek = Math.min(minWeek, n);
       if (n < MIN_WEIGHINS_PER_WEEK) reasons.push('week ' + (wk + 1) + ' has ' + n + ' weigh-in' + (n === 1 ? '' : 's') + ' (needs 4)');
     }
 
@@ -76,11 +78,17 @@
       'Blended 70% new, 30% previous (' + fmt(prev) + '): ' + fmt(blended) + ' kcal'
     ];
     if (Math.abs(blended - prev) > MAX_CHANGE_KCAL) steps.push('Change limited to ' + MAX_CHANGE_KCAL + ' kcal a week');
+    // How much to trust it. Three weeks is the minimum, not proof: near-daily logging and weigh-ins make
+    // the trend steadier. An estimate far below the previous one is often food that wasn't logged.
+    var confidence = complete.length >= 20 && minWeek >= 6 ? 'high' : 'moderate';
+    var cautions = [];
+    if (raw < prev * 0.8) cautions.push('This estimate is more than 20% below your previous maintenance. That can be real, but it\'s often food that wasn\'t logged (oils, drinks, bites, weekends). If you\'re not sure your logs were complete, keep your targets and log carefully for another week.');
     steps.push('Suggested maintenance: ' + fmt(next) + ' kcal (' + core.fmtSigned(next - prev) + ' kcal). Your targets change only if you accept this.');
 
     return {
       status: next === prev ? 'no-change' : 'proposed',
       tdee: next, previousTdee: prev, rawTdee: raw, meanIntake: meanIntake, trendChangeKg: dKg, windowStart: start, windowEnd: end,
+      confidence: confidence, cautions: cautions, loggedDays: complete.length, minWeighInsPerWeek: minWeek,
       recommendation: next === prev ? null : { type: 'maintenance-update', from: prev, to: next, calcVersion: core.CALC_VERSION, reasoning: steps.slice() },
       steps: steps
     };

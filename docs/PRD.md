@@ -1,6 +1,6 @@
 # Leanward — Product Requirements Document
 
-> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout; v1.8 moves recipes into the MVP, LOG-11) · **Date:** 2026-11-17 · **Owner:** Kevin Chavez
+> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout; v1.8 moves recipes into the MVP, LOG-11; v1.9 adds the "Next week" step and maintenance-check confidence) · **Date:** 2026-11-17 · **Owner:** Kevin Chavez
 > **Source:** [`blueprint-v2.md`](blueprint-v2.md) (Product Vision v2.0). Where this PRD adds detail, changes scope, or makes a call the blueprint left open, it is marked **[Proposed]** so you can accept or reject it; calls you've confirmed are marked **[Decided]** and logged in [`decisions.md`](decisions.md).
 > **How to review:** react to anything, but the fastest path to sign-off is answering the numbered questions in §15.
 
@@ -161,8 +161,8 @@ Priority: **P0** = MVP can't ship without it · **P1** = MVP, can slip to a fast
 | | Maintenance: trend weight within ±1.5% of the phase-start weight; waist stable. | |
 | | Nutrition optimization: logging consistency and nutrients meeting DRI (no weight signals). | |
 | PRG-3 | A signal needs ≥ 14 days of phase data and ≥ 8 weigh-ins (or 2 waist / 2 lift entries); before that it shows "collecting data — x more days". | P0 |
-| PRG-4 | Progress copy is plain and non-judgmental: "Weight flat, waist −1.8 cm, squat e1RM +4% — consistent with a successful recomp." | P0 |
-| PRG-5 | **Maintenance check** (moved into the MVP from Phase 2 [Decided 2026-11-03, owner request]): once there are 21 days with enough logging and weigh-ins (§8.6), Leanward compares what was eaten with the weight trend and, if maintenance looks different from the one in use, suggests a corrected maintenance and the new targets as a Recommendation, with the working. Targets change only if the user accepts; declining keeps them. Until there's enough data it says what's still needed. | P1 |
+| PRG-4 | Progress copy is plain and non-judgmental: "Weight flat, waist −1.8 cm, squat e1RM +4% — consistent with a successful recomp." **Next week [v1.9]:** the card adds one step with its reasons (keep / eat 100–250 kcal more or less / look after recovery / log more first / wait / let the maintenance check update). Data quality comes first: fewer than 10 of the last 14 days logged to half the target means "log more", never "eat less"; a slow cut with a falling waist is held; a slow cut with a flat waist points to careful logging and the maintenance check, not a cut in calories. | P0 |
+| PRG-5 | **Maintenance check** (moved into the MVP from Phase 2 [Decided 2026-11-03, owner request]): once there are 21 days with enough logging and weigh-ins (§8.6), Leanward compares what was eaten with the weight trend and, if maintenance looks different from the one in use, suggests a corrected maintenance and the new targets as a Recommendation, with the working. Targets change only if the user accepts; declining keeps them. Until there's enough data it says what's still needed. **Confidence [v1.9]:** High with 20+ of 21 days logged and 6+ weigh-ins every week, else Moderate; an estimate more than 20% below the previous maintenance carries a caution about unlogged food. | P1 |
 
 ### 6.7 Home (HOM)
 | ID | Requirement | Pri |
@@ -440,6 +440,7 @@ No questions are open. Signed off 2026-11-02. Changes from here go through the f
 | 2026-11-03 | 1.3 | ONB-10 "I know my numbers" (measured BMR/RMR or known maintenance), checks on entered numbers and the accuracy note in §8.1 (owner request after testing: the formula overestimated their maintenance). |
 | 2026-11-03 | 1.3 | ONB-1: Google sign-in only for now; email + password deferred (owner decision). |
 | 2026-11-03 | 1.3 | §8.10 extended for M1b: progress-read bands, adaptive blend, DRI life stages. |
+| 2026-11-17 | 1.9 | PRG-4 "Next week" step and PRG-5 confidence level (after the coaching review). |
 | 2026-11-17 | 1.8 | LOG-11 recipes moved from Phase 2 into the MVP (owner decision, after the outside product review); typed-in targets show the pace they imply (§8.2). |
 | 2026-11-16 | 1.7 | §9 navigation: four tabs (Today · Progress · Plan · Profile) with the + in the tab bar; Home and Diary merge into Today; "Is it working?" moves to Progress. HOM-5 reworded. From the design audit the owner asked for. |
 | 2026-11-16 | 1.6 | ACC-6 default mode is Match iPhone. ACC-5 reminders (P1) move to after the beta: web push on iPhone needs a push server and only works for home-screen apps. |
