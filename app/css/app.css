@@ -286,3 +286,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .rcamt { display: inline-flex; align-items: center; gap: 6px; }
 .rcamt input { width: 68px; padding: 6px 8px; text-align: right; }
 .rcline { display: grid; gap: 1px; padding: 4px 0; } .rcline b { font-size: 14px; }
+/* "Next week" step on Is it working? */
+.next { border-left: 3px solid var(--muted); padding: 2px 0 2px 12px; margin: 8px 0 4px; display: grid; gap: 4px; }
+.next b { font-size: 15px; } .next p { margin: 0; }
+.next.ok { border-color: var(--ok); } .next.watch { border-color: var(--bad); } .next.wait { border-color: var(--muted); }

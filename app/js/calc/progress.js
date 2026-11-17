@@ -208,7 +208,79 @@
     return text + '. Worth a look: ' + watch.map(function (s) { return s.label.toLowerCase(); }).join(', ') + '.';
   }
 
-  var api = { MIN_DAYS: MIN_DAYS, MIN_WEIGHINS: MIN_WEIGHINS, MIN_ENTRIES: MIN_ENTRIES, WAIST_NOISE_CM: WAIST_NOISE_CM, read: read };
+  /**
+   * "What should I do next week?" — one step, with its reasons, from the signals of read().
+   * Checks the data before the body: with gaps in logging or weigh-ins, a slow scale can't be told apart
+   * from untracked food, so it never suggests eating less on thin data. Changes it suggests are small
+   * (100–250 kcal) and it points to the maintenance check, which updates maintenance from real data.
+   * q: { loggedDays14 (days in the last 14 logged to ≥ 50% of target), targetWeeklyPct?, manualTarget? }
+   * Returns { kind, title, why: [advice], evidence?: [the numbers it rests on] } or null (nutrition phase). kind: wait | log-more | keep |
+   * eat-more | eat-less | recovery | maintenance-check.
+   */
+  function nextStep(type, result, q) {
+    if (type === 'nutrition') return null;
+    q = q || {};
+    var sigs = result.signals || [], by = function (id) { return sigs.filter(function (s) { return s.id === id; })[0]; };
+    var w = by('weight'), waist = by('waist');
+    var lifts = sigs.filter(function (s) { return s.id.indexOf('lift:') === 0 && s.status !== 'collecting'; });
+    var down = lifts.filter(function (s) { return s.status === 'off-track'; });
+    var liftsHeld = lifts.length && !down.length;
+    var waistDown = waist && waist.status !== 'collecting' && waist.changeCm <= -WAIST_NOISE_CM;
+    var waistUp = waist && waist.status !== 'collecting' && waist.changeCm >= WAIST_NOISE_CM;
+    var name = PHASE_NAMES[type];
+    if (!w || w.status === 'collecting') {
+      return { kind: 'wait', title: 'Too early to change anything', why: ['Keep logging and weighing in. ' + (w ? w.value.replace(/^Collecting data: /, 'Still needed: ') + '.' : '')] };
+    }
+    if (q.loggedDays14 != null && q.loggedDays14 < 10) {
+      return { kind: 'log-more', title: 'Log more days before changing anything', why: [
+        q.loggedDays14 + ' of the last 14 days were logged to at least half your target. With gaps, a slow scale can\'t be told apart from food that wasn\'t logged.',
+        'Aim for 10 or more of the next 14 days, including oils, drinks and bites.'] };
+    }
+    var notes = [w.label + ': ' + w.value + '.'];
+    if (waist && waist.status !== 'collecting') notes.push('Waist: ' + waist.value + '.');
+    lifts.forEach(function (l) { notes.push(l.label + ': ' + l.value.charAt(0).toLowerCase() + l.value.slice(1) + '.'); });
+    var keep = function (extra) { return { kind: 'keep', title: 'Keep your current targets', evidence: notes, why: (['This is consistent with a productive ' + name + '.' + (extra || '')]) }; };
+    var recovery = function (lead) {
+      return { kind: 'recovery', title: 'Look after recovery', evidence: notes, why: [lead].concat([down.map(function (l) { return l.label; }).join(' and ') + (down.length === 1 ? ' is' : ' are') + ' down more than expected. Check sleep, keep protein at target, and put more of your carbs around training. If it continues, eat 100–200 kcal more.']) };
+    };
+
+    if (type === 'cut' || type === 'bulk') {
+      var a = w.actual, p = w.planned, sign = type === 'cut' ? -1 : 1;
+      var fast = w.status !== 'on-track' && a * sign > p * sign, slow = w.status !== 'on-track' && !fast;
+      var implied = q.targetWeeklyPct != null && Math.abs(q.targetWeeklyPct - p) >= 0.1
+        ? ' Your current target' + (q.manualTarget ? ' (set by you)' : '') + ' works out to about ' + fmt(Math.abs(q.targetWeeklyPct), 1) + '% a week, so this pace is what it predicts. To go at the planned ' + fmt(Math.abs(p), 2).replace(/0$/, '') + '%, use Plan → Edit targets → Go back to calculated.' : '';
+      if (type === 'cut') {
+        if (fast) {
+          if (down.length) return recovery('You\'re losing faster than planned.' + implied);
+          return { kind: 'eat-more', title: 'Losing faster than planned', evidence: notes, why: (['Short stretches are fine, but losing quickly for weeks makes it harder to keep muscle. Consider 100–200 kcal more a day.' + implied]) };
+        }
+        if (slow) {
+          if (waistDown) return keep(' The scale is slower than planned, but your waist is coming down: water and food weight often hide fat loss for a while. Hold steady for two more weeks.');
+          return { kind: 'maintenance-check', title: 'Don\'t cut calories yet', evidence: notes, why: (['Weight is falling slower than planned. Before eating less, weigh foods rather than estimating them and log everything for two weeks.',
+            'The maintenance check compares what you eat with your weight trend over 3 weeks; if your real maintenance is lower than the estimate, it will suggest a new number.']) };
+        }
+        if (down.length) return recovery('Weight is on plan.');
+        return keep(liftsHeld ? ' Strength is holding, so there\'s no reason to cut calories further.' : ' There\'s no reason to cut calories further.');
+      }
+      if (fast || waist && waist.status === 'off-track') return { kind: 'eat-less', title: 'Gaining faster than planned', evidence: notes, why: (['Faster gain mostly adds fat. Consider 100–150 kcal less a day.' + (fast ? implied : '')]) };
+      if (slow) return { kind: 'eat-more', title: 'Gaining slower than planned', evidence: notes, why: (['Consider 100–150 kcal more a day, mostly from carbs around training, or accept the maintenance check\'s suggestion when it comes.']) };
+      if (down.length) return recovery('Weight is on plan.');
+      return keep(lifts.length && !down.length ? ' Strength is moving the right way.' : '');
+    }
+    if (type === 'recomp') {
+      if (w.status !== 'on-track' && w.actual > 0 && waistUp) return { kind: 'eat-less', title: 'Weight and waist are both rising', evidence: notes, why: (['A recomp aims for about flat weight. Consider 100–150 kcal less a day.']) };
+      if (w.status !== 'on-track' && w.actual < 0) return { kind: 'eat-more', title: 'You\'re losing weight', evidence: notes, why: (['That\'s more like a slow cut than a recomp. Fine if that\'s what you want; otherwise eat 100–150 kcal more a day.']) };
+      if (down.length) return recovery('Weight is about flat.');
+      return keep(waistDown ? ' Waist down with weight flat is the recomp pattern.' : '');
+    }
+    if (type === 'maintenance') {
+      if (w.status !== 'on-track') return { kind: 'maintenance-check', title: 'Weight is drifting', evidence: notes, why: (['Let the maintenance check (Plan tab) update your number from 3 weeks of data, or adjust by 100 kcal a day toward your phase-start weight.']) };
+      return keep(' Nothing needs to change.');
+    }
+    return null;
+  }
+
+  var api = { MIN_DAYS: MIN_DAYS, MIN_WEIGHINS: MIN_WEIGHINS, MIN_ENTRIES: MIN_ENTRIES, WAIST_NOISE_CM: WAIST_NOISE_CM, read: read, nextStep: nextStep };
   if (node) module.exports = api;
   else { root.LW.calc.progress = api; }
 })(this);

@@ -87,3 +87,38 @@ Recomputing from macros would make most foods *less* accurate.
 4. "Is it working?" card on Progress.
 5. Beta feedback, name checks, launch (M8 → M9).
 6. Phase 2: photos, phase comparisons, App Store wrapper (Apple Health), AI explanations.
+
+## 8. Coaching review (second pass, same day)
+
+Most of it repeats the first review: §2–§7 cover the calculations, the macro gap, recipes, search, phases, PR Forge and future features.
+
+### Macros, checked as a coach would
+
+| Target | How it's set | Verdict |
+|---|---|---|
+| Protein 190 g | Cut: 2.2 g/kg × ~86.4 kg (the phase-start weight); BMI over 30 would use the weight at BMI 27.5 | Sound for a cut (1.6–2.2 g/kg is the evidence range; 2.2 sits at the top, for muscle retention). Improvement: count protein as met from ~1.6 g/kg, so 190 g isn't treated as all-or-nothing. |
+| Fat 57 g | 27% of calories; floor = the higher of 20% and 0.5 g/kg | Sound. The floor keeps fat from being cut to save calories. |
+| Carbs 157 g | The rest | Fine. Training-day/rest-day carbs are a good later feature. PR Forge workouts could mark training days without extra input. |
+| Fiber 27 g | 14 g per 1,000 kcal | Sound (Dietary Guidelines). |
+
+### The 2,854 kcal maintenance
+For a 38-year-old man, 5'8" (172.7 cm), 194.4 lb (88.2 kg), moderately active, Mifflin-St Jeor gives a BMR of 1,776 × 1.55 = **2,753 kcal**. The browser test reproduced this.
+
+2,854 means the profile differs from that, or the maintenance came from another source. That would be a body-fat % (Katch-McArdle; about 21% gives 2,854), an entered maintenance or BMR, or an accepted maintenance check. The Plan tab names the source under "Maintenance". That label decides whether anything is wrong.
+
+### Built in v0.19.1
+- **Next week** on "Is it working?": one step with reasons. It checks the data before the body: fewer than 10 of 14 days logged → "log more first", never "eat less".
+  - A slow cut with a falling waist → hold.
+  - A slow cut with a flat waist → log carefully and let the maintenance check update; don't cut calories yet.
+  - Fast loss with falling lifts → recovery first.
+  - A hand-set target that explains the pace → says so.
+- **Maintenance check confidence:** High (20+ of 21 days logged, 6+ weigh-ins every week) or Moderate.
+  - A caution appears when an estimate is more than 20% below the previous maintenance (often unlogged food).
+  - Changes are still capped at 150 kcal and need your OK.
+
+### Next, in order
+1. Protein counted as met from ~1.6 g/kg on Today (S).
+2. "4/4/9 would give X" on food details (S).
+3. Meal-level line ("Lunch gave 42 g protein, 9 g fiber") (S).
+4. Training-day/rest-day carbs from PR Forge workouts (M; PRD change).
+5. AI coach over the same numbers (L; after the beta, paid API).
