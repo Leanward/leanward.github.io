@@ -70,6 +70,25 @@
   function weeklyChangeKg(tdee, kcal) { return (kcal - tdee) * 7 / KCAL_PER_KG; }
 
   /**
+   * The pace a calorie target implies: kg and % of body weight a week (negative = loss), and how far
+   * it sits from maintenance in %. Used to show what a typed-in target really means (§8.4).
+   */
+  function pace(kcal, tdee, kg) {
+    var wk = weeklyChangeKg(tdee, kcal);
+    return { weeklyKg: wk, weeklyPct: wk / kg * 100, pctOfTdee: (kcal - tdee) / tdee * 100 };
+  }
+  /** Warnings (not blocks) for a typed-in target faster than the caps in §8.2. */
+  function paceWarnings(kcal, tdee, kg) {
+    if (!(tdee > 0) || !(kg > 0) || !(kcal > 0)) return [];
+    var r = pace(kcal, tdee, kg), out = [], at = ' At ' + fmt(kcal) + ' kcal against a maintenance of ' + fmt(tdee) + ', expect about ' + fmt(Math.abs(r.weeklyPct), 1) + '% of body weight a week.';
+    if (r.pctOfTdee < -25) out.push({ id: 'deficit-over-cap', message: 'That\'s ' + fmt(-r.pctOfTdee) + '% below maintenance, deeper than the 25% Leanward plans at most.' + at });
+    else if (r.weeklyPct < -1.0) out.push({ id: 'loss-over-cap', message: 'That\'s faster than the 1% of body weight a week Leanward plans at most.' + at });
+    if (r.pctOfTdee > 15) out.push({ id: 'surplus-over-cap', message: 'That\'s ' + fmt(r.pctOfTdee) + '% above maintenance, more than the 15% Leanward plans at most.' + at });
+    else if (r.weeklyPct > 0.5) out.push({ id: 'gain-over-cap', message: 'That\'s faster than the 0.5% of body weight a week Leanward plans at most for a lean bulk.' + at });
+    return out;
+  }
+
+  /**
    * The daily calorie target for a phase.
    * p: { phase, rate?, kg, sex, bmr, tdee, pregnantOrBreastfeeding?, cm? }
    * Returns { kcal, floor, expectedWeeklyKg, expectedWeeklyPct, limitedBy: [...], band?, label, steps }.
@@ -161,7 +180,7 @@
 
   var api = {
     KCAL_PER_KG: KCAL_PER_KG, MIN_KCAL: MIN_KCAL, DEFICIT_CAP: DEFICIT_CAP, SURPLUS_CAP: SURPLUS_CAP, UNDERWEIGHT_BMI: UNDERWEIGHT_BMI, PHASES: PHASES,
-    floor: floor, phaseOptions: phaseOptions, checkGoalWeight: checkGoalWeight, calorieTarget: calorieTarget, manualCalories: manualCalories
+    floor: floor, phaseOptions: phaseOptions, checkGoalWeight: checkGoalWeight, pace: pace, paceWarnings: paceWarnings, calorieTarget: calorieTarget, manualCalories: manualCalories
   };
   if (node) module.exports = api;
   else { root.LW.calc.targets = api; }

@@ -122,3 +122,15 @@ test('serving names: USDA portion codes and the placeholder serving never reach 
   assert.equal(D.servingLabel('2 tbsp (32 g)'), '2 tbsp (32 g)');
   assert.equal(D.servingLabel('90000 Quantity not specified'), '');
 });
+
+test('search shows foods you logged before first, most recent first, not your own created foods', () => {
+  const e = (id, name, date, ref, brand) => ({ id, name, date, created_at: date, food_ref: ref, food_source: 'usda', nutrients: { _per100: { brand } } });
+  const rows = [e('1', 'Chicken breast, roasted', '2026-11-10', 'usda:2'), e('2', 'Chicken breast, roasted', '2026-11-12', 'usda:2'),
+    e('3', 'Chicken thigh', '2026-11-11', 'usda:5'), e('4', 'Protein bar, chocolate chip', '2026-11-09', 'off:1', 'Quest'),
+    e('5', "Grandma's chicken soup", '2026-11-08', 'custom:abc'), Object.assign(e('6', 'Chicken wrap', '2026-11-13', 'usda:7'), { deleted: true })];
+  assert.deepEqual(D.matchLogged(rows, 'chicken').map((x) => x.id), ['2', '3']);        // one row per food, newest first
+  assert.deepEqual(D.matchLogged(rows, 'Breast chicken').map((x) => x.id), ['2']);       // any word order
+  assert.deepEqual(D.matchLogged(rows, 'quest bar').map((x) => x.id), ['4']);            // the brand counts
+  assert.deepEqual(D.matchLogged(rows, "grandma's").map((x) => x.id), []);               // created foods are listed elsewhere
+  assert.deepEqual(D.matchLogged(rows, '  '), []);
+});
