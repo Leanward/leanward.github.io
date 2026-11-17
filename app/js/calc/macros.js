@@ -108,7 +108,20 @@
     return { carbsG: Math.max(0, core.round(carbs)), warnings: warnings };
   }
 
+  /**
+   * The protein amount that counts as "enough" for the day: 1.6 g per kg of reference weight, where the
+   * benefit for muscle levels off in the evidence (Morton et al. 2018), but never above the target.
+   * The target stays the aim; this keeps a day at 170 of 190 g from reading as a miss.
+   */
+  var PROTEIN_ENOUGH_G_PER_KG = 1.6;
+  function proteinEnough(targetG, kg, cm) {
+    if (!(targetG > 0)) return null;
+    if (!(kg > 0) || !(cm > 0)) return targetG;
+    return Math.min(targetG, core.round(PROTEIN_ENOUGH_G_PER_KG * referenceWeight(kg, cm).kg));
+  }
+
   var api = {
+    PROTEIN_ENOUGH_G_PER_KG: PROTEIN_ENOUGH_G_PER_KG, proteinEnough: proteinEnough,
     PROTEIN_G_PER_KG: PROTEIN_G_PER_KG, PROTEIN_RDA: PROTEIN_RDA, KCAL: KCAL, FIBER_G_PER_1000: FIBER_G_PER_1000,
     referenceWeight: referenceWeight, macroTargets: macroTargets, split: split, checkManualMacros: checkManualMacros
   };

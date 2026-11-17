@@ -159,9 +159,9 @@
         '<details data-keep="facts"' + (d.facts ? ' open' : '') + '><summary>Nutrition facts</summary>' +
           (f.serving_g ? '<div class="seg" style="margin-top:8px">' + [['100', 'Per 100 ' + per], ['serving', 'Per serving']].map(function (o) { return '<button type="button" data-a="fdbasis" data-v="' + o[0] + '" aria-pressed="' + ((d.basis || '100') === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
           '<p class="small muted">' + esc(label) + ': ' + fmt(v.kcal) + ' kcal · protein ' + fmt(v.protein_g, 1) + ' g · carbs ' + fmt(v.carbs_g, 1) + ' g · fat ' + fmt(v.fat_g, 1) + ' g</p>' +
-          (f.energy_derived ? '<p class="small muted">Calories worked out from protein, carbs and fat (the source didn\'t list them).</p>' : '') +
+          (f.energy_derived ? '<p class="small muted">Calories worked out from protein, carbs and fat (the source didn\'t list them).</p>' : (DY.atwaterNote(f) ? '<p class="small muted">' + esc(DY.atwaterNote(f).text) + '</p>' : '')) +
           (rows || '<p class="small muted">No vitamins or minerals listed for this food.</p>') +
-          (f.servings && f.servings.some(function (s) { return DY.servingLabel(s.label); }) ? '<p class="small muted">Servings: ' + f.servings.filter(function (s) { return DY.servingLabel(s.label); }).map(function (s) { return esc(DY.servingLabel(s.label)) + ' = ' + fmt(s.g) + ' g'; }).join(' · ') + '</p>' : '') +
+          (f.servings && f.servings.some(function (s) { return realServing(s.label); }) ? '<p class="small muted">Servings: ' + f.servings.filter(function (s) { return realServing(s.label); }).map(function (s) { return esc(DY.servingLabel(s.label)) + ' = ' + fmt(s.g) + ' g'; }).join(' · ') + '</p>' : '') +
           '<p class="small muted">Source: ' + esc(src) + (f.source_id ? ' (FoodData Central #' + esc(f.source_id) + ')' : '') + (f.gtin ? ' · barcode ' + esc(f.gtin.replace(/^0+(?=\d{12})/, '')) : '') + '. ' +
             (/^usda/.test(f.source) ? 'USDA data: public domain.' : f.source === 'custom' ? 'Only you can see it.' : '') + '</p>' +
           (f.attribution ? '<p class="small muted">' + esc(f.attribution) + '</p>' : '') + '</details>' +
@@ -208,6 +208,8 @@
     }
     function openRecipe(r, extra) { S.sheet = Object.assign({ kind: 'recipe', r: r, err: '' }, extra); ctx.render(); }
 
+    /** A serving worth listing: not blank, and not a plain unit (g, oz, ml, cup...) kept with a diary entry. */
+    function realServing(label) { var l = DY.servingLabel(label); return l && !/^(g|oz|ml|fl oz|cup|tbsp|tsp)$/i.test(l); }
     function reportForm() {
       var d = S.sheet;
       return '<div class="card" style="display:grid;gap:8px"><b>What\'s wrong?</b><div class="chips2">' + ISSUES.map(function (i) { return '<button type="button" data-a="fdissue" data-v="' + i[0] + '" aria-pressed="' + (d.issue === i[0]) + '">' + i[1] + '</button>'; }).join('') + '</div>' +

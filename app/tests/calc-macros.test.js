@@ -83,3 +83,15 @@ test('manual macros warn, never block', () => {
   assert.deepEqual(M.checkManualMacros({ kcal: 2300, proteinG: 150, fatG: 70, kg: 80, cm: 180 }).warnings, []);
   assert.deepEqual(M.checkManualMacros({ kcal: 1200, proteinG: 200, fatG: 60, kg: 80, cm: 180 }).warnings.map((x) => x.id), ['over-calories']);
 });
+
+test('protein counts as enough from 1.6 g/kg, never above the target (coaching review)', () => {
+  const Mc = require('../js/calc/macros.js');
+  // 86.4 kg, 172.7 cm (BMI 29.0): 1.6 × 86.4 = 138.2 → 138 g; the 190 g target stays the aim
+  assert.equal(Mc.proteinEnough(190, 86.4, 172.7), 138);
+  // BMI over 30 uses the weight at BMI 27.5: 110 kg at 175 cm → 27.5 × 1.75² = 84.2 kg → 1.6 × 84.2 = 134.8 → 135
+  assert.equal(Mc.proteinEnough(185, 110, 175), 135);
+  // a nutrition-phase target of 1.2 g/kg is already below 1.6 → the target itself
+  assert.equal(Mc.proteinEnough(96, 80, 180), 96);
+  assert.equal(Mc.proteinEnough(150, null, null), 150);
+  assert.equal(Mc.proteinEnough(0, 80, 180), null);
+});

@@ -40,8 +40,10 @@
       var t = DY.totals(entriesOn(date)), tg = targetsFor(date), v = DY.versusTarget(t, tg);
       if (!v) return '<section class="card"><b style="font-size:22px">' + fmt(t.kcal) + ' kcal</b><p class="small muted">No targets for this day.</p></section>';
       var C = 2 * Math.PI * 50, share = tg.kcal ? Math.min(1, t.kcal / tg.kcal) : 0, over = v.kcal.left < 0;
-      var bar = function (eaten, target) { return '<div class="bar"><i style="width:' + Math.min(100, target ? eaten / target * 100 : 0) + '%"></i></div>'; };
-      var macro = function (label, m) { var met = m.target > 0 && m.eaten >= m.target && (label === 'Protein' || label === 'Fiber'); return '<div class="hm"><div class="row"><span class="small muted">' + label + (met ? ' <span class="met" aria-label="target met">✓</span>' : '') + '</span><span class="small"><b>' + fmt(m.eaten) + '</b><span class="muted"> / ' + fmt(m.target) + ' g</span></span></div>' + bar(m.eaten, m.target) + '</div>'; };
+      // mark: where "enough" protein sits on the bar (1.6 g/kg); ✓ shows from there, the target stays the aim.
+      var bar = function (eaten, target, mark) { return '<div class="bar' + (mark ? ' marked' : '') + '"' + (mark ? ' title="Enough from ' + fmt(mark) + ' g"' : '') + '><i style="width:' + Math.min(100, target ? eaten / target * 100 : 0) + '%"></i>' + (mark ? '<b style="left:' + (mark / target * 100).toFixed(1) + '%"></b>' : '') + '</div>'; };
+      var ci = tg.calc_inputs || {}, enough = root.LW.calc.macros.proteinEnough(Number(tg.protein_g), Number(ci.kg), Number(ci.cm));
+      var macro = function (label, m) { var met = m.target > 0 && (label === 'Fiber' && m.eaten >= m.target || label === 'Protein' && m.eaten >= (enough || m.target)); return '<div class="hm"><div class="row"><span class="small muted">' + label + (met ? ' <span class="met" aria-label="' + (label === 'Protein' && m.eaten < m.target ? 'enough protein' : 'target met') + '">✓</span>' : '') + '</span><span class="small"><b>' + fmt(m.eaten) + '</b><span class="muted"> / ' + fmt(m.target) + ' g</span></span></div>' + bar(m.eaten, m.target, label === 'Protein' && enough < m.target ? enough : null) + '</div>'; };
       var said = fmt(Math.abs(v.kcal.left)) + ' calories ' + (over ? 'over' : 'left') + '. ' + fmt(t.kcal) + ' eaten of ' + fmt(tg.kcal) + '.';
       return '<section class="card hero"><div class="herogrid">' +
         '<div class="ring" role="img" aria-label="' + esc(said) + '"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--g1)"/><stop offset="1" style="stop-color:var(--g2)"/></linearGradient></defs>' +
@@ -53,6 +55,13 @@
           (t.entries ? '<button type="button" class="link" data-a="nutrients">Nutrients</button>' : '') + '</div></section>';
     }
 
+    /** What a meal adds to the day (NUT-8): its share of the protein target and its fiber, when there are targets. */
+    function mealLine(t, date) {
+      var tg = targetsFor(date), bits = [];
+      if (tg && tg.protein_g > 0 && t.protein_g >= 1) bits.push(Math.round(t.protein_g / tg.protein_g * 100) + '% of protein');
+      if (t.nutrients.fiber >= 1) bits.push(fmt(t.nutrients.fiber) + ' g fiber');
+      return bits.length ? '<span class="small muted mealline">' + bits.join(' · ') + '</span>' : '';
+    }
     function entryRow(e) {
       var badge = e.food_source === 'quick' ? 'Quick add' : e.food_source === 'off' ? 'Community' : e.food_source === 'custom' ? 'Yours' : 'USDA';
       var amt = DY.amountText(e);
@@ -92,7 +101,7 @@
         var t = DY.totals(se);
         // The meal's header is set apart from its foods: a larger title with the total beside it, on its own band.
         out += '<section class="card meal"><header class="mealhead"><div><h2>' + esc(sl.label) + '</h2>' +
-          '<span class="small muted">P ' + fmt(t.protein_g) + ' · C ' + fmt(t.carbs_g) + ' · F ' + fmt(t.fat_g) + ' g</span></div>' +
+          '<span class="small muted">P ' + fmt(t.protein_g) + ' · C ' + fmt(t.carbs_g) + ' · F ' + fmt(t.fat_g) + ' g</span>' + mealLine(t, date) + '</div>' +
           '<span class="mealkcal"><b>' + fmt(t.kcal) + '</b><small>kcal</small></span>' +
           '<span class="row" style="gap:6px"><button type="button" class="iconbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">⋯</button>' + add + '</span></header>' +
           '<div class="list">' + se.map(entryRow).join('') + '</div></section>';

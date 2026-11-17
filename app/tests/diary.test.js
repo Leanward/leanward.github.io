@@ -134,3 +134,19 @@ test('search shows foods you logged before first, most recent first, not your ow
   assert.deepEqual(D.matchLogged(rows, "grandma's").map((x) => x.id), []);               // created foods are listed elsewhere
   assert.deepEqual(D.matchLogged(rows, '  '), []);
 });
+
+test('4/4/9 note: shown only when a food\'s calories differ meaningfully, with the likely reason', () => {
+  // The review's example: P 22, C 46, F 7 → 88 + 184 + 63 = 335 by 4/4/9; the source says 310: −25 is over max(15, 8% × 310 = 24.8) → explained
+  const ex = D.atwaterNote({ kcal: 310, protein_g: 22, carbs_g: 46, fat_g: 7, source: 'usda-sr-legacy' });
+  assert.deepEqual([ex.byMacros, ex.gap], [335, -25]); assert.match(ex.text, /^By 4\/4\/9 this would be 335 kcal, not 310\. USDA works out calories/);
+  // Cooked lentils (USDA SR): 116 kcal; P 9.0, C 20.1, F 0.4 → 36 + 80.4 + 3.6 = 120 → within 8%, no note
+  assert.equal(D.atwaterNote({ kcal: 116, protein_g: 9.02, carbs_g: 20.13, fat_g: 0.38, source: 'usda-sr-legacy' }), null);
+  // A high-fiber bar label: 200 kcal; P 20, C 25, F 7 → 80 + 100 + 63 = 243 (−43, 18%) → fiber / sugar-alcohol reason
+  const bar = D.atwaterNote({ kcal: 200, protein_g: 20, carbs_g: 25, fat_g: 7, source: 'off' });
+  assert.equal(bar.byMacros, 243); assert.equal(bar.gap, -43); assert.match(bar.text, /^By 4\/4\/9 this would be 243 kcal, not 200\. Labels often count fiber/);
+  // USDA survey food far off → USDA's own factors
+  assert.match(D.atwaterNote({ kcal: 300, protein_g: 10, carbs_g: 60, fat_g: 10, source: 'usda-fndds' }).text, /factors for each kind of food/);
+  // alcohol counts 7 kcal/g: wine 83 kcal, C 2.7, alcohol 10.6 → 10.8 + 74.2 = 85 → no note
+  assert.equal(D.atwaterNote({ kcal: 83, protein_g: 0.1, carbs_g: 2.7, fat_g: 0, nutrients: { alcohol: 10.6 }, source: 'usda-sr-legacy' }), null);
+  assert.equal(D.atwaterNote({ kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), null);
+});
