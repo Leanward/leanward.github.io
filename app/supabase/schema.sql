@@ -61,6 +61,9 @@ create policy "lw_errors insert" on public.lw_errors
   for insert to anon, authenticated
   with check (user_id is null or user_id = (select auth.uid()));
 
+-- Supabase gives new tables full access for anon and authenticated by default: take it all back and
+-- give only insert (the live security check found select still granted; RLS hid the rows regardless).
+revoke all on public.lw_errors from anon, authenticated;
 grant insert on public.lw_errors to anon, authenticated;
 grant usage on sequence public.lw_errors_id_seq to anon, authenticated;
 
