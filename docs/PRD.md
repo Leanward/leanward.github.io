@@ -1,6 +1,6 @@
 # Leanward — Product Requirements Document
 
-> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout; v1.8 moves recipes into the MVP, LOG-11; v1.9 adds the "Next week" step and maintenance-check confidence) · **Date:** 2026-11-17 · **Owner:** Kevin Chavez
+> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout; v1.8 moves recipes into the MVP, LOG-11; v1.9 adds the "Next week" step and maintenance-check confidence; v1.10 adds NUT-8) · **Date:** 2026-11-17 · **Owner:** Kevin Chavez
 > **Source:** [`blueprint-v2.md`](blueprint-v2.md) (Product Vision v2.0). Where this PRD adds detail, changes scope, or makes a call the blueprint left open, it is marked **[Proposed]** so you can accept or reject it; calls you've confirmed are marked **[Decided]** and logged in [`decisions.md`](decisions.md).
 > **How to review:** react to anything, but the fastest path to sign-off is answering the numbered questions in §15.
 
@@ -139,6 +139,7 @@ Priority: **P0** = MVP can't ship without it · **P1** = MVP, can slip to a fast
 | NUT-5 | Food detail page shows the full nutrient panel per serving and per 100 g, plus source and verification status. | P0 |
 | NUT-6 | **Nutrient review in the Diary** (Diary › Nutrients): every NUT-2 nutrient grouped as Energy and macros · Fats · Carbohydrates · Minerals · Vitamins. Each row shows amount / target with units, % of target, the type of target (RDA, AI, limit, guideline), "above UL" where relevant, and data coverage. A **Day / 7-day average** switch; the 7-day average counts only logged days and says how many. A "Furthest from target" summary at the top lists the few nutrients most below target or over a limit, so the high-yield items are seen first. | P0 |
 | NUT-7 | Nutrient depth (owner request): tap any nutrient for its top contributing foods (day or 7 days) and foods high in it; a **Ratios and quality** card with protein g/kg, macro split (% of kcal), saturated fat % kcal, added sugar % kcal, fiber g per 1,000 kcal, sodium-to-potassium ratio, and EPA + DHA vs guideline; a sort option by "furthest from target". Per-meal protein, carbs and fat shown under each Diary slot. | P1 |
+| NUT-8 | **Coaching details [v1.10]:** protein shows ✓ from "enough", 1.6 g per kg of reference weight (never above the target, which stays the aim), with a tick on the bar; each meal shows its share of the protein target and its fiber; a food's Nutrition facts explain when its calories differ from 4/4/9 by more than 8% and 15 kcal per 100 g (USDA's food-specific factors, or label fiber and sugar-alcohol rules). Leanward always uses the source's calories. | P1 |
 
 ### 6.5 Measurements (MEA)
 | ID | Requirement | Pri |
@@ -440,6 +441,7 @@ No questions are open. Signed off 2026-11-02. Changes from here go through the f
 | 2026-11-03 | 1.3 | ONB-10 "I know my numbers" (measured BMR/RMR or known maintenance), checks on entered numbers and the accuracy note in §8.1 (owner request after testing: the formula overestimated their maintenance). |
 | 2026-11-03 | 1.3 | ONB-1: Google sign-in only for now; email + password deferred (owner decision). |
 | 2026-11-03 | 1.3 | §8.10 extended for M1b: progress-read bands, adaptive blend, DRI life stages. |
+| 2026-11-17 | 1.10 | NUT-8: protein "enough" from 1.6 g/kg, meal line, 4/4/9 note (coaching review). |
 | 2026-11-17 | 1.9 | PRG-4 "Next week" step and PRG-5 confidence level (after the coaching review). |
 | 2026-11-17 | 1.8 | LOG-11 recipes moved from Phase 2 into the MVP (owner decision, after the outside product review); typed-in targets show the pace they imply (§8.2). |
 | 2026-11-16 | 1.7 | §9 navigation: four tabs (Today · Progress · Plan · Profile) with the + in the tab bar; Home and Diary merge into Today; "Is it working?" moves to Progress. HOM-5 reworded. From the design audit the owner asked for. |

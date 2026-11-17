@@ -117,8 +117,8 @@ For a 38-year-old man, 5'8" (172.7 cm), 194.4 lb (88.2 kg), moderately active, M
   - Changes are still capped at 150 kcal and need your OK.
 
 ### Next, in order
-1. Protein counted as met from ~1.6 g/kg on Today (S).
-2. "4/4/9 would give X" on food details (S).
-3. Meal-level line ("Lunch gave 42 g protein, 9 g fiber") (S).
+1. ~~Protein counted as met from ~1.6 g/kg on Today~~ — built in v0.19.2.
+2. ~~"4/4/9 would give X" on food details~~ — built in v0.19.2.
+3. ~~Meal-level line~~ — built in v0.19.2 ("29% of protein · 10 g fiber").
 4. Training-day/rest-day carbs from PR Forge workouts (M; PRD change).
 5. AI coach over the same numbers (L; after the beta, paid API).

@@ -181,6 +181,22 @@
       return words.every(function (w) { return hay.indexOf(w) >= 0; });
     }).slice(0, limit || 5);
   }
+  /**
+   * Calories by 4/4/9 (and 7 for alcohol) next to the food's own calories, with the likely reason when
+   * they differ by more than 8% and 15 kcal per 100 g. Leanward always uses the source's calories.
+   */
+  function atwaterNote(food) {
+    var p = Number(food.protein_g), c = Number(food.carbs_g), f = Number(food.fat_g), k = Number(food.kcal);
+    if (![p, c, f, k].every(isFinite) || k <= 0) return null;
+    var alc = Number((food.nutrients || {}).alcohol) || 0, est = 4 * p + 4 * c + 9 * f + 7 * alc, gap = k - est;
+    if (Math.abs(gap) <= Math.max(15, k * 0.08)) return null;
+    var src = String(food.source || ''), why;
+    if (/^usda-(sr|foundation|fndds)/.test(src)) why = 'USDA works out calories with factors for each kind of food (for example lower for the protein and carbs in grains and beans), not a flat 4/4/9.';
+    else if (gap < 0) why = 'Labels often count fiber at about 2 kcal a gram instead of 4, count sugar alcohols lower, and round each line.';
+    else why = 'The label may round each line, or count something the macros leave out. If it looks wrong, check the package.';
+    return { kcal: round(k, 1), byMacros: round(est, 1), gap: round(gap, 1), text: 'By 4/4/9 this would be ' + Math.round(est) + ' kcal, not ' + Math.round(k) + '. ' + why + ' Leanward uses the source\'s calories.' };
+  }
+
   /** Frequent foods: logged most often in the last `days` days before `today`. */
   function frequents(entries, today, days, limit) {
     var since = addDays(today, -(days || 30)), n = {}, last = {};
@@ -258,7 +274,7 @@
     return d.toISOString().slice(0, 10);
   }
 
-  var api = { matchLogged: matchLogged, SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
+  var api = { atwaterNote: atwaterNote, matchLogged: matchLogged, SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
     updateEntry: updateEntry, quickAdd: quickAdd, totals: totals, versusTarget: versusTarget, recents: recents, frequents: frequents,
     quickPicks: quickPicks, servingLabel: servingLabel, unitLabelOf: unitLabelOf, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
   if (node) module.exports = api;
