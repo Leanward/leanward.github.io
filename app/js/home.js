@@ -28,9 +28,11 @@
     var t = i.totals, tg = i.target;
     if (tg && t && t.entries > 0 && i.minutes >= EVENING_MIN) {
       if (tg.protein_g > 0 && t.protein_g < tg.protein_g * PROTEIN_LOW) {
-        var left = Math.round(tg.protein_g - t.protein_g);
+        // Counted toward the adequate amount (1.6 g/kg) when it's known, the same line the ✓ uses (audit D5).
+        var aim = i.adequateProtein > 0 && i.adequateProtein < tg.protein_g ? i.adequateProtein : tg.protein_g;
+        var left = Math.round(aim - t.protein_g);
         return { id: 'protein-low', title: 'Protein is running low today',
-          text: fmt(t.protein_g) + ' of ' + fmt(tg.protein_g) + ' g so far. About ' + fmt(left) + ' g to go: a serving of chicken, fish, Greek yogurt or a shake covers 20 to 40 g.',
+          text: fmt(t.protein_g) + ' g so far. About ' + fmt(left) + ' g more reaches ' + (aim < tg.protein_g ? 'an adequate ' + fmt(aim) + ' g' : 'your ' + fmt(aim) + ' g target') + ': a serving of chicken, fish, Greek yogurt or a shake covers 20 to 40 g.',
           action: { a: 'addto', label: 'Log food' } };
       }
       var fiber = (t.nutrients && t.nutrients.fiber) || 0, cov = t.coverage && t.coverage.fiber != null ? t.coverage.fiber : 0;

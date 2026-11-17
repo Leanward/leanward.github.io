@@ -9,7 +9,7 @@
  *   calorie target (800 kcal when there is no target), so a day with only breakfast logged doesn't
  *   drag the average down.
  * - The window ends yesterday: today is still being logged.
- * - A difference under 50 kcal is treated as "matches": it is inside the noise of food labels.
+ * - A difference under 100 kcal is treated as "matches": weight noise alone moves the estimate about ±100 kcal.
  * - After a decision (accept or decline), the next suggestion waits 7 days ("recomputed weekly").
  */
 (function (root) {
@@ -19,7 +19,7 @@
   var core = node ? require('./calc/core.js') : root.LW.calc.core;
   var adaptive = node ? require('./calc/adaptive.js') : root.LW.calc.adaptive;
 
-  var MIN_SHARE_OF_TARGET = 0.5, MIN_KCAL_NO_TARGET = 800, MIN_DIFF_KCAL = 50, WAIT_DAYS = 7;
+  var MIN_SHARE_OF_TARGET = 0.5, MIN_KCAL_NO_TARGET = 800, MIN_DIFF_KCAL = 100, PHASE_SETTLE_DAYS = 14, WAIT_DAYS = 7;
 
   function newId() { return root.LW && root.LW.model ? root.LW.model.newId() : (node ? require('crypto').randomUUID() : String(Math.random()).slice(2)); }
   function live(rows) { return (rows || []).filter(function (r) { return !r.deleted; }); }
@@ -36,12 +36,15 @@
   }
 
   /**
-   * input: { today, diary, weights, targetOn(date), previousTdee, recommendations, units? }
+   * input: { today, diary, weights, targetOn(date), previousTdee, recommendations, units?, phaseStart? }
+   * The window starts no earlier than 14 days after the current phase began: water and glycogen move
+   * fast after a switch (for example bulk to cut) and would skew the estimate (audit D2).
+   * A change under 100 kcal counts as a match: weight noise alone is about ±100 kcal (audit S5-2).
    * Returns one of:
    *   { state: 'unavailable', why }                     no maintenance in use to compare with
    *   { state: 'collecting', need: [...], logged, neededDays, weeks: [n, n, n] }
    *   { state: 'waiting', until, last }                 decided recently; next check date
-   *   { state: 'matches', tdee, estimate }              within 50 kcal
+   *   { state: 'matches', tdee, estimate }              within 100 kcal
    *   { state: 'proposed', from, to, estimate }         a suggestion, with estimate.steps as the working
    */
   function check(input) {
@@ -58,6 +61,10 @@
       return Object.keys(seen).length;
     });
     var base = { windowStart: start, windowEnd: end, logged: logged, neededDays: Math.ceil(adaptive.WINDOW_DAYS * 0.8), weeks: weeks, partialDays: days.length - logged };
+    if (input.phaseStart) {
+      var settled = core.addDays(input.phaseStart, PHASE_SETTLE_DAYS);
+      if (start < settled) return Object.assign({ state: 'collecting', newPhase: true, from: core.addDays(settled, adaptive.WINDOW_DAYS), need: ['the first ' + PHASE_SETTLE_DAYS + ' days of a new phase are skipped (water and glycogen settle)'] }, base);
+    }
     if (est.status === 'not-enough-data') return Object.assign({ state: 'collecting', need: est.reasons }, base);
 
     var last = live(input.recommendations).filter(function (r) { return r.type === 'maintenance-update' && r.decided_at; })

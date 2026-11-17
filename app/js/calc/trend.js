@@ -74,16 +74,17 @@
    * Rate of change of the trend over the last 14 days, ending on the series' last day.
    * Returns null when the series covers fewer than 14 days; otherwise { kgPerWeek, pctPerWeek, steps }.
    */
-  function rateOfChange(series) {
-    if (series.length < RATE_DAYS + 1) return null;
-    var pts = series.slice(-(RATE_DAYS + 1)), n = pts.length;
+  function rateOfChange(series, days) {
+    var span = days || RATE_DAYS;
+    if (series.length < span + 1) return null;
+    var pts = series.slice(-(span + 1)), n = pts.length;
     var mx = (n - 1) / 2, my = pts.reduce(function (a, p) { return a + p.trendKg; }, 0) / n, sxy = 0, sxx = 0;
     pts.forEach(function (p, i) { sxy += (i - mx) * (p.trendKg - my); sxx += (i - mx) * (i - mx); });
     var perDay = sxy / sxx, perWeek = perDay * 7, latest = pts[n - 1].trendKg;
     var pct = perWeek / latest * 100;
     return {
       kgPerWeek: perWeek, pctPerWeek: pct, fromDate: pts[0].date, toDate: pts[n - 1].date,
-      steps: ['Rate: the trend\'s slope over the last 14 days (' + pts[0].date + ' to ' + pts[n - 1].date + ') is ' + core.fmtSigned(perWeek, 2) + ' kg a week, ' + core.fmtSigned(pct, 2) + '% of your trend weight (' + fmt(latest, 1) + ' kg)']
+      steps: ['Rate: the trend\'s slope over the last ' + span + ' days (' + pts[0].date + ' to ' + pts[n - 1].date + ') is ' + core.fmtSigned(perWeek, 2) + ' kg a week, ' + core.fmtSigned(pct, 2) + '% of your trend weight (' + fmt(latest, 1) + ' kg)']
     };
   }
 

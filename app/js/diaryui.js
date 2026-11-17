@@ -131,7 +131,8 @@
       var today = ctx.today(), now = new Date();
       var lastW = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort().pop() || null;
       var first = (S.rows.phases || []).filter(function (p) { return !p.deleted; }).map(function (p) { return p.start_date; }).sort()[0] || null;
-      var i = root.LW.home.insight({ minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: targetsFor(today), lastWeighDate: lastW, firstUseDate: first });
+      var tgt = targetsFor(today), tci = (tgt && tgt.calc_inputs) || {};
+      var i = root.LW.home.insight({ adequateProtein: tgt ? root.LW.calc.macros.proteinEnough(Number(tgt.protein_g), Number(tci.kg), Number(tci.cm)) : null, minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: tgt, lastWeighDate: lastW, firstUseDate: first });
       if (!i) return '';
       return '<section class="card slim tip"><span class="chip"><i></i>Tip</span><div><b>' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p></div></section>';
     }

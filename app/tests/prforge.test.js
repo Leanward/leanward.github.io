@@ -50,10 +50,10 @@ test('chosen lifts: display units, up to 5, and the progress read', () => {
   ['a', 'b', 'c', 'd', 'e'].forEach((id) => { list = PF.toggle(list, { id, name: id }); });
   assert.throws(() => PF.toggle(list, { id: 'f', name: 'f' }), /up to 5/);
   assert.deepEqual(PF.toggle(list, { id: 'c', name: 'c' }).map((p) => p.id), ['a', 'b', 'd', 'e']);
-  // recomp from 1 Nov, read on 20 Nov: squat 300 → 315 lb = +5%, on track
+  // recomp from 1 Nov, read on 20 Nov: 4 sessions; best of the first 2 (305) vs the last 2 (315) = +3.3%, on track
   const lifts = PF.forProgress(sum, picks);
   assert.deepEqual(Object.keys(lifts), [sum[0].name]);
   const r = P.read({ phase: { type: 'recomp', startDate: '2026-11-01' }, today: '2026-11-20', weights: [], waist: [], lifts });
   const sig = r.signals.find((x) => x.id.startsWith('lift:'));
-  assert.equal(sig.status, 'on-track'); close(sig.changePct, 5);
+  assert.equal(sig.status, 'on-track'); close(sig.changePct, (315 - 305) / 305 * 100);
 });

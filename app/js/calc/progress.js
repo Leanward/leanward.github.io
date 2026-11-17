@@ -14,6 +14,8 @@
   var fmt = core.fmt, fmtS = core.fmtSigned;
 
   var MIN_DAYS = 14, MIN_WEIGHINS = 8, MIN_ENTRIES = 2;
+  // A lift is judged on the best of several sessions at each end, never one session (audit D3).
+  var LIFT_MIN_SESSIONS = 4;
   var WAIST_NOISE_CM = 0.5;          // tape-measure noise: changes smaller than this count as flat
   var DEFAULT_WAIST_CM_PER_KG = 1;   // lean bulk: waist growth limit per kg gained (PRG-2 proposed default)
 
@@ -32,7 +34,7 @@
     return s;
   }
   function collecting(id, label, need) {
-    return sig(id, label, 'collecting', 'Collecting data: ' + need, 'Needs ' + MIN_DAYS + ' days of the phase and enough entries before it can be read.');
+    return sig(id, label, 'collecting', 'Collecting data: ' + need, 'Needs ' + MIN_DAYS + ' days of the phase and enough entries (' + LIFT_MIN_SESSIONS + ' sessions for a lift) before it can be read.');
   }
   function inPhase(list, start, today) { return (list || []).filter(function (e) { return e.date >= start && e.date <= today; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; }); }
   function plural(n, word) { return n + ' more ' + word + (n === 1 ? '' : 's'); }
@@ -110,15 +112,18 @@
     var out = [];
     Object.keys(ctx.lifts).forEach(function (name) {
       var l = ctx.lifts[name], label = name;
-      if (ctx.days < MIN_DAYS || l.length < MIN_ENTRIES) {
+      if (ctx.days < MIN_DAYS || l.length < LIFT_MIN_SESSIONS) {
         var need = [];
         if (ctx.days < MIN_DAYS) need.push(plural(MIN_DAYS - ctx.days, 'day'));
-        if (l.length < MIN_ENTRIES) need.push(plural(MIN_ENTRIES - l.length, 'session'));
+        if (l.length < LIFT_MIN_SESSIONS) need.push(plural(LIFT_MIN_SESSIONS - l.length, 'session'));
         out.push(collecting('lift:' + name, label, need.join(' and ')));
         return;
       }
-      var first = l[0].e1rm, last = l[l.length - 1].e1rm, pct = (last - first) / first * 100;
-      var value = 'Estimated 1RM ' + fmtS(pct, 1) + '% since ' + core.niceDate(l[0].date, ctx.today.slice(0, 4));
+      // Best estimated 1RM of the first k sessions vs the last k (k = 3, or half when there are fewer than 6),
+      // so one off day at either end doesn't read as strength gained or lost.
+      var k = Math.min(3, Math.floor(l.length / 2)), best = function (xs) { return Math.max.apply(null, xs.map(function (x) { return x.e1rm; })); };
+      var first = best(l.slice(0, k)), last = best(l.slice(-k)), pct = (last - first) / first * 100;
+      var value = 'Estimated 1RM ' + fmtS(pct, 1) + '% since ' + core.niceDate(l[0].date, ctx.today.slice(0, 4)) + ' (best of ' + k + ' sessions at each end)';
       if (phase.type === 'cut') {
         out.push(sig('lift:' + name, label, pct >= -5 ? 'on-track' : pct >= -10 ? 'watch' : 'off-track', value,
           'On track within 5% of your phase-start estimate; watch down to −10%.', { changePct: pct }));
@@ -214,7 +219,11 @@
    * from untracked food, so it never suggests eating less on thin data. Changes it suggests are small
    * (100–250 kcal) and it points to the maintenance check, which updates maintenance from real data.
    * q: { loggedDays14 (days in the last 14 logged to ≥ 50% of target), weighIns14 (days weighed in the last 14),
-   *      targetWeeklyPct?, manualTarget? }
+   *      targetWeeklyPct?, manualTarget?,
+   *      floorKcal?, targetKcal? (never suggest eating less when that would go under the floor),
+   *      belowFloorDays7? (of the last 7 days, those logged under the floor), rate21Pct? (weight trend over 21 days) }
+   * Safety first (audit C1/C2): 5+ of 7 days logged under the floor, or losing more than 1.5% a week for
+   * 3 weeks, gives a "care" step: no deficit advice, a suggestion to talk to a dietitian or doctor.
    * Rules (coaching review, 2026-11-17): 10+ of 14 days logged and 8+ weigh-ins before any change; the
    * weight trend decides, the waist only supports (it never changes calories on its own); routine changes
    * are 100–150 kcal, 200–250 only when the data clearly supports it (off track, 12+ of 14 days logged).
@@ -226,6 +235,12 @@
     q = q || {};
     var sigs = result.signals || [], by = function (id) { return sigs.filter(function (s) { return s.id === id; })[0]; };
     var w = by('weight'), waist = by('waist');
+    var SUPPORT = 'If tracking is starting to feel stressful, the support link in Profile can help.';
+    if (q.belowFloorDays7 != null && q.belowFloorDays7 >= 5) {
+      return { kind: 'care', title: 'You\'ve been eating under your safety floor', why: [
+        q.belowFloorDays7 + ' of the last 7 days were logged under ' + fmt(q.floorKcal) + ' kcal, the lowest target Leanward sets for you. Eating this little for long makes it harder to keep muscle, train well and feel good.',
+        'If those days weren\'t fully logged, you can ignore this. If they were, aim for at least your target, and consider talking to a registered dietitian or your doctor. ' + SUPPORT] };
+    }
     var lifts = sigs.filter(function (s) { return s.id.indexOf('lift:') === 0 && s.status !== 'collecting'; });
     var down = lifts.filter(function (s) { return s.status === 'off-track'; });
     var liftsHeld = lifts.length && !down.length;
@@ -234,6 +249,11 @@
     var name = PHASE_NAMES[type];
     if (!w || w.status === 'collecting') {
       return { kind: 'wait', title: 'Too early to change anything', why: ['Keep logging and weighing in. ' + (w ? w.value.replace(/^Collecting data: /, 'Still needed: ') + '.' : '')] };
+    }
+    if (type !== 'bulk' && q.rate21Pct != null && q.rate21Pct < -1.5) {
+      return { kind: 'care', title: 'You\'ve been losing weight quickly for 3 weeks', why: [
+        'Your weight trend has fallen about ' + fmt(Math.abs(q.rate21Pct), 1) + '% of body weight a week over the last 21 days, faster than Leanward plans for anyone.',
+        'Eat at least your target, and 100–250 kcal more if your energy, sleep or training are suffering. If you can\'t explain the loss (illness, a big change in activity), talk to your doctor. ' + SUPPORT] };
     }
     if (q.loggedDays14 != null && q.loggedDays14 < 10) {
       return { kind: 'log-more', title: 'Log more days before changing anything', why: [
@@ -249,6 +269,11 @@
     var notes = [w.label + ': ' + w.value + '.'];
     if (waist && waist.status !== 'collecting') notes.push('Waist: ' + waist.value + '.');
     lifts.forEach(function (l) { notes.push(l.label + ': ' + l.value.charAt(0).toLowerCase() + l.value.slice(1) + '.'); });
+    var atFloor = q.floorKcal > 0 && q.targetKcal > 0 && q.targetKcal - 100 < q.floorKcal;
+    var floorHold = function (lead) {
+      return { kind: 'hold', title: 'Hold steady', evidence: notes, why: [lead + ' Your target (' + fmt(q.targetKcal) + ' kcal) is at your safety floor (' + fmt(q.floorKcal) + ' kcal), so Leanward won\'t suggest eating less.',
+        'Keep logging carefully; the maintenance check will refine your maintenance. If progress stays slow for several more weeks, a registered dietitian can help you look at the whole picture.'] };
+    };
     var keep = function (extra) { return { kind: 'keep', title: 'Keep your current targets', evidence: notes, why: (['This is consistent with a productive ' + name + '.' + (extra || '')]) }; };
     var recovery = function (lead) {
       return { kind: 'recovery', title: 'Look after recovery', evidence: notes, why: [lead].concat([down.map(function (l) { return l.label; }).join(' and ') + (down.length === 1 ? ' is' : ' are') + ' down more than expected. Check sleep, keep protein at target, and put more of your carbs around training. Eat ' + size + ' kcal more a day.']) };
@@ -266,6 +291,7 @@
         }
         if (slow) {
           if (waistDown) return keep(' The scale is slower than planned, but your waist is coming down: water and food weight often hide fat loss for a while. Hold steady for two more weeks.');
+          if (atFloor) return floorHold('Weight is falling slower than planned.');
           if (q.loggedDays14 == null || q.loggedDays14 >= 12) {
             return { kind: 'eat-less', title: 'Consider a small change', evidence: notes, why: ['Weight is falling slower than planned and your waist is flat, with consistent logging. Eat 100–150 kcal less a day, or accept the maintenance check\'s suggestion if it offers one (not both).'] };
           }
@@ -282,6 +308,7 @@
       return keep(lifts.length && !down.length ? ' Strength is moving the right way.' : '');
     }
     if (type === 'recomp') {
+      if (w.status !== 'on-track' && w.actual > 0 && waistUp && atFloor) return floorHold('Weight and waist are both rising.');
       if (w.status !== 'on-track' && w.actual > 0 && waistUp) return { kind: 'eat-less', title: 'Weight and waist are both rising', evidence: notes, why: (['A recomp aims for about flat weight. Consider 100–150 kcal less a day.']) };
       if (w.status !== 'on-track' && w.actual < 0) return { kind: 'eat-more', title: 'You\'re losing weight', evidence: notes, why: (['That\'s more like a slow cut than a recomp. Fine if that\'s what you want; otherwise eat 100–150 kcal more a day.']) };
       if (down.length) return recovery('Weight is about flat.');
@@ -294,7 +321,7 @@
     return null;
   }
 
-  var api = { MIN_DAYS: MIN_DAYS, MIN_WEIGHINS: MIN_WEIGHINS, MIN_ENTRIES: MIN_ENTRIES, WAIST_NOISE_CM: WAIST_NOISE_CM, read: read, nextStep: nextStep };
+  var api = { MIN_DAYS: MIN_DAYS, MIN_WEIGHINS: MIN_WEIGHINS, MIN_ENTRIES: MIN_ENTRIES, WAIST_NOISE_CM: WAIST_NOISE_CM, LIFT_MIN_SESSIONS: LIFT_MIN_SESSIONS, read: read, nextStep: nextStep };
   if (node) module.exports = api;
   else { root.LW.calc.progress = api; }
 })(this);

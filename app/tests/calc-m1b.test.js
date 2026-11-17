@@ -123,11 +123,11 @@ test('furthest from target: over-limit items first, then lowest %, skipping low 
 /* ---------- progress read ---------- */
 
 test('recomp: the PRD example sentence', () => {
-  // Weight oscillates around 80 kg (flat); waist 86 → 84.2 (−1.8); squat 140 → 145.6 (+4%)
+  // Weight oscillates around 80 kg (flat); waist 86 → 84.2 (−1.8); squat: best of the first 2 sessions 140, of the last 2 145.6 (+4%)
   const w = days('2026-10-01', 28, (date, i) => ({ date, kg: 80 + 0.3 * Math.sin(i) }));
   const r = P.read({ phase: { type: 'recomp', startDate: '2026-10-01' }, today: '2026-10-28', weights: w,
     waist: [{ date: '2026-10-01', cm: 86 }, { date: '2026-10-28', cm: 84.2 }],
-    lifts: { 'Back squat': [{ date: '2026-10-02', e1rm: 140 }, { date: '2026-10-26', e1rm: 145.6 }] } });
+    lifts: { 'Back squat': [{ date: '2026-10-02', e1rm: 140 }, { date: '2026-10-09', e1rm: 139 }, { date: '2026-10-19', e1rm: 145 }, { date: '2026-10-26', e1rm: 145.6 }] } });
   assert.equal(r.summary, 'Weight flat, waist −1.8 cm, back squat e1RM +4%: consistent with a successful recomp.');
   assert.deepEqual(r.signals.map((s) => s.status), ['on-track', 'on-track', 'on-track']);
   assert.equal(r.dayOfPhase, 28);
@@ -160,8 +160,9 @@ test('cut: waist and lifts', () => {
   const w = days('2026-09-01', 20, (date, i) => ({ date, kg: 90 - 0.07 * i }));
   const r = P.read({ phase: { type: 'cut', startDate: '2026-09-01', expectedWeeklyPct: -0.5 }, today: '2026-09-20', weights: w,
     waist: [{ date: '2026-09-01', cm: 95 }, { date: '2026-09-20', cm: 95.2 }],                 // +0.2 cm: flat → watch
-    lifts: { Bench: [{ date: '2026-09-02', e1rm: 100 }, { date: '2026-09-19', e1rm: 96 }],    // −4% → on track
-             Deadlift: [{ date: '2026-09-02', e1rm: 200 }, { date: '2026-09-19', e1rm: 182 }] } }); // −9% → watch
+    // best of the first 2 vs the last 2 sessions: Bench 100 → 97 (−3%) on track; Deadlift 200 → 184 (−8%) watch
+    lifts: { Bench: [{ date: '2026-09-02', e1rm: 100 }, { date: '2026-09-06', e1rm: 99 }, { date: '2026-09-15', e1rm: 97 }, { date: '2026-09-19', e1rm: 96 }],
+             Deadlift: [{ date: '2026-09-02', e1rm: 200 }, { date: '2026-09-06', e1rm: 198 }, { date: '2026-09-15', e1rm: 184 }, { date: '2026-09-19', e1rm: 182 }] } });
   const by = Object.fromEntries(r.signals.map((s) => [s.id, s.status]));
   assert.deepEqual(by, { weight: 'on-track', waist: 'watch', 'lift:Bench': 'on-track', 'lift:Deadlift': 'watch' });
   assert.match(r.summary, /Worth a look: waist, deadlift\.$/);

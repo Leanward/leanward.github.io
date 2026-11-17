@@ -12,7 +12,10 @@ test('one insight at most, from the small set, in order', () => {
   const base = { today: '2026-11-16', target: tg, lastWeighDate: '2026-11-15', firstUseDate: '2026-11-01' };
   // 6 pm, 90 of 180 g protein (50%): protein first, even though fiber is low too
   const p = H.insight(Object.assign({}, base, { minutes: 18 * 60, totals: totals(90, 5, 1) }));
-  assert.equal(p.id, 'protein-low'); assert.match(p.text, /^90 of 180 g so far\. About 90 g to go/);
+  assert.equal(p.id, 'protein-low'); assert.match(p.text, /^90 g so far\. About 90 g more reaches your 180 g target/);
+  // with an adequate amount known (1.6 g/kg = 130 g), the tip counts to that, the same line as the ✓
+  const pa = H.insight(Object.assign({}, base, { minutes: 18 * 60, totals: totals(90, 5, 1), adequateProtein: 130 }));
+  assert.match(pa.text, /^90 g so far\. About 40 g more reaches an adequate 130 g/);
   // protein fine (120 = 67%), fiber 10 of 30 (33%) with full coverage
   assert.equal(H.insight(Object.assign({}, base, { minutes: 19 * 60, totals: totals(120, 10, 1) })).id, 'fiber-low');
   // fiber low but known for only 30% of calories: not shown
