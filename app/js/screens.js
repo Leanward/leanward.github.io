@@ -403,11 +403,13 @@
     function nextHtml(ph, t, r) {
       var y = core.addDays(today(), -1), ci = t.calc_inputs || {};
       var days = root.LW.maint.intakeDays(S.rows.diary || [], function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); }, core.addDays(y, -13), y);
-      var q = { loggedDays14: days.filter(function (d) { return d.complete; }).length, manualTarget: t.origin === 'manual',
+      var from14 = core.addDays(today(), -13), wd = {};
+      (S.rows.weights || []).forEach(function (w) { if (!w.deleted && w.date >= from14 && w.date <= today()) wd[w.date] = 1; });
+      var q = { loggedDays14: days.filter(function (d) { return d.complete; }).length, weighIns14: Object.keys(wd).length, manualTarget: t.origin === 'manual',
         targetWeeklyPct: ci.tdee > 0 && ci.kg > 0 ? C.targets.pace(t.kcal, ci.tdee, ci.kg).weeklyPct : null };
       var n = C.progress.nextStep(ph.type, r, q);
       if (!n) return '';
-      var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait' }[n.kind] || 'watch';
+      var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait', 'weigh-more': 'wait' }[n.kind] || 'watch';
       return '<div class="next ' + tone + '"><span class="small muted">Next week</span><b>' + esc(n.title) + '</b>' +
         n.why.map(function (w) { return '<p class="small">' + esc(w) + '</p>'; }).join('') + '</div>';
     }
@@ -453,7 +455,7 @@
       if (!est || !est.confidence) return '';
       var high = est.confidence === 'high';
       return '<div class="sig"><div class="row"><b style="font-size:13.5px">Confidence</b><span class="pill dot ' + (high ? 'ok' : 'watch') + '">' + (high ? 'High' : 'Moderate') + '</span></div><p>' +
-        est.loggedDays + ' of 21 days fully logged · at least ' + est.minWeighInsPerWeek + ' weigh-ins each week.' + (high ? '' : ' Logging 20+ days and weighing in 6+ times a week makes it high.') + '</p>' +
+        est.loggedDays + ' of 21 days logged · at least ' + est.minWeighInsPerWeek + ' weigh-ins each week.' + (high ? ' Logging and weigh-ins were steady.' : ' Not high because: ' + esc((est.confidenceWhy || []).join('; ')) + '.') + '</p>' +
         (est.cautions || []).map(function (x) { return '<p class="warn">' + esc(x) + '</p>'; }).join('') + '</div>';
     }
     function maintCard(t) {

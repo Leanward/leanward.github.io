@@ -30,10 +30,29 @@ test('cut: slow scale but waist falling → hold (possible recomp effect)', () =
   assert.equal(step('cut', [weight(-0.1, -0.5, 'off-track'), waist(-1.0)]).kind, 'keep');
 });
 
-test('cut: slow scale, waist flat → check logging and the maintenance check, never "eat less" first', () => {
-  const s = step('cut', [weight(-0.1, -0.5, 'off-track'), waist(0.1, 'watch')]);
-  assert.equal(s.kind, 'maintenance-check');
-  assert.match(s.title, /Don't cut calories yet/);
+test('cut: slow scale, waist flat → tracking first at 10–11 of 14 days; a small change only with 12+', () => {
+  const s = step('cut', [weight(-0.1, -0.5, 'off-track'), waist(0.1, 'watch')], { loggedDays14: 11 });
+  assert.equal(s.kind, 'maintenance-check'); assert.match(s.title, /Don't cut calories yet/);
+  const t = step('cut', [weight(-0.1, -0.5, 'off-track'), waist(0.1, 'watch')], { loggedDays14: 13 });
+  assert.equal(t.kind, 'eat-less'); assert.match(t.why[0], /100–150 kcal less a day, or accept the maintenance check's suggestion if it offers one \(not both\)/);
+});
+
+test('step sizes: 100–150 routinely; 200–250 only when off track with 12+ days logged', () => {
+  assert.match(step('cut', [weight(-0.8, -0.5, 'watch')]).why[0], /100–150 kcal more/);
+  assert.match(step('cut', [weight(-1.2, -0.5, 'off-track')], { loggedDays14: 13 }).why[0], /200–250 kcal more/);
+  assert.match(step('cut', [weight(-1.2, -0.5, 'off-track')], { loggedDays14: 11 }).why[0], /100–150 kcal more/);
+  assert.match(step('bulk', [weight(0.7, 0.25, 'off-track')], { loggedDays14: 14 }).why[0], /200–250 kcal less/);
+});
+
+test('8+ weigh-ins in 14 days before any change', () => {
+  const s = step('cut', [weight(-0.1, -0.5, 'off-track')], { weighIns14: 5 });
+  assert.equal(s.kind, 'weigh-more'); assert.match(s.why[0], /^5 weigh-ins in the last 14 days/);
+  assert.equal(step('cut', [weight(-0.5, -0.5, 'on-track')], { weighIns14: 8 }).kind, 'keep');
+});
+
+test('the waist supports but never changes calories on its own (lean bulk)', () => {
+  const s = step('bulk', [weight(0.25, 0.25, 'on-track'), waist(2.5, 'off-track')]);
+  assert.equal(s.kind, 'hold'); assert.match(s.title, /re-measure your waist/);
 });
 
 test('thin data comes first: too few logged days or weigh-ins → no change', () => {
@@ -78,6 +97,18 @@ test('maintenance check: confidence from logging and weigh-ins; caution when far
   const thin = mk(1, [0, 2, 4, 6]); thin.intake = thin.intake.slice(0, 18);
   r = A.estimate(Object.assign({ endDate: end, previousTdee: 2600 }, thin));
   assert.deepEqual([r.confidence, r.loggedDays, r.minWeighInsPerWeek], ['moderate', 18, 4]);
+  assert.deepEqual(r.confidenceWhy, ['a week with 4 weigh-ins (5+ for high)']);
+  // The review's bar for high: 18 days and 5 weigh-ins a week are enough
+  const ok = mk(1, [0, 1, 2, 4, 5]); ok.intake = ok.intake.slice(0, 18);
+  assert.equal(A.estimate(Object.assign({ endDate: end, previousTdee: 2600 }, ok)).confidence, 'high');
+  // 21 days logged but erratic: 11 days of 1,200 and 10 of 3,600 → mean 2,343, SD 1,199, CV 51% → not high, says why
+  const odd = mk(1, [0, 1, 2, 3, 4, 5, 6]); odd.intake = odd.intake.map((d, i) => Object.assign({}, d, { kcal: i % 2 ? 3600 : 1200 }));
+  r = A.estimate(Object.assign({ endDate: end, previousTdee: 2400 }, odd));
+  assert.equal(r.confidence, 'moderate'); assert.match(r.confidenceWhy.join(), /varies a lot \(by 51%\)/);
+  // Steady logging but weigh-ins swinging ±1.5 kg around the trend (water) → not high
+  const wet = mk(1, [0, 1, 2, 3, 4, 5, 6]); wet.weights = wet.weights.map((w, i) => Object.assign({}, w, { kg: 80 + (i % 2 ? 1.5 : -1.5) }));
+  r = A.estimate(Object.assign({ endDate: end, previousTdee: 2600 }, wet));
+  assert.equal(r.confidence, 'moderate'); assert.match(r.confidenceWhy.join(), /swing a lot around the trend/);
   // Previous 3,200: 2,400 is 25% lower → caution about unlogged food (and the change is still capped at 150)
   r = A.estimate(Object.assign({ endDate: end, previousTdee: 3200 }, mk(1, [0, 1, 2, 3, 4, 5, 6])));
   assert.equal(r.cautions.length, 1); assert.match(r.cautions[0], /wasn't logged/); assert.equal(r.tdee, 3050);

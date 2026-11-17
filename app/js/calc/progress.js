@@ -213,7 +213,11 @@
    * Checks the data before the body: with gaps in logging or weigh-ins, a slow scale can't be told apart
    * from untracked food, so it never suggests eating less on thin data. Changes it suggests are small
    * (100–250 kcal) and it points to the maintenance check, which updates maintenance from real data.
-   * q: { loggedDays14 (days in the last 14 logged to ≥ 50% of target), targetWeeklyPct?, manualTarget? }
+   * q: { loggedDays14 (days in the last 14 logged to ≥ 50% of target), weighIns14 (days weighed in the last 14),
+   *      targetWeeklyPct?, manualTarget? }
+   * Rules (coaching review, 2026-11-17): 10+ of 14 days logged and 8+ weigh-ins before any change; the
+   * weight trend decides, the waist only supports (it never changes calories on its own); routine changes
+   * are 100–150 kcal, 200–250 only when the data clearly supports it (off track, 12+ of 14 days logged).
    * Returns { kind, title, why: [advice], evidence?: [the numbers it rests on] } or null (nutrition phase). kind: wait | log-more | keep |
    * eat-more | eat-less | recovery | maintenance-check.
    */
@@ -236,12 +240,18 @@
         q.loggedDays14 + ' of the last 14 days were logged to at least half your target. With gaps, a slow scale can\'t be told apart from food that wasn\'t logged.',
         'Aim for 10 or more of the next 14 days, including oils, drinks and bites.'] };
     }
+    if (q.weighIns14 != null && q.weighIns14 < 8) {
+      return { kind: 'weigh-more', title: 'Weigh in more before changing anything', why: [
+        q.weighIns14 + ' weigh-ins in the last 14 days. Day-to-day water swings hide the trend; 8 or more (ideally each morning) make it reliable.'] };
+    }
+    var clear = w.status === 'off-track' && (q.loggedDays14 == null || q.loggedDays14 >= 12);
+    var size = clear ? '200–250' : '100–150';
     var notes = [w.label + ': ' + w.value + '.'];
     if (waist && waist.status !== 'collecting') notes.push('Waist: ' + waist.value + '.');
     lifts.forEach(function (l) { notes.push(l.label + ': ' + l.value.charAt(0).toLowerCase() + l.value.slice(1) + '.'); });
     var keep = function (extra) { return { kind: 'keep', title: 'Keep your current targets', evidence: notes, why: (['This is consistent with a productive ' + name + '.' + (extra || '')]) }; };
     var recovery = function (lead) {
-      return { kind: 'recovery', title: 'Look after recovery', evidence: notes, why: [lead].concat([down.map(function (l) { return l.label; }).join(' and ') + (down.length === 1 ? ' is' : ' are') + ' down more than expected. Check sleep, keep protein at target, and put more of your carbs around training. If it continues, eat 100–200 kcal more.']) };
+      return { kind: 'recovery', title: 'Look after recovery', evidence: notes, why: [lead].concat([down.map(function (l) { return l.label; }).join(' and ') + (down.length === 1 ? ' is' : ' are') + ' down more than expected. Check sleep, keep protein at target, and put more of your carbs around training. Eat ' + size + ' kcal more a day.']) };
     };
 
     if (type === 'cut' || type === 'bulk') {
@@ -252,17 +262,21 @@
       if (type === 'cut') {
         if (fast) {
           if (down.length) return recovery('You\'re losing faster than planned.' + implied);
-          return { kind: 'eat-more', title: 'Losing faster than planned', evidence: notes, why: (['Short stretches are fine, but losing quickly for weeks makes it harder to keep muscle. Consider 100–200 kcal more a day.' + implied]) };
+          return { kind: 'eat-more', title: 'Losing faster than planned', evidence: notes, why: (['Short stretches are fine, but losing quickly for weeks makes it harder to keep muscle. Consider ' + size + ' kcal more a day.' + implied]) };
         }
         if (slow) {
           if (waistDown) return keep(' The scale is slower than planned, but your waist is coming down: water and food weight often hide fat loss for a while. Hold steady for two more weeks.');
+          if (q.loggedDays14 == null || q.loggedDays14 >= 12) {
+            return { kind: 'eat-less', title: 'Consider a small change', evidence: notes, why: ['Weight is falling slower than planned and your waist is flat, with consistent logging. Eat 100–150 kcal less a day, or accept the maintenance check\'s suggestion if it offers one (not both).'] };
+          }
           return { kind: 'maintenance-check', title: 'Don\'t cut calories yet', evidence: notes, why: (['Weight is falling slower than planned. Before eating less, weigh foods rather than estimating them and log everything for two weeks.',
             'The maintenance check compares what you eat with your weight trend over 3 weeks; if your real maintenance is lower than the estimate, it will suggest a new number.']) };
         }
         if (down.length) return recovery('Weight is on plan.');
         return keep(liftsHeld ? ' Strength is holding, so there\'s no reason to cut calories further.' : ' There\'s no reason to cut calories further.');
       }
-      if (fast || waist && waist.status === 'off-track') return { kind: 'eat-less', title: 'Gaining faster than planned', evidence: notes, why: (['Faster gain mostly adds fat. Consider 100–150 kcal less a day.' + (fast ? implied : '')]) };
+      if (fast) return { kind: 'eat-less', title: 'Gaining faster than planned', evidence: notes, why: (['Faster gain mostly adds fat. Consider ' + size + ' kcal less a day.' + implied]) };
+      if (waist && waist.status === 'off-track') return { kind: 'hold', title: 'Hold, and re-measure your waist', evidence: notes, why: ['Weight is on plan but your waist is growing faster than expected. Tape measurements vary, so check it again next week (same spot, morning, relaxed) before changing calories.'] };
       if (slow) return { kind: 'eat-more', title: 'Gaining slower than planned', evidence: notes, why: (['Consider 100–150 kcal more a day, mostly from carbs around training, or accept the maintenance check\'s suggestion when it comes.']) };
       if (down.length) return recovery('Weight is on plan.');
       return keep(lifts.length && !down.length ? ' Strength is moving the right way.' : '');

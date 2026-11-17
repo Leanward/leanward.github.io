@@ -260,7 +260,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .pill.dot.watch::before { background: var(--bad); }
 .pill.dot.wait::before { background: var(--muted); opacity: .6; }
 .met { color: var(--ok); font-weight: 700; }
-.ontarget { color: var(--ok); font-weight: 600; }
+.ontarget { color: var(--fg); font-weight: 600; }   /* a fact about the day, not a verdict: progress is judged on Progress */
 
 /* A meal's header stands apart from the foods under it. */
 .card.meal { padding: 0; overflow: hidden; }

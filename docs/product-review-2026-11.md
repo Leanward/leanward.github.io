@@ -122,3 +122,18 @@ For a 38-year-old man, 5'8" (172.7 cm), 194.4 lb (88.2 kg), moderately active, M
 3. ~~Meal-level line~~ — built in v0.19.2 ("29% of protein · 10 g fiber").
 4. Training-day/rest-day carbs from PR Forge workouts (M; PRD change).
 5. AI coach over the same numbers (L; after the beta, paid API).
+
+## 9. Coaching follow-up (third pass)
+
+| Recommendation | Was | Now |
+|---|---|---|
+| Protein: adequate vs optimal | ✓ from 1.6 g/kg, no wording | Same threshold; the bar's label and the working say "adequate from X g; Y g is the aim for keeping muscle", and a day at 90% of target is not a miss |
+| High confidence 18/21 days, 5 weigh-ins/week, consistent logging | 20/21 and 6/week | 18/21, 5/week, **plus** steady logging (intake CV under 35%) and steady weigh-ins (scatter under 1 kg); reasons shown when not high |
+| Moderate at 15–17 days; Low below | Check runs from 17/21 | **Kept 17/21 as the minimum.** Below it the check keeps collecting rather than giving a "low confidence" estimate, in line with "don't adjust on insufficient data" |
+| 10/14 logged and 8 weigh-ins before recommending | 10/14 only | Both |
+| Weekly average over single weigh-ins | Rate is the 14-day slope of the smoothed trend | Unchanged (already de-noised) |
+| Waist supports, never changes calories alone | Lean bulk: a growing waist alone said "eat less" | Now "hold, and re-measure next week" |
+| Stalled with good adherence → small change | Always deferred to the maintenance check | 12+/14 logged → 100–150 kcal less, or accept the check (not both); 10–11 → tracking first |
+| 100–150 routine, 200–250 when clearly supported | 100–200 | 100–150; 200–250 only when off track with 12+/14 logged |
+| Coaching ≠ compliance | "On target" shown in green | Neutral; progress is judged only on Progress |
+| Illness, travel, sodium, training changes | — | Not inputs yet; weigh-in scatter lowers confidence when water swings |
