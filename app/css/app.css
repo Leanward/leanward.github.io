@@ -271,3 +271,13 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .mealkcal small { font-size: 11px; color: var(--muted); }
 .mealhead .iconbtn { width: 34px; height: 34px; background: var(--sheet); }
 .card.meal .list { padding: 2px 16px 6px; }
+
+/* % daily value bars on the Nutrients sheet */
+.dv { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--track); margin: 5px 0 3px; max-width: 220px; }
+.dv i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--g1), var(--g2)); }
+.dv.met i { background: var(--ok); }
+.dv.over i { background: var(--bad); }
+.dv b { position: absolute; top: -3px; width: 2px; height: 12px; margin-left: -1px; border-radius: 1px; background: var(--fg); opacity: .55; }
+.dvp { display: block; font-size: 14px; font-weight: 700; }
+.dvp.met { color: var(--ok); } .dvp.over { color: var(--bad); }
+.dvkey .dv { display: inline-block; width: 36px; vertical-align: middle; margin: 0 4px 0 0; }

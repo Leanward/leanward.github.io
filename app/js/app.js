@@ -236,7 +236,15 @@
   function render() {
     if (drawing) { again = true; return; }
     drawing = true;
-    try { var keep = focusKey(); draw(); restoreFocus(keep); } finally { drawing = false; }
+    try {
+      // Keep the sheet's scroll position when the same sheet redraws (tapping a row used to jump to the top).
+      var keep = focusKey(), box = doc.querySelector('.sheet'), kind = state.sheet ? state.sheet.kind || 'sheet' : '';
+      var top = box && kind && kind === shownSheet ? box.scrollTop : 0;
+      draw();
+      var nb = top && doc.querySelector('.sheet');
+      if (nb) nb.scrollTop = top;
+      restoreFocus(keep);
+    } finally { drawing = false; }
     if (again) { again = false; render(); }
   }
   /* Keyboard and VoiceOver (§9): a redraw replaces the page, which would drop the focus. Remember the

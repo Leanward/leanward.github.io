@@ -215,14 +215,16 @@
       var fmtDay = function (d) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
       var sub = week ? (t.days ? 'Average of ' + t.days + ' logged day' + (t.days === 1 ? '' : 's') + ', ' + fmtDay(dates[0]) + ' – ' + fmtDay(dates[6]) + '. Days with nothing logged don\'t count.' : 'Nothing logged in these 7 days.') : dayName(sh.date);
       var row = function (r) {
-        var bits = [];
+        var bits = [], m = RV.meter(r), pctTxt = r.pct != null ? fmt(r.pct) + '%' : '';
         if (r.limit != null) bits.push('aim ' + amount(r.target, r.unit) + ', keep under ' + amount(r.limit, r.unit) + (r.flags.indexOf('over-limit') >= 0 ? ' (over)' : ''));
-        else if (r.pct != null) bits.push(fmt(r.pct) + '% of ' + (r.kind === 'AI' ? 'AI' : 'RDA') + ' (' + amount(r.target, r.unit) + ')');
+        else if (r.pct != null) bits.push((r.kind === 'AI' ? 'AI' : 'RDA') + ' ' + amount(r.target, r.unit));
         if (r.flags.indexOf('above-ul') >= 0) bits.push('above UL');
         if (r.coverage < 1) bits.push('known for ' + Math.round(r.coverage * 100) + '% of calories');
         var open = sh.open === r.id, top = open ? RV.contributors(es, r.id, 3) : [];
-        return '<button type="button" class="item food" data-a="nutrow" data-v="' + r.id + '" aria-expanded="' + open + '"><span><span class="t">' + esc(r.label) + '</span>' + (bits.length ? '<span class="s">' + esc(bits.join(' · ')) + '</span>' : '') + '</span>' +
-          '<span class="k">' + amount(r.amount, r.unit) + '</span></button>' +
+        var bar = m ? '<span class="dv ' + m.tone + '" aria-hidden="true"><i style="width:' + (m.fill * 100).toFixed(1) + '%"></i>' + (m.mark != null ? '<b style="left:' + (m.mark * 100).toFixed(1) + '%"></b>' : '') + '</span>' : '';
+        var say = r.label + ', ' + amount(r.amount, r.unit) + (pctTxt ? ', ' + pctTxt + ' of target' : '') + (m && m.tone === 'met' ? ', met' : m && m.tone === 'over' ? ', over' : '');
+        return '<button type="button" class="item food nut" data-a="nutrow" data-v="' + r.id + '" aria-expanded="' + open + '" aria-label="' + esc(say) + '"><span><span class="t">' + esc(r.label) + '</span>' + bar + (bits.length ? '<span class="s">' + esc(bits.join(' · ')) + '</span>' : '') + '</span>' +
+          '<span class="k">' + (pctTxt ? '<span class="dvp ' + (m ? m.tone : '') + '">' + (m && m.tone === 'met' ? '✓ ' : '') + pctTxt + '</span><small>' + amount(r.amount, r.unit) + '</small>' : amount(r.amount, r.unit)) + '</span></button>' +
           (open ? '<div class="small muted" style="padding:0 0 10px">' + (top.length ? 'Most from: ' + top.map(function (c) { return esc(c.name) + ' (' + Math.round(c.share * 100) + '%)'; }).join(', ') : 'No food listed it.') + (r.ulNote ? '<br>' + esc(r.ulNote) : '') + '</div>' : '');
       };
       var flat = [];
@@ -231,6 +233,7 @@
       return wrap('Nutrients', '<div class="row"><h2>Nutrients</h2><button type="button" class="btn ghost sm" data-a="close">Done</button></div>' +
         '<div class="seg">' + [['day', 'Day'], ['week', '7-day average']].map(function (o) { return '<button type="button" data-a="nutspan" data-v="' + o[0] + '" aria-pressed="' + ((sh.span || 'day') === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
         '<p class="small muted">' + esc(sub) + '</p>' +
+        (targets && groups.length ? '<p class="small muted dvkey"><span class="dv part" aria-hidden="true"><i style="width:60%"></i></span> Bars show % of your daily target. <span class="met">Green</span> means met; <span class="warn">amber</span> means over a limit. For sodium the bar ends at the limit; the tick is the target.</p>' : '') +
         (targets ? (far.length ? '<section class="card"><b>Furthest from target</b><p class="small muted">' + far.map(function (r) { return esc(r.label) + (r.flags && r.flags.indexOf('over-limit') >= 0 ? ' (over the limit)' : r.flags && r.flags.indexOf('above-ul') >= 0 ? ' (above UL)' : r.pct != null ? ' ' + fmt(r.pct) + '%' : ''); }).join(' · ') + '</p></section>' : '')
           : '<p class="small muted">Vitamin and mineral targets need your date of birth. For now you see your amounts and how complete the data is.</p>') +
         groups.map(function (g) { return '<span class="sec">' + esc(g.label) + '</span><div class="list">' + g.rows.map(row).join('') + '</div>'; }).join('') +
