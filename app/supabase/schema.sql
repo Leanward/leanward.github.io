@@ -64,6 +64,30 @@ create policy "lw_errors insert" on public.lw_errors
 grant insert on public.lw_errors to anon, authenticated;
 grant usage on sequence public.lw_errors_id_seq to anon, authenticated;
 
+-- Error reports are capped and purged (audit D7, v0.20): at most 30 an hour per signed-in person and 300
+-- an hour for all signed-out reports together; extra ones are dropped quietly (the app never retries).
+-- created_at is always the server's time, so the cap can't be dodged. Reports older than 90 days are
+-- deleted as new ones arrive. Safe to re-run.
+create or replace function public.lw_errors_guard() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare n integer;
+begin
+  new.created_at := now();
+  delete from public.lw_errors where created_at < now() - interval '90 days';
+  if new.user_id is null then
+    select count(*) into n from public.lw_errors where user_id is null and created_at > now() - interval '1 hour';
+    if n >= 300 then return null; end if;
+  else
+    select count(*) into n from public.lw_errors where user_id = new.user_id and created_at > now() - interval '1 hour';
+    if n >= 30 then return null; end if;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.lw_errors_guard() from public, anon, authenticated;
+drop trigger if exists lw_errors_guard on public.lw_errors;
+create trigger lw_errors_guard before insert on public.lw_errors for each row execute function public.lw_errors_guard();
+
 -- ---------------------------------------------------------------------------
 -- M2: the user's own data (PRD §11). Every table below starts with the same five columns.
 -- Weights are stored in kg and lengths in cm; the app converts for display.

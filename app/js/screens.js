@@ -405,11 +405,19 @@
       var days = root.LW.maint.intakeDays(S.rows.diary || [], function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); }, core.addDays(y, -13), y);
       var from14 = core.addDays(today(), -13), wd = {};
       (S.rows.weights || []).forEach(function (w) { if (!w.deleted && w.date >= from14 && w.date <= today()) wd[w.date] = 1; });
+      // Safety inputs (audit C1/C2): the floor, the target, days logged under the floor, and the 21-day trend.
+      var floorKcal = ci.floor || null, y7 = core.addDays(y, -6), byDay = {};
+      (S.rows.diary || []).forEach(function (e) { if (!e.deleted && e.date >= y7 && e.date <= y) byDay[e.date] = (byDay[e.date] || 0) + (Number(e.kcal) || 0); });
+      var below7 = floorKcal ? Object.keys(byDay).filter(function (d) { return byDay[d] > 0 && byDay[d] < floorKcal; }).length : null;
+      var wts = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return { date: w.date, kg: Number(w.kg), at: w.measured_at }; });
+      var series = wts.length ? C.trend.trendSeries(wts, { endDate: today() }).filter(function (d) { return d.date <= today(); }) : [];
+      var r21 = series.length && (wts.filter(function (w) { return w.date >= core.addDays(today(), -20); }).length >= 10) ? C.trend.rateOfChange(series, 21) : null;
       var q = { loggedDays14: days.filter(function (d) { return d.complete; }).length, weighIns14: Object.keys(wd).length, manualTarget: t.origin === 'manual',
+        floorKcal: floorKcal, targetKcal: Number(t.kcal), belowFloorDays7: below7, rate21Pct: r21 ? r21.pctPerWeek : null,
         targetWeeklyPct: ci.tdee > 0 && ci.kg > 0 ? C.targets.pace(t.kcal, ci.tdee, ci.kg).weeklyPct : null };
       var n = C.progress.nextStep(ph.type, r, q);
       if (!n) return '';
-      var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait', 'weigh-more': 'wait' }[n.kind] || 'watch';
+      var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait', 'weigh-more': 'wait', hold: 'wait' }[n.kind] || 'watch';
       return '<div class="next ' + tone + '"><span class="small muted">Next week</span><b>' + esc(n.title) + '</b>' +
         n.why.map(function (w) { return '<p class="small">' + esc(w) + '</p>'; }).join('') + '</div>';
     }
@@ -438,7 +446,8 @@
     }
     function maintCheck() {
       var t = currentTargets();
-      return root.LW.maint.check({ today: today(), diary: S.rows.diary, weights: S.rows.weights, recommendations: S.rows.recs,
+      var ph = M.currentPhase(S.rows.phases);
+      return root.LW.maint.check({ today: today(), diary: S.rows.diary, weights: S.rows.weights, recommendations: S.rows.recs, phaseStart: ph ? ph.start_date : null,
         previousTdee: t && t.calc_inputs ? t.calc_inputs.tdee : null, units: (S.rows.profile && S.rows.profile.units) || 'us',
         targetOn: function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); } });
     }
@@ -464,6 +473,9 @@
       if (c.state === 'unavailable') return '';
       var head = '<section class="card"><h2>Maintenance check</h2>';
       var span = c.windowStart ? niceDay(c.windowStart) + ' – ' + niceDay(c.windowEnd) : '';
+      if (c.state === 'collecting' && c.newPhase) {
+        return head + '<p class="small">Your phase is new, and the first two weeks of a phase are skipped: water and glycogen shift quickly after a change and would skew the result. The first check is on <b>' + esc(niceDay(c.from)) + '</b> and looks at the 3 weeks before it.</p></section>';
+      }
       if (c.state === 'collecting') {
         return head + '<p class="small">Once you have 3 weeks of food logging and weigh-ins, Leanward compares what you ate with how your weight trend moved and checks whether your maintenance (' + fmt(t.calc_inputs.tdee) + ' kcal) fits you.</p>' +
           '<div class="sig"><div class="row"><b style="font-size:13.5px">Days logged</b><span class="pill ' + (c.logged >= c.neededDays ? 'ok' : 'wait') + '">' + c.logged + ' of ' + c.neededDays + '</span></div><p>In the last 21 days (' + esc(span) + '). A day counts when it reaches at least half your calorie target' + (c.partialDays ? '; ' + c.partialDays + ' partly logged day' + (c.partialDays === 1 ? ' doesn\'t' : 's don\'t') + ' count' : '') + '.</p></div>' +
