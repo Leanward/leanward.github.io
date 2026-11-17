@@ -49,6 +49,8 @@
 
     var protein = core.round(Math.max(perKg, PROTEIN_RDA) * ref.kg);
     steps.push('Protein: ' + fmt(perKg, 1) + ' g per kg × ' + fmt(ref.kg, 1) + ' kg' + (ref.adjusted ? ' (reference weight)' : '') + ' = ' + protein + ' g');
+    var adequate = Math.min(protein, core.round(PROTEIN_ENOUGH_G_PER_KG * ref.kg));
+    if (adequate < protein) steps.push('Protein counts as adequate from ' + adequate + ' g (1.6 g per kg); ' + protein + ' g is the aim for keeping muscle' + (p.phase === 'cut' ? ' in a deficit' : '') + ', so a day at ' + core.round(protein * 0.9) + ' g is not a miss');
 
     var fatFloor = core.round(Math.max(FAT_MIN_SHARE * p.kcal / 9, FAT_MIN_G_PER_KG * p.kg));
     var fat = Math.max(core.round(FAT_DEFAULT * p.kcal / 9), fatFloor);

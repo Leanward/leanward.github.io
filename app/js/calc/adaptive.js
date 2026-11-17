@@ -78,9 +78,19 @@
       'Blended 70% new, 30% previous (' + fmt(prev) + '): ' + fmt(blended) + ' kcal'
     ];
     if (Math.abs(blended - prev) > MAX_CHANGE_KCAL) steps.push('Change limited to ' + MAX_CHANGE_KCAL + ' kcal a week');
-    // How much to trust it. Three weeks is the minimum, not proof: near-daily logging and weigh-ins make
-    // the trend steadier. An estimate far below the previous one is often food that wasn't logged.
-    var confidence = complete.length >= 20 && minWeek >= 6 ? 'high' : 'moderate';
+    // How much to trust it (reviewed 2026-11-17). Three weeks is the minimum, not proof. High needs all of:
+    // 18+ of 21 days logged, 5+ weigh-ins every week, steady logging (daily intake varying by under 35%:
+    // big swings usually mean missed foods on some days), and steady weigh-ins (scatter around the trend
+    // under 1 kg: bigger swings are water from sodium, carbs, travel or illness). Otherwise Moderate.
+    var kcals = complete.map(function (d) { return d.kcal; }), sd = function (xs, m) { return Math.sqrt(xs.reduce(function (a, x) { return a + (x - m) * (x - m); }, 0) / xs.length); };
+    var intakeCv = sd(kcals, meanIntake) / meanIntake;
+    var resid = daily.map(function (d) { return d.kg - at(d.date); }), noiseKg = sd(resid, resid.reduce(function (a, x) { return a + x; }, 0) / resid.length);
+    var why = [];
+    if (complete.length < 18) why.push(complete.length + ' of 21 days logged (18+ for high)');
+    if (minWeek < 5) why.push('a week with ' + minWeek + ' weigh-ins (5+ for high)');
+    if (intakeCv > 0.35) why.push('daily intake varies a lot (by ' + Math.round(intakeCv * 100) + '%), which often means missed foods on some days');
+    if (noiseKg > 1.0) why.push('weigh-ins swing a lot around the trend (about ' + fmt(us ? core.kgToLb(noiseKg) : noiseKg, 1) + ' ' + (us ? 'lb' : 'kg') + '): water from sodium, carbs, travel or illness');
+    var confidence = why.length ? 'moderate' : 'high';
     var cautions = [];
     if (raw < prev * 0.8) cautions.push('This estimate is more than 20% below your previous maintenance. That can be real, but it\'s often food that wasn\'t logged (oils, drinks, bites, weekends). If you\'re not sure your logs were complete, keep your targets and log carefully for another week.');
     steps.push('Suggested maintenance: ' + fmt(next) + ' kcal (' + core.fmtSigned(next - prev) + ' kcal). Your targets change only if you accept this.');
@@ -88,7 +98,7 @@
     return {
       status: next === prev ? 'no-change' : 'proposed',
       tdee: next, previousTdee: prev, rawTdee: raw, meanIntake: meanIntake, trendChangeKg: dKg, windowStart: start, windowEnd: end,
-      confidence: confidence, cautions: cautions, loggedDays: complete.length, minWeighInsPerWeek: minWeek,
+      confidence: confidence, confidenceWhy: why, intakeCv: intakeCv, noiseKg: noiseKg, cautions: cautions, loggedDays: complete.length, minWeighInsPerWeek: minWeek,
       recommendation: next === prev ? null : { type: 'maintenance-update', from: prev, to: next, calcVersion: core.CALC_VERSION, reasoning: steps.slice() },
       steps: steps
     };

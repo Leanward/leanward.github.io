@@ -95,3 +95,12 @@ test('protein counts as enough from 1.6 g/kg, never above the target (coaching r
   assert.equal(Mc.proteinEnough(150, null, null), 150);
   assert.equal(Mc.proteinEnough(0, 80, 180), null);
 });
+
+test('the working says protein is adequate from 1.6 g/kg and the target is the aim', () => {
+  const Mc = require('../js/calc/macros.js');
+  // cut at 86.4 kg: target 2.2 × 86.4 = 190 g; adequate 1.6 × 86.4 = 138 g; 90% of 190 = 171
+  const m = Mc.macroTargets({ phase: 'cut', kcal: 1900, kg: 86.4, cm: 172.7 });
+  assert.ok(m.steps.includes('Protein counts as adequate from 138 g (1.6 g per kg); 190 g is the aim for keeping muscle in a deficit, so a day at 171 g is not a miss'));
+  // maintenance is already 1.6 g/kg: no extra line
+  assert.ok(!Mc.macroTargets({ phase: 'maintenance', kcal: 2600, kg: 86.4, cm: 172.7 }).steps.some((x) => /adequate/.test(x)));
+});
