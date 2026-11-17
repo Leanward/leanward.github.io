@@ -473,6 +473,9 @@
       if (c.state === 'unavailable') return '';
       var head = '<section class="card"><h2>Maintenance check</h2>';
       var span = c.windowStart ? niceDay(c.windowStart) + ' – ' + niceDay(c.windowEnd) : '';
+      if (c.state === 'collecting' && c.warmingUp) {
+        return head + '<p class="small">Your weight trend needs about 4 weeks of weigh-ins before it can be compared with what you eat; before that it lags and would underestimate your maintenance. The first check is on <b>' + esc(niceDay(c.from)) + '</b>. Keep logging and weighing in.</p></section>';
+      }
       if (c.state === 'collecting' && c.newPhase) {
         return head + '<p class="small">Your phase is new, and the first two weeks of a phase are skipped: water and glycogen shift quickly after a change and would skew the result. The first check is on <b>' + esc(niceDay(c.from)) + '</b> and looks at the 3 weeks before it.</p></section>';
       }

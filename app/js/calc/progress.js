@@ -16,6 +16,7 @@
   var MIN_DAYS = 14, MIN_WEIGHINS = 8, MIN_ENTRIES = 2;
   // A lift is judged on the best of several sessions at each end, never one session (audit D3).
   var LIFT_MIN_SESSIONS = 4;
+  var SLOW_JUDGE_DAYS = 28;
   var WAIST_NOISE_CM = 1.0;          // tape-measure noise: changes smaller than this count as flat (audit D4)
   var DEFAULT_WAIST_CM_PER_KG = 1;   // lean bulk: waist growth limit per kg gained (PRG-2 proposed default)
 
@@ -56,6 +57,13 @@
       var planned = phase.expectedWeeklyPct;
       var dev = Math.abs(pct - planned) / Math.abs(planned);   // 0 = exactly on plan
       var status = dev <= 0.5 ? 'on-track' : dev <= 1.0 ? 'watch' : 'off-track';
+      // The trend lags for the first weeks of a phase, which makes any pace look slower than it is
+      // (28–37% of on-plan users read "slow" on day 21 in tests/sim.test.js). So before day 28 a slower
+      // pace isn't judged yet; a faster one is, since the lag never exaggerates the change.
+      var slower = (pct - planned) * (planned < 0 ? 1 : -1) > 0;
+      if (status !== 'on-track' && slower && ctx.days < SLOW_JUDGE_DAYS) {
+        return sig('weight', label, 'collecting', value + ' so far', 'A slower pace can\'t be judged before day ' + SLOW_JUDGE_DAYS + ' of a phase: the trend lags at first.', { planned: planned, actual: pct, rate: rate, early: true });
+      }
       return sig('weight', label, status, value, 'On track within ±50% of the planned ' + fmtS(planned, 2) + '% a week; watch up to ±100%.', { planned: planned, actual: pct, rate: rate });
     }
     if (phase.type === 'recomp') {
@@ -250,6 +258,9 @@
     var waistDown = waist && waist.status !== 'collecting' && waist.changeCm <= -WAIST_NOISE_CM;
     var waistUp = waist && waist.status !== 'collecting' && waist.changeCm >= WAIST_NOISE_CM;
     var name = PHASE_NAMES[type];
+    if (w && w.early) {
+      return { kind: 'wait', title: 'Too early to judge the pace', why: ['Weight trend: ' + w.value + '. In the first weeks of a phase the trend lags behind, so a pace that looks slow often isn\'t. Hold steady; it can be judged from day ' + SLOW_JUDGE_DAYS + '.'] };
+    }
     if (!w || w.status === 'collecting') {
       return { kind: 'wait', title: 'Too early to change anything', why: ['Keep logging and weighing in. ' + (w ? w.value.replace(/^Collecting data: /, 'Still needed: ') + '.' : '')] };
     }
@@ -294,6 +305,9 @@
         }
         if (slow) {
           if (waistDown) return keep(' The scale is slower than planned, but your waist is coming down: water and food weight often hide fat loss for a while. Hold steady for two more weeks.');
+          // Only a clear stall (off track) justifies eating less; a mildly slow read is often weigh-in noise
+          // (about 1 in 10 on-plan users with noisy weigh-ins, tests/sim.test.js).
+          if (w.status !== 'off-track') return { kind: 'hold', title: 'A little slower than planned', evidence: notes, why: ['That\'s within the range weigh-in noise can cause, so hold steady and keep logging. If it\'s real, the maintenance check will pick it up from your 3-week numbers.'] };
           if (atFloor) return floorHold('Weight is falling slower than planned.');
           if (q.loggedDays14 == null || q.loggedDays14 >= 12) {
             return { kind: 'eat-less', title: 'Consider a small change', evidence: notes, why: ['Weight is falling slower than planned and your waist is flat, with consistent logging. Eat 100–150 kcal less a day, or accept the maintenance check\'s suggestion if it offers one (not both).'] };

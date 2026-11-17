@@ -57,20 +57,27 @@ test('C3: one bad last session does not read as strength loss; a sustained drop 
   assert.equal(read([100, 99, 85]).status, 'collecting');
 });
 
-test('C4: the maintenance check skips the first 14 days of a phase; changes under 100 kcal match', () => {
+test('C4: the maintenance check waits for a warmed-up trend and skips the first 14 days of a phase; under 150 kcal matches', () => {
+  // 49 days of weigh-ins (4 weeks of warm-up before the 21-day window), flat at 80 kg, eating 2,500
   const end = '2026-11-20', start = core.addDays(end, -20), diary = [], weights = [];
-  for (let i = 0; i < 21; i++) { const d = core.addDays(start, i); diary.push({ date: d, kcal: 2500 }); weights.push({ date: d, kg: 80, measured_at: d + 'T07:00:00Z' }); }
+  for (let i = -28; i < 21; i++) { const d = core.addDays(start, i); if (i >= 0) diary.push({ date: d, kcal: 2500 }); weights.push({ date: d, kg: 80, measured_at: d + 'T07:00:00Z' }); }
   const input = { today: '2026-11-21', diary, weights, targetOn: () => ({ kcal: 2400 }), previousTdee: 2560, recommendations: [], units: 'metric' };
-  // flat weight on 2,500 → raw 2,500; blended 0.7 × 2,500 + 0.3 × 2,560 = 2,518 → −42 kcal → matches (under 100)
+  // raw 2,500; blended 0.7 × 2,500 + 0.3 × 2,560 = 2,518 → −42 → matches
   assert.equal(MT.check(input).state, 'matches');
-  // previous 2,700 → 0.7 × 2,500 + 0.3 × 2,700 = 2,560 → −140 → proposed
-  assert.equal(MT.check(Object.assign({}, input, { previousTdee: 2700 })).state, 'proposed');
-  // the same data, but the phase began 10 days before the window → skipped, with the date of the first check
-  const r = MT.check(Object.assign({}, input, { previousTdee: 2700, phaseStart: core.addDays(start, -10) }));
+  // previous 2,700: 0.7 × 2,500 + 0.3 × 2,700 = 2,560 → −140 → still under 150 → matches
+  assert.equal(MT.check(Object.assign({}, input, { previousTdee: 2700 })).state, 'matches');
+  // previous 2,900: 2,620 → −280 → capped at −150 → proposed
+  const p = MT.check(Object.assign({}, input, { previousTdee: 2900 }));
+  assert.deepEqual([p.state, p.to], ['proposed', 2750]);
+  // weigh-ins only from the window start → the trend is still warming up
+  const w = MT.check(Object.assign({}, input, { previousTdee: 2900, weights: weights.filter((x) => x.date >= start) }));
+  assert.deepEqual([w.state, w.warmingUp, w.from], ['collecting', true, core.addDays(start, 28 + 21)]);
+  // the phase began 10 days before the window → skipped, with the date of the first check
+  const r = MT.check(Object.assign({}, input, { previousTdee: 2900, phaseStart: core.addDays(start, -10) }));
   assert.deepEqual([r.state, r.newPhase, r.from], ['collecting', true, core.addDays(core.addDays(start, 4), 21)]);
-  // a phase that began 14+ days before the window start is fine
-  assert.equal(MT.check(Object.assign({}, input, { previousTdee: 2700, phaseStart: core.addDays(start, -14) })).state, 'proposed');
+  assert.equal(MT.check(Object.assign({}, input, { previousTdee: 2900, phaseStart: core.addDays(start, -14) })).state, 'proposed');
 });
+
 
 test('D4: the waist averages 2 readings at each end; under 1 cm is flat', () => {
   const w = []; for (let i = 0; i < 20; i++) w.push({ date: core.addDays('2026-09-01', i), kg: 80 });

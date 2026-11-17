@@ -9,7 +9,8 @@
  *   calorie target (800 kcal when there is no target), so a day with only breakfast logged doesn't
  *   drag the average down.
  * - The window ends yesterday: today is still being logged.
- * - A difference under 100 kcal is treated as "matches": weight noise alone moves the estimate about ±100 kcal.
+ * - A difference under 150 kcal is treated as "matches": with noisy weigh-ins a 100 kcal threshold gave 16%
+ *   false suggestions on simulated users, 150 gave 3%, and all still converged (tests/sim.test.js).
  * - After a decision (accept or decline), the next suggestion waits 7 days ("recomputed weekly").
  */
 (function (root) {
@@ -19,7 +20,7 @@
   var core = node ? require('./calc/core.js') : root.LW.calc.core;
   var adaptive = node ? require('./calc/adaptive.js') : root.LW.calc.adaptive;
 
-  var MIN_SHARE_OF_TARGET = 0.5, MIN_KCAL_NO_TARGET = 800, MIN_DIFF_KCAL = 100, PHASE_SETTLE_DAYS = 14, WAIT_DAYS = 7;
+  var MIN_SHARE_OF_TARGET = 0.5, MIN_KCAL_NO_TARGET = 800, MIN_DIFF_KCAL = 150, PHASE_SETTLE_DAYS = 14, TREND_WARMUP_DAYS = 28, WAIT_DAYS = 7;
 
   function newId() { return root.LW && root.LW.model ? root.LW.model.newId() : (node ? require('crypto').randomUUID() : String(Math.random()).slice(2)); }
   function live(rows) { return (rows || []).filter(function (r) { return !r.deleted; }); }
@@ -39,12 +40,12 @@
    * input: { today, diary, weights, targetOn(date), previousTdee, recommendations, units?, phaseStart? }
    * The window starts no earlier than 14 days after the current phase began: water and glycogen move
    * fast after a switch (for example bulk to cut) and would skew the estimate (audit D2).
-   * A change under 100 kcal counts as a match: weight noise alone is about ±100 kcal (audit S5-2).
+   * A change under 150 kcal counts as a match (see above). The trend also needs 4 weeks of weigh-ins first.
    * Returns one of:
    *   { state: 'unavailable', why }                     no maintenance in use to compare with
    *   { state: 'collecting', need: [...], logged, neededDays, weeks: [n, n, n] }
    *   { state: 'waiting', until, last }                 decided recently; next check date
-   *   { state: 'matches', tdee, estimate }              within 100 kcal
+   *   { state: 'matches', tdee, estimate }              within 150 kcal
    *   { state: 'proposed', from, to, estimate }         a suggestion, with estimate.steps as the working
    */
   function check(input) {
@@ -61,6 +62,13 @@
       return Object.keys(seen).length;
     });
     var base = { windowStart: start, windowEnd: end, logged: logged, neededDays: Math.ceil(adaptive.WINDOW_DAYS * 0.8), weeks: weeks, partialDays: days.length - logged };
+    // The weight trend needs about 4 weeks of weigh-ins before the window starts: until then it lags more
+    // at the end of the window than at the start, which reads a falling weight as a smaller loss and
+    // biases the estimate low by up to ~200 kcal (measured on simulated users, tests/sim.test.js).
+    var firstWeigh = weights.reduce(function (m, w) { return !m || w.date < m ? w.date : m; }, null);
+    if (firstWeigh && core.addDays(firstWeigh, TREND_WARMUP_DAYS) > start) {
+      return Object.assign({ state: 'collecting', warmingUp: true, from: core.addDays(firstWeigh, TREND_WARMUP_DAYS + adaptive.WINDOW_DAYS), need: ['the weight trend needs 4 weeks of weigh-ins before the 3-week window'] }, base);
+    }
     if (input.phaseStart) {
       var settled = core.addDays(input.phaseStart, PHASE_SETTLE_DAYS);
       if (start < settled) return Object.assign({ state: 'collecting', newPhase: true, from: core.addDays(settled, adaptive.WINDOW_DAYS), need: ['the first ' + PHASE_SETTLE_DAYS + ' days of a new phase are skipped (water and glycogen settle)'] }, base);
