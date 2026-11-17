@@ -88,7 +88,21 @@
       .sort(function (a, b) { return b.amount - a.amount; }).slice(0, limit || 3);
   }
 
-  var api = { GROUPS: GROUPS, TO_DRI: TO_DRI, average: average, week: week, rows: rows, quality: quality, contributors: contributors };
+  /** The % daily value bar for a nutrient row, or null when it has no target.
+   *  fill: share of the bar filled (0–1). The bar's end is the target; for a nutrient with a limit
+   *  (sodium) the bar's end is the limit and mark is where the target sits. tone: 'met' (target reached),
+   *  'over' (over the limit or above the upper limit), 'part' (on the way). */
+  function meter(r) {
+    if (!r || r.pct == null || !(r.target > 0)) return null;
+    var f = r.flags || [], over = f.indexOf('over-limit') >= 0 || f.indexOf('above-ul') >= 0;
+    var amt = Math.max(0, Number(r.amount) || 0);
+    if (r.limit > 0) {
+      return { fill: Math.min(1, amt / r.limit), mark: Math.min(1, r.target / r.limit), tone: over ? 'over' : amt >= r.target ? 'met' : 'part' };
+    }
+    return { fill: Math.min(1, r.pct / 100), mark: null, tone: over ? 'over' : r.pct >= 100 ? 'met' : 'part' };
+  }
+
+  var api = { GROUPS: GROUPS, TO_DRI: TO_DRI, average: average, week: week, rows: rows, quality: quality, contributors: contributors, meter: meter };
   if (node) module.exports = api;
   else { root.LW.review = api; }
 })(this);
