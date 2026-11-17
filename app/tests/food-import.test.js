@@ -28,6 +28,8 @@ test('generic foods: energy fallback, preparation, portions, categories, FDB-6',
   assert.equal(banana.energy_derived, false);
   assert.deepEqual(banana.nutrients, { fiber: 1.7, potassium: 326, sugar: 15.8 });
   assert.equal(banana.servings[0].label, '1 piece medium (7" to 7-7/8" long)');
+  // FNDDS-style rows: the numeric portion code is not part of the name, and the placeholder serving is left out
+  assert.deepEqual(banana.servings.slice(1), [{ label: '1 cup, sliced', g: 150 }]);
 });
 
 test('branded foods: names, brands, barcodes, duplicates, ml, IU and derived energy', async () => {

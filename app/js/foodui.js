@@ -151,7 +151,7 @@
           '<p class="small muted">' + esc(label) + ': ' + fmt(v.kcal) + ' kcal · protein ' + fmt(v.protein_g, 1) + ' g · carbs ' + fmt(v.carbs_g, 1) + ' g · fat ' + fmt(v.fat_g, 1) + ' g</p>' +
           (f.energy_derived ? '<p class="small muted">Calories worked out from protein, carbs and fat (the source didn\'t list them).</p>' : '') +
           (rows || '<p class="small muted">No vitamins or minerals listed for this food.</p>') +
-          (f.servings && f.servings.length ? '<p class="small muted">Servings: ' + f.servings.map(function (s) { return esc(s.label) + ' = ' + fmt(s.g) + ' g'; }).join(' · ') + '</p>' : '') +
+          (f.servings && f.servings.some(function (s) { return DY.servingLabel(s.label); }) ? '<p class="small muted">Servings: ' + f.servings.filter(function (s) { return DY.servingLabel(s.label); }).map(function (s) { return esc(DY.servingLabel(s.label)) + ' = ' + fmt(s.g) + ' g'; }).join(' · ') + '</p>' : '') +
           '<p class="small muted">Source: ' + esc(src) + (f.source_id ? ' (FoodData Central #' + esc(f.source_id) + ')' : '') + (f.gtin ? ' · barcode ' + esc(f.gtin.replace(/^0+(?=\d{12})/, '')) : '') + '. ' +
             (/^usda/.test(f.source) ? 'USDA data: public domain.' : f.source === 'custom' ? 'Only you can see it.' : '') + '</p>' +
           (f.attribution ? '<p class="small muted">' + esc(f.attribution) + '</p>' : '') + '</details>' +
@@ -325,7 +325,7 @@
       recent: function (id) {
         var a = S.sheet, e = (S.rows.diary || []).filter(function (x) { return x.id === id; })[0], f = e && DY.foodOfEntry(e);
         if (!f) return;
-        var units = DY.unitsFor(f), lab = String(e.unit || '').replace(/^[\d.]+\s*(×\s*)?/, ''), ui = Math.max(0, units.map(function (u) { return u.label; }).indexOf(lab));
+        var units = DY.unitsFor(f), lab = DY.unitLabelOf(e), ui = Math.max(0, units.map(function (u) { return u.label; }).indexOf(lab));
         S.sheet = { kind: 'food', food: f, basis: '100', back: { q: '', results: [] }, slot: a.slot, date: a.date, via: 'recent', qty: Number(e.qty) || 1, unitIdx: ui };
         ctx.render();
       },

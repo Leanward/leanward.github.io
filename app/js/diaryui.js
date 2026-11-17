@@ -147,7 +147,7 @@
     }
     function unitIndex(units, e) {
       // The entry's unit label looks like "1.5 × 1 container" or "150 g".
-      var lab = String(e.unit || '').replace(/^[\d.]+\s*(×\s*)?/, '');
+      var lab = DY.unitLabelOf(e);
       var i = units.map(function (u) { return u.label; }).indexOf(lab);
       return i < 0 ? units.length - 1 : i;
     }

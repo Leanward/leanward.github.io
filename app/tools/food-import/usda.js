@@ -175,8 +175,12 @@ async function convert(dir, opts) {
       const g = num(r.gram_weight); if (!g || g <= 0) return;
       const amount = num(r.amount), unit = units[r.measure_unit_id];
       const unitText = unit && unit !== 'undetermined' ? unit : '';
-      const label = [amount != null ? round(amount, 2) : '', unitText, r.modifier || '', !unitText ? r.portion_description || '' : ''].join(' ').replace(/\s+/g, ' ').trim();
-      if (label) f.servings.push({ label: label.slice(0, 80), g: round(g, 2) });
+      // FNDDS puts an internal portion code (digits only) in `modifier` and the name in
+      // `portion_description`; the code is not part of the name. "Quantity not specified" is a
+      // placeholder, not a serving anyone would pick.
+      const modifier = /^\d+$/.test(String(r.modifier || '').trim()) ? '' : r.modifier || '';
+      const label = [amount != null ? round(amount, 2) : '', unitText, modifier, !unitText ? r.portion_description || '' : ''].join(' ').replace(/\s+/g, ' ').trim();
+      if (label && !/^quantity not specified$/i.test(label)) f.servings.push({ label: label.slice(0, 80), g: round(g, 2) });
     });
   }
 
