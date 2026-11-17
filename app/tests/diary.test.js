@@ -106,3 +106,19 @@ test('amounts and names read naturally in the diary', () => {
   assert.equal(D.calmName("Thomas' BBQ Chips, USDA"), "Thomas' BBQ Chips, USDA");
   assert.equal(D.calmName('KIND Bar'), 'KIND Bar');
 });
+
+test('serving names: USDA portion codes and the placeholder serving never reach the screen', () => {
+  const beans = { id: 'usda:9', source: 'usda-fndds', name: 'Black beans, from dried, no added fat', kcal: 132, protein_g: 8.9, carbs_g: 23.7, fat_g: 0.5, per: 'g',
+    servings: [{ label: '40014 1 oz dry, yield after cooking', g: 66 }, { label: '90000 Quantity not specified', g: 172 }, { label: '10205 1 cup', g: 172 }] };
+  assert.deepEqual(D.unitsFor(beans).map((u) => u.label), ['1 oz dry, yield after cooking', '1 cup', 'g', 'oz']);
+  // an entry logged before the fix still shows and edits correctly
+  const old = { unit: '1 × 10205 1 cup', grams: 172 };
+  assert.equal(D.unitLabelOf(old), '1 cup');
+  assert.equal(D.amountText(old), '1 cup · 172 g');
+  assert.equal(D.amountText({ unit: '2 × 10205 1 cup', grams: 344 }), '2 × 1 cup · 344 g');
+  assert.equal(D.unitLabelOf({ unit: '150 g' }), 'g');
+  // real names that start with numbers are untouched
+  assert.equal(D.servingLabel('1000 ml bottle'), '1000 ml bottle');
+  assert.equal(D.servingLabel('2 tbsp (32 g)'), '2 tbsp (32 g)');
+  assert.equal(D.servingLabel('90000 Quantity not specified'), '');
+});

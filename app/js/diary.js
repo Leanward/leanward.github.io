@@ -33,10 +33,22 @@
   function round(v, dp) { var f = Math.pow(10, dp || 0); return Math.round(v * f) / f; }
   function newId() { return root.LW && root.LW.model ? root.LW.model.newId() : (node ? require('crypto').randomUUID() : String(Math.random()).slice(2)); }
 
+  /**
+   * A serving name fit to show. USDA's survey foods (FNDDS) carry an internal 5-digit portion code in
+   * front of the name ("10205 1 cup") and a placeholder serving ("Quantity not specified"); an early
+   * import kept both. The code is dropped and the placeholder is not offered (returns '').
+   */
+  function servingLabel(label) {
+    var s = String(label || '').replace(/^\d{5}\s+(?=\S)/, '').replace(/\s+/g, ' ').trim();
+    return /^quantity not specified$/i.test(s) ? '' : s;
+  }
+  /** The serving name inside an entry's stored unit text ("1.5 × 10205 1 cup" → "1 cup"; "150 g" → "g"). */
+  function unitLabelOf(e) { return servingLabel(String((e && e.unit) || '').replace(/^[\d.]+\s*(×\s*)?/, '')); }
+
   /** The units a food can be logged in (LOG-5): its labelled servings first, then g/oz (or ml/fl oz/cup/tbsp/tsp). */
   function unitsFor(food) {
     var out = [], seen = {};
-    function add(label, g) { var k = label.toLowerCase(); if (!label || !(g > 0) || seen[k]) return; seen[k] = 1; out.push({ label: label, g: g }); }
+    function add(label, g) { label = servingLabel(label); var k = label.toLowerCase(); if (!label || !(g > 0) || seen[k]) return; seen[k] = 1; out.push({ label: label, g: g }); }
     if (food.serving_g) add(food.serving_label || ('1 serving (' + round(food.serving_g, 1) + ' ' + (food.per === 'ml' ? 'ml' : 'g') + ')'), Number(food.serving_g));
     (food.servings || []).forEach(function (s) { add(s.label, Number(s.g)); });
     if (food.per === 'ml') { add('ml', 1); VOLUME.forEach(function (v) { add(v[0], v[1]); }); }
@@ -207,7 +219,8 @@
     if (!unit) return '';
     var m = /^([\d.]+) × (.+)$/.exec(unit), text = unit, per = / ml\)?$/.test(unit) ? 'ml' : 'g';
     if (m) {
-      var qty = Number(m[1]), label = m[2];
+      var qty = Number(m[1]), label = servingLabel(m[2]) || m[2];
+      text = m[1] + ' × ' + label;
       if (PLAIN_UNITS.indexOf(label.toLowerCase()) >= 0) text = m[1] + ' ' + label;
       else if (qty === 1 && /^1\b/.test(label)) text = label;
     }
@@ -237,7 +250,7 @@
 
   var api = { SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
     updateEntry: updateEntry, quickAdd: quickAdd, totals: totals, versusTarget: versusTarget, recents: recents, frequents: frequents,
-    quickPicks: quickPicks, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
+    quickPicks: quickPicks, servingLabel: servingLabel, unitLabelOf: unitLabelOf, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
   if (node) module.exports = api;
   else { root.LW.diary = api; }
 })(this);
