@@ -35,7 +35,8 @@ test('edited targets: held at the floor, warned, and marked manual', () => {
   const pv = M.preview(M.profileOf(alex), { phase: 'cut', rate: 0.5 }, '2026-11-03', { kcal: 1500, proteinG: 50, fatG: 30 });
   assert.equal(pv.origin, 'manual');
   assert.equal(pv.final.kcal, 1780);                    // floor 1,775 → rounded up to 1,780
-  assert.deepEqual(pv.warnings.map((w) => w.id), ['below-floor', 'protein-below-rda', 'fat-below-20pct']);
+  // 1,780 is (2,751 − 1,780) ÷ 2,751 = 35% below maintenance, past the 25% cap, so that's said too
+  assert.deepEqual(pv.warnings.map((w) => w.id), ['below-floor', 'protein-below-rda', 'fat-below-20pct', 'deficit-over-cap']);
   // carbs = (1780 − 200 − 270) ÷ 4 = 327.5 → 328; fiber 14 × 1.78 = 24.9 → 25
   assert.equal(pv.final.carbsG, 328); assert.equal(pv.final.fiberG, 25);
   // Typing the calculated numbers back in counts as calculated.

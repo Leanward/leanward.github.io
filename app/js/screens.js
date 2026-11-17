@@ -473,6 +473,15 @@
       ctx.save(rows).then(function () { ctx.toast(accept ? 'Maintenance updated to ' + fmt(c.to) + ' kcal' : 'Kept your current targets'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
     }
 
+    /** When the target in use doesn't match the phase's planned rate (typed in, or held at the floor), say what it implies. */
+    function paceNote(ph, t) {
+      var ci = t.calc_inputs || {};
+      if ((ph.type !== 'cut' && ph.type !== 'bulk') || !(ci.tdee > 0) || !(ci.kg > 0)) return '';
+      var r = C.targets.pace(t.kcal, ci.tdee, ci.kg), planned = (ph.type === 'cut' ? -1 : 1) * Number(ph.rate);
+      if (Math.abs(r.weeklyPct - planned) < 0.1) return '';
+      return '<p class="small" style="margin:4px 0 0">Your current target (' + fmt(t.kcal) + ' kcal' + (t.origin === 'manual' ? ', set by you' : '') + ') works out to ' +
+        (Math.abs(r.weeklyPct) < 0.05 ? 'about no change' : 'about ' + fmt(Math.abs(r.weeklyPct), 1) + '% ' + (r.weeklyPct < 0 ? 'loss' : 'gain')) + ' a week, not the planned ' + String(Math.abs(planned)) + '%.</p>';
+    }
     function phaseView() {
       var ph = M.currentPhase(S.rows.phases), t = currentTargets(), g = currentGoal();
       if (!ph || !t) return '';
@@ -483,7 +492,7 @@
       return '<header class="top row"><h1>Plan</h1><button type="button" class="btn ghost sm" data-a="newphase">Start a new phase</button></header>' +
         '<section class="card">' + (g && M.goalById(g.type).label.toLowerCase() !== PHASE_NAME[ph.type].toLowerCase() ? '<span class="small muted">Goal: ' + esc(M.goalById(g.type).label) + '</span>' : '<span class="small muted">Current phase</span>') +
           '<div style="font-size:22px;font-weight:700;margin-top:2px">' + PHASE_NAME[ph.type] + '</div>' +
-          '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' +
+          '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + (paceNote(ph, t) ? 'planned ' : '') + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' + paceNote(ph, t) +
           '<div class="route"><i style="width:' + pos + '%"></i></div>' +
           '<div class="row small muted"><span>Started ' + nd(ph.start_date) + '</span><span>' + (ph.planned_end ? 'Planned end ~' + nd(ph.planned_end) : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
         maintCard(t) +

@@ -244,7 +244,7 @@ All numbers are estimates and the UI says so. Every formula below must be shown 
 - **No safe deficit:** if the floor is at or above maintenance, Cut isn't offered (there's no room for a deficit); Maintenance or Recomp is suggested. [Decided 2026-11-03, M1]
 - **Underweight guard:** if BMI < 18.5, Cut isn't offered, and a goal weight implying BMI < 18.5 isn't accepted; the copy suggests talking to a clinician.
 - **Pregnancy/breastfeeding** (optional onboarding question): no deficit phases; nutrition-optimization or maintenance only, with a clinician note.
-- Manual target edits **can** go below the calculated value but **not** below the floor.
+- Manual target edits **can** go below the calculated value but **not** below the floor. A typed-in target past the deficit/surplus or rate caps shows a warning with the pace it implies (warn, don't block), and the Plan tab shows that pace next to the planned rate (v1.8).
 
 ### 8.3 Phase calorie targets
 Energy-density assumption: **7,700 kcal per kg** (≈ 3,500 kcal per lb) of bodyweight change — a known simplification that the Phase 2 adaptive model corrects from real data.

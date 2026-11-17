@@ -161,3 +161,20 @@ test('manual calorie edits can go below the calculated target but not below the 
   assert.equal(r.raisedToFloor, true);
   assert.match(r.message, /safety floor of 1,757 kcal/);
 });
+
+test('a typed-in target shows the pace it really implies (owner review, 2026-11-17)', () => {
+  const T = require('../js/calc/targets.js');
+  // 194.4 lb = 88.18 kg; maintenance 2,854; target 1,900:
+  // (1,900 − 2,854) × 7 ÷ 7,700 = −0.867 kg a week = −0.98% of body weight; 954 ÷ 2,854 = 33.4% below maintenance
+  const r = T.pace(1900, 2854, 88.18);
+  assert.ok(Math.abs(r.weeklyKg + 0.8673) < 1e-3); assert.ok(Math.abs(r.weeklyPct + 0.9835) < 1e-3); assert.ok(Math.abs(r.pctOfTdee + 33.43) < 0.01);
+  const w = T.paceWarnings(1900, 2854, 88.18);
+  assert.deepEqual(w.map((x) => x.id), ['deficit-over-cap']);
+  assert.match(w[0].message, /33% below maintenance.*about 1\.0% of body weight a week/);
+  // the calculated 0.5% target is 2,854 − 0.5% × 88.18 × 7,700 ÷ 7 (= 485) = 2,369 → no warning
+  assert.deepEqual(T.paceWarnings(2370, 2854, 88.18), []);
+  // 1.2%/wk on a small deficit share: 80 kg, maintenance 4,000, 3,100 kcal → −0.82 kg = −1.02%/wk, 22.5% below
+  assert.deepEqual(T.paceWarnings(3100, 4000, 80).map((x) => x.id), ['loss-over-cap']);
+  assert.deepEqual(T.paceWarnings(3500, 2800, 80).map((x) => x.id), ['surplus-over-cap']);
+  assert.deepEqual(T.paceWarnings(2800, 2854, 0), []);
+});

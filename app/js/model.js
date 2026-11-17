@@ -62,6 +62,7 @@
     var fat = m.fatG != null ? Math.round(m.fatG) : calcd.fatG;
     var chk = calc.macros.checkManualMacros({ kcal: kc.kcal, proteinG: prot, fatG: fat, kg: profile.kg, cm: profile.cm });
     var warnings = (kc.raisedToFloor ? [{ id: 'below-floor', message: kc.message }] : []).concat(chk.warnings);
+    if (m.kcal != null) warnings = warnings.concat(calc.targets.paceWarnings(kc.kcal, p.tdee, profile.kg));
     if (chk.carbsG < 50 && !chk.warnings.some(function (w) { return w.id === 'over-calories'; })) warnings.push({ id: 'carbs-under-50', message: 'Carbs would fall under 50 g.' });
     var final = { kcal: kc.kcal, proteinG: prot, fatG: fat, carbsG: chk.carbsG, fiberG: calc.core.round(14 * kc.kcal / 1000) };
     var same = final.kcal === calcd.kcal && final.proteinG === calcd.proteinG && final.fatG === calcd.fatG;

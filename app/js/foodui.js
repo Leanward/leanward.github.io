@@ -43,6 +43,8 @@
     function resultsHtml() {
       var a = S.sheet, mine = L.matchCustom(S.rows.customs, a.q);
       var own = mine.length ? '<span class="sec">Your foods</span><div class="list">' + mine.map(resultRow).join('') + '</div>' : '';
+      var logged = DY.matchLogged(S.rows.diary, a.q, 5);
+      if (logged.length) own = '<span class="sec">Logged before</span><div class="list">' + logged.map(function (e) { return loggedRow(e); }).join('') + '</div>' + own;
       var meals = L.matchMeals(S.rows.meals, a.q);
       if (meals.length) own += '<span class="sec">Your saved meals</span><div class="list">' + meals.map(mealRow).join('') + '</div>';
       var create = '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
@@ -54,15 +56,17 @@
         '<p class="small muted">USDA data is public domain (FoodData Central). Not seeing it?</p>' + onlineHtml(false) + create;
     }
     function where() { var a = S.sheet; return ctx.slotLabel(a.slot) + (a.date !== ctx.today() ? ', ' + ctx.dayName(a.date) : ''); }
+    /** A food from your diary: tap to log it again at the amount you had last time. */
+    function loggedRow(e, extra) {
+      return '<button type="button" class="item food" data-a="recent" data-v="' + esc(e.id) + '"><span><span class="t">' + esc(DY.calmName(e.name)) + '</span><span class="s">' + esc(DY.amountText(e)) + ' · ' + fmt(Number(e.kcal)) + ' kcal' + (extra || '') + '</span></span><span class="badge">+</span></button>';
+    }
     function recentHtml() {
       var all = S.rows.diary || [], rec = DY.recents(all, 12), freq = DY.frequents(all, ctx.today(), 30, 5);
       var mine = L.matchCustom(S.rows.customs, '');
       var own = '<span class="sec">Your foods</span>' + (mine.length ? '<div class="list">' + mine.slice(0, 8).map(resultRow).join('') + '</div>' : '<p class="small muted">Foods you create from a label (or copy and correct) are private to you.</p>') +
         '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
       if (!rec.length) return '<p class="small muted">Foods you log show up here, so you can add them again in one tap, even offline.</p>' + own;
-      var row = function (e, extra) {
-        return '<button type="button" class="item food" data-a="recent" data-v="' + esc(e.id) + '"><span><span class="t">' + esc(DY.calmName(e.name)) + '</span><span class="s">' + esc(DY.amountText(e)) + ' · ' + fmt(Number(e.kcal)) + ' kcal' + (extra || '') + '</span></span><span class="badge">+</span></button>';
-      };
+      var row = loggedRow;
       return (freq.length ? '<span class="sec">Frequent</span><div class="list">' + freq.map(function (f) { return row(f.entry, ' · ' + f.count + '× this month'); }).join('') + '</div>' : '') +
         '<span class="sec">Recent</span><div class="list">' + rec.map(function (e) { return row(e); }).join('') + '</div>' + own;
     }
@@ -326,7 +330,7 @@
         var a = S.sheet, e = (S.rows.diary || []).filter(function (x) { return x.id === id; })[0], f = e && DY.foodOfEntry(e);
         if (!f) return;
         var units = DY.unitsFor(f), lab = DY.unitLabelOf(e), ui = Math.max(0, units.map(function (u) { return u.label; }).indexOf(lab));
-        S.sheet = { kind: 'food', food: f, basis: '100', back: { q: '', results: [] }, slot: a.slot, date: a.date, via: 'recent', qty: Number(e.qty) || 1, unitIdx: ui };
+        S.sheet = { kind: 'food', food: f, basis: '100', back: a.q ? { q: a.q, results: a.results || [], online: a.online } : { q: '', results: [] }, slot: a.slot, date: a.date, via: a.q ? 'search' : 'recent', qty: Number(e.qty) || 1, unitIdx: ui };
         ctx.render();
       },
       fdback: function () { var b = S.sheet.back, sh = S.sheet; S.sheet = { kind: 'add', q: b.q, results: b.results, online: b.online, tab: 'foods', qa: {}, slot: sh.slot, date: sh.date }; ctx.render(); },

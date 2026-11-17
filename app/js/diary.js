@@ -171,6 +171,16 @@
       .forEach(function (e) { if (!seen[e.food_ref] && out.length < (limit || 20)) { seen[e.food_ref] = 1; out.push(e); } });
     return out;
   }
+  /** Foods logged before whose name has every word of the query (search shows them first), most recent first.
+   *  Your own created foods are left out: search lists them under "Your foods" already. */
+  function matchLogged(entries, q, limit) {
+    var words = String(q || '').toLowerCase().replace(/'s\b/g, '').split(/[^a-z0-9%]+/).filter(Boolean);
+    if (!words.length) return [];
+    return recents((entries || []).filter(function (e) { return !/^custom:/.test(e.food_ref || ''); }), 500).filter(function (e) {
+      var hay = (e.name + ' ' + ((e.nutrients && e.nutrients._per100 && e.nutrients._per100.brand) || '')).toLowerCase();
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    }).slice(0, limit || 5);
+  }
   /** Frequent foods: logged most often in the last `days` days before `today`. */
   function frequents(entries, today, days, limit) {
     var since = addDays(today, -(days || 30)), n = {}, last = {};
@@ -248,7 +258,7 @@
     return d.toISOString().slice(0, 10);
   }
 
-  var api = { SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
+  var api = { matchLogged: matchLogged, SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
     updateEntry: updateEntry, quickAdd: quickAdd, totals: totals, versusTarget: versusTarget, recents: recents, frequents: frequents,
     quickPicks: quickPicks, servingLabel: servingLabel, unitLabelOf: unitLabelOf, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
   if (node) module.exports = api;
