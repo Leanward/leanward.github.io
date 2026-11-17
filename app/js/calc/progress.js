@@ -16,7 +16,7 @@
   var MIN_DAYS = 14, MIN_WEIGHINS = 8, MIN_ENTRIES = 2;
   // A lift is judged on the best of several sessions at each end, never one session (audit D3).
   var LIFT_MIN_SESSIONS = 4;
-  var WAIST_NOISE_CM = 0.5;          // tape-measure noise: changes smaller than this count as flat
+  var WAIST_NOISE_CM = 1.0;          // tape-measure noise: changes smaller than this count as flat (audit D4)
   var DEFAULT_WAIST_CM_PER_KG = 1;   // lean bulk: waist growth limit per kg gained (PRG-2 proposed default)
 
   // Display units: stored values are kg and cm; U.w / U.l convert for the text when the user's units are US.
@@ -81,8 +81,11 @@
     if (ctx.days < MIN_DAYS) need.push(plural(MIN_DAYS - ctx.days, 'day'));
     if (w.length < MIN_ENTRIES) need.push(plural(MIN_ENTRIES - w.length, 'waist measurement'));
     if (need.length) return collecting('waist', label, need.join(' and '));
-    var d = w[w.length - 1].cm - w[0].cm;
-    var value = fmtS(U.l(d), 1) + ' ' + U.lu + ' since ' + core.niceDate(w[0].date, ctx.today.slice(0, 4));
+    // Average of the first 2 vs the last 2 readings when there are 4 or more, so one off tape reading
+    // doesn't read as change (audit D4); with 2–3 readings, first vs last.
+    var k = w.length >= 4 ? 2 : 1, avg = function (xs) { return xs.reduce(function (a, x) { return a + x.cm; }, 0) / xs.length; };
+    var d = avg(w.slice(-k)) - avg(w.slice(0, k));
+    var value = fmtS(U.l(d), 1) + ' ' + U.lu + ' since ' + core.niceDate(w[0].date, ctx.today.slice(0, 4)) + (k === 2 ? ' (average of 2 readings at each end)' : '');
     var n = WAIST_NOISE_CM, nText = fmt(U.l(n), U.us ? 1 : 1) + ' ' + U.lu;
     if (phase.type === 'cut') {
       return sig('waist', label, d <= -n ? 'on-track' : d < n ? 'watch' : 'off-track', value,
@@ -256,13 +259,13 @@
         'Eat at least your target, and 100–250 kcal more if your energy, sleep or training are suffering. If you can\'t explain the loss (illness, a big change in activity), talk to your doctor. ' + SUPPORT] };
     }
     if (q.loggedDays14 != null && q.loggedDays14 < 10) {
-      return { kind: 'log-more', title: 'Log more days before changing anything', why: [
-        q.loggedDays14 + ' of the last 14 days were logged to at least half your target. With gaps, a slow scale can\'t be told apart from food that wasn\'t logged.',
-        'Aim for 10 or more of the next 14 days, including oils, drinks and bites.'] };
+      return { kind: 'log-more', title: 'More complete days will sharpen this', why: [
+        'Your logs cover ' + q.loggedDays14 + ' of the last 14 days. More complete days make this advice more accurate: with gaps, a slow scale can\'t be told apart from food that wasn\'t logged.',
+        'No change to your targets for now. Logging 10 of the next 14 days, oils and drinks included, is plenty.'] };
     }
     if (q.weighIns14 != null && q.weighIns14 < 8) {
-      return { kind: 'weigh-more', title: 'Weigh in more before changing anything', why: [
-        q.weighIns14 + ' weigh-ins in the last 14 days. Day-to-day water swings hide the trend; 8 or more (ideally each morning) make it reliable.'] };
+      return { kind: 'weigh-more', title: 'A few more weigh-ins will sharpen this', why: [
+        q.weighIns14 + ' weigh-ins in the last 14 days. Day-to-day water swings hide the trend; 8 or more (most mornings) make it reliable. No change to your targets for now.'] };
     }
     var clear = w.status === 'off-track' && (q.loggedDays14 == null || q.loggedDays14 >= 12);
     var size = clear ? '200–250' : '100–150';

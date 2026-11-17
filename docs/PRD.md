@@ -1,6 +1,6 @@
 # Leanward — Product Requirements Document
 
-> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout; v1.8 moves recipes into the MVP, LOG-11; v1.9 adds the "Next week" step and maintenance-check confidence; v1.10 adds NUT-8; v1.11 refines the coaching rules; v1.12 adds the audit's safety fixes) · **Date:** 2026-11-17 · **Owner:** Kevin Chavez
+> **Version:** 1.4 (signed off 2026-11-02; v1.1 adds the visual identity and ACC-6; v1.2 adds the full nutrient review and Phase 2 lab results; v1.3 gives Leanward its own Supabase project; v1.4 adds Search online, FDB-3a; v1.5 makes key lifts PR Forge-only for now; v1.6 sets the appearance default to Match iPhone and moves reminders to after the beta; v1.7 is the four-tab layout; v1.8 moves recipes into the MVP, LOG-11; v1.9 adds the "Next week" step and maintenance-check confidence; v1.10 adds NUT-8; v1.11 refines the coaching rules; v1.12 adds the audit's safety fixes; v1.13 softens the wording and steadies the waist read) · **Date:** 2026-11-17 · **Owner:** Kevin Chavez
 > **Source:** [`blueprint-v2.md`](blueprint-v2.md) (Product Vision v2.0). Where this PRD adds detail, changes scope, or makes a call the blueprint left open, it is marked **[Proposed]** so you can accept or reject it; calls you've confirmed are marked **[Decided]** and logged in [`decisions.md`](decisions.md).
 > **How to review:** react to anything, but the fastest path to sign-off is answering the numbered questions in §15.
 
@@ -441,6 +441,7 @@ No questions are open. Signed off 2026-11-02. Changes from here go through the f
 | 2026-11-03 | 1.3 | ONB-10 "I know my numbers" (measured BMR/RMR or known maintenance), checks on entered numbers and the accuracy note in §8.1 (owner request after testing: the formula overestimated their maintenance). |
 | 2026-11-03 | 1.3 | ONB-1: Google sign-in only for now; email + password deferred (owner decision). |
 | 2026-11-03 | 1.3 | §8.10 extended for M1b: progress-read bands, adaptive blend, DRI life stages. |
+| 2026-11-17 | 1.13 | Audit follow-up: "Needs a look" replaces "Off track"; welcome back after 5+ days without logging; context when over calories; gentler log-more and weigh-more wording; waist read averages 2 readings at each end with a 1 cm tape-noise band. |
 | 2026-11-17 | 1.12 | Audit PR A: care steps (below floor, fast loss), floor-aware advice, multi-session lifts, phase-aware maintenance window, 100 kcal minimum, protein tip on adequacy. |
 | 2026-11-17 | 1.11 | Coaching review follow-up: PRG-4 rules (8 weigh-ins, waist supports only, small change with good adherence, 100–150 / 200–250 kcal steps), PRG-5 confidence factors, adequate vs target protein wording. |
 | 2026-11-17 | 1.10 | NUT-8: protein "enough" from 1.6 g/kg, meal line, 4/4/9 note (coaching review). |

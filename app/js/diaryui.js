@@ -50,6 +50,7 @@
           '<circle class="rt" cx="60" cy="60" r="50"/><circle class="rp" cx="60" cy="60" r="50" stroke="url(#ring-g)" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - share)).toFixed(1) + '" transform="rotate(-90 60 60)"/></svg>' +
           '<div class="ringtxt"><b>' + fmt(Math.abs(v.kcal.left)) + '</b><span>kcal ' + (over ? 'over' : 'left') + '</span></div></div>' +
         '<div class="heromacros">' + macro('Protein', v.protein) + macro('Carbs', v.carbs) + macro('Fat', v.fat) + macro('Fiber', v.fiber) + '</div></div>' +
+        (over && v.kcal.left < -tg.kcal * 0.05 ? '<p class="small muted overnote">Over today. One day barely moves your trend; your weekly average is what counts.</p>' : '') +
         '<div class="row herofoot"><span class="small muted">' + (t.entries && Math.abs(v.kcal.left) <= tg.kcal * 0.05 ? '<b class="ontarget">On target</b> · ' : '') + fmt(t.kcal) + ' eaten · target ' + fmt(tg.kcal) +
           (t.entries && !(t.coverage.fiber >= 1) ? ' · fiber known for ' + Math.round((t.coverage.fiber || 0) * 100) + '%' : '') + '</span>' +
           (t.entries ? '<button type="button" class="link" data-a="nutrients">Nutrients</button>' : '') + '</div></section>';
@@ -132,7 +133,8 @@
       var lastW = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort().pop() || null;
       var first = (S.rows.phases || []).filter(function (p) { return !p.deleted; }).map(function (p) { return p.start_date; }).sort()[0] || null;
       var tgt = targetsFor(today), tci = (tgt && tgt.calc_inputs) || {};
-      var i = root.LW.home.insight({ adequateProtein: tgt ? root.LW.calc.macros.proteinEnough(Number(tgt.protein_g), Number(tci.kg), Number(tci.cm)) : null, minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: tgt, lastWeighDate: lastW, firstUseDate: first });
+      var lastLog = (S.rows.diary || []).reduce(function (m, e) { return !e.deleted && e.date < today && (!m || e.date > m) ? e.date : m; }, null);
+      var i = root.LW.home.insight({ lastLogDate: lastLog, adequateProtein: tgt ? root.LW.calc.macros.proteinEnough(Number(tgt.protein_g), Number(tci.kg), Number(tci.cm)) : null, minutes: now.getHours() * 60 + now.getMinutes(), today: today, totals: DY.totals(entriesOn(today)), target: tgt, lastWeighDate: lastW, firstUseDate: first });
       if (!i) return '';
       return '<section class="card slim tip"><span class="chip"><i></i>Tip</span><div><b>' + esc(i.title) + '</b><p class="small muted">' + esc(i.text) + '</p></div></section>';
     }

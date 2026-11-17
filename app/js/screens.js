@@ -16,7 +16,7 @@
   var PREFS = ['Vegetarian', 'Vegan', 'Pescatarian', 'Dairy-free', 'Gluten-free', 'Nut-free', 'Halal', 'Kosher'];
   var BF_SOURCES = [['guess', 'Guess'], ['scale', 'Smart scale'], ['calipers', 'Calipers'], ['dexa', 'DEXA'], ['other', 'Other']];
   // Status pills: the words carry the meaning; a small dot adds color (never the only signal, §9).
-  var SIGNAL = { 'on-track': ['dot ok', 'On track'], watch: ['dot watch', 'Watch'], 'off-track': ['dot watch', 'Off track'], collecting: ['dot wait', 'Collecting data'] };
+  var SIGNAL = { 'on-track': ['dot ok', 'On track'], watch: ['dot watch', 'Watch'], 'off-track': ['dot watch', 'Needs a look'], collecting: ['dot wait', 'Collecting data'] };
 
   function create(ctx) {
     var S = ctx.state, esc = ctx.esc;

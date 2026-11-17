@@ -71,3 +71,29 @@ test('C4: the maintenance check skips the first 14 days of a phase; changes unde
   // a phase that began 14+ days before the window start is fine
   assert.equal(MT.check(Object.assign({}, input, { previousTdee: 2700, phaseStart: core.addDays(start, -14) })).state, 'proposed');
 });
+
+test('D4: the waist averages 2 readings at each end; under 1 cm is flat', () => {
+  const w = []; for (let i = 0; i < 20; i++) w.push({ date: core.addDays('2026-09-01', i), kg: 80 });
+  const read = (cms) => P.read({ phase: { type: 'cut', startDate: '2026-09-01', expectedWeeklyPct: -0.5 }, today: '2026-09-20', weights: w, lifts: {},
+    waist: cms.map((cm, i) => ({ date: core.addDays('2026-09-01', i * 5), cm })) }).signals.find((s) => s.id === 'waist');
+  // one off reading at the end (89): (90 + 90) / 2 = 90 → (90.2 + 89) / 2 = 89.6 → −0.4 cm → flat (watch on a cut), not "falling"
+  const one = read([90, 90, 90.2, 89]);
+  assert.ok(Math.abs(one.changeCm + 0.4) < 1e-9, String(one.changeCm)); assert.equal(one.status, 'watch'); assert.match(one.value, /average of 2 readings at each end/);
+  // a real drop: (90 + 89.8) / 2 = 89.9 → (88.6 + 88.4) / 2 = 88.5 → −1.4 cm → on track
+  assert.equal(read([90, 89.8, 88.6, 88.4]).status, 'on-track');
+  // two readings, 0.8 cm apart: under the 1 cm tape noise → flat
+  assert.equal(read([90, 89.2]).status, 'watch');
+});
+
+test('wording: gentle "log more", and a welcome back after 5+ days away', () => {
+  const s = step('cut', [weight(-0.1, -0.5, 'off-track')], { loggedDays14: 7 });
+  assert.equal(s.title, 'More complete days will sharpen this');
+  assert.match(s.why[0], /^Your logs cover 7 of the last 14 days\. More complete days make this advice more accurate/);
+  const H = require('../js/home.js');
+  const tg = { kcal: 2000, protein_g: 150, fiber_g: 28 }, none = { entries: 0, protein_g: 0, nutrients: {}, coverage: {} };
+  const wb = H.insight({ today: '2026-11-20', minutes: 9 * 60, totals: none, target: tg, lastLogDate: '2026-11-14', lastWeighDate: '2026-11-19' });
+  assert.equal(wb.id, 'welcome-back'); assert.match(wb.text, /nothing to catch up on/);
+  // 4 days away, or something already logged today → no welcome back
+  assert.equal(H.insight({ today: '2026-11-20', minutes: 9 * 60, totals: none, target: tg, lastLogDate: '2026-11-16', lastWeighDate: '2026-11-19' }), null);
+  assert.equal(H.insight({ today: '2026-11-20', minutes: 9 * 60, totals: { entries: 1, protein_g: 30, nutrients: {}, coverage: {} }, target: tg, lastLogDate: '2026-11-10', lastWeighDate: '2026-11-19' }), null);
+});

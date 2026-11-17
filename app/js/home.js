@@ -17,15 +17,20 @@
   var core = node ? require('./calc/core.js') : root.LW.calc.core;
   var fmt = core.fmt;
 
-  var EVENING_MIN = 18 * 60, PROTEIN_LOW = 0.6, FIBER_LOW = 0.5, NO_WEIGH_DAYS = 7;
+  var EVENING_MIN = 18 * 60, PROTEIN_LOW = 0.6, FIBER_LOW = 0.5, NO_WEIGH_DAYS = 7, AWAY_DAYS = 5;
 
   /**
    * i: { minutes (since midnight), today, totals (diary.totals), target ({ protein_g, fiber_g } or null),
-   *      lastWeighDate (or null), firstUseDate (or null) }
+   *      lastWeighDate (or null), firstUseDate (or null), lastLogDate? (last day with food logged before today) }
+   * After 5+ days without logging, a one-off welcome back comes first, until something is logged today.
    * Returns { id, title, text, action: { a, label } } or null.
    */
   function insight(i) {
     var t = i.totals, tg = i.target;
+    if (i.lastLogDate && (!t || !t.entries) && core.daysBetween(i.lastLogDate, i.today) >= AWAY_DAYS) {
+      return { id: 'welcome-back', title: 'Welcome back',
+        text: 'Pick up from today; there\'s nothing to catch up on. Days you didn\'t log simply don\'t count toward your averages.', action: { a: 'addto', label: 'Log food' } };
+    }
     if (tg && t && t.entries > 0 && i.minutes >= EVENING_MIN) {
       if (tg.protein_g > 0 && t.protein_g < tg.protein_g * PROTEIN_LOW) {
         // Counted toward the adequate amount (1.6 g/kg) when it's known, the same line the ✓ uses (audit D5).

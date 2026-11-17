@@ -174,9 +174,11 @@ test('lean bulk waist: no faster than 1 cm per kg gained', () => {
   const read = (cm) => P.read({ phase: { type: 'bulk', startDate: '2026-09-01', expectedWeeklyPct: 0.25 }, today: '2026-09-30', weights: w,
     waist: [{ date: '2026-09-01', cm: 80 }, { date: '2026-09-30', cm }] }).signals.find((s) => s.id === 'waist');
   const ok = read(81);
-  assert.equal(ok.status, 'on-track');          // +1 cm ≤ ~1.2 kg × 1 cm + 0.5 cm noise
+  assert.equal(ok.status, 'on-track');          // +1 cm ≤ ~1.2 kg × 1 cm + 1 cm noise
   assert.ok(ok.gainedKg > 1 && ok.gainedKg < 1.5, String(ok.gainedKg));
-  assert.equal(read(83).status, 'off-track');    // +3 cm, well past 1.5 × the allowed ~1.7 cm
+  // allowed now ≈ 1.2 kg × 1 cm + 1 cm tape noise = 2.2 cm: +3 cm is within 1.5 × (3.3) → watch; +4 cm → off track
+  assert.equal(read(83).status, 'watch');
+  assert.equal(read(84).status, 'off-track');
 });
 
 test('maintenance: within ±1.5% of the phase-start weight', () => {
@@ -243,13 +245,13 @@ test('the progress read speaks the user\'s units (US: lb and in)', () => {
   const weights = []; for (let i = 0; i < 20; i++) weights.push({ date: `2026-11-${String(i + 1).padStart(2, '0')}`, kg: 80 });
   const input = { phase: { type: 'recomp', startDate: '2026-11-01' }, today: '2026-11-20', weights, waist: [{ date: '2026-11-02', cm: 90 }, { date: '2026-11-18', cm: 87.46 }], lifts: {} };
   const us = P.read(input, { units: 'us' });
-  // waist 87.46 − 90 = −2.54 cm = −1.0 in; the 0.5 cm noise band = 0.2 in
+  // waist 87.46 − 90 = −2.54 cm = −1.0 in; the 1 cm noise band = 0.4 in
   assert.match(us.signals[0].value, /lb a week/);
   assert.equal(us.signals[1].value, '−1.0 in since Nov\u00a02');
-  assert.match(us.signals[1].rule, /under 0\.2 in count as flat/);
+  assert.match(us.signals[1].rule, /under 0\.4 in count as flat/);
   assert.match(us.summary, /waist −1\.0 in/);
   const metric = P.read(input);
-  assert.match(metric.signals[1].value, /−2\.5 cm/); assert.match(metric.signals[1].rule, /under 0\.5 cm/);
+  assert.match(metric.signals[1].value, /−2\.5 cm/); assert.match(metric.signals[1].rule, /under 1\.0 cm/);
 });
 
 test('dates for people: month and day, the year only when it differs', () => {
