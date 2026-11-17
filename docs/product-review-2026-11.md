@@ -82,7 +82,7 @@ Recomputing from macros would make most foods *less* accurate.
 ## 7. Proposed order
 
 1. **This release (v0.18.4):** C1–C3.
-2. **Next:** recipes, after the PRD update and owner OK.
+2. **v0.19.0:** recipes (LOG-11) — built.
 3. "4/4/9" note on food details; recalculation prompt after big weight change.
 4. "Is it working?" card on Progress.
 5. Beta feedback, name checks, launch (M8 → M9).

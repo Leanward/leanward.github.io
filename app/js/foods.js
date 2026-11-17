@@ -87,7 +87,7 @@
   /** The badge text for a result (FDB-1): verified USDA generic, USDA branded, or community. */
   function badge(food) {
     if (food.verification === 'community' || food.source === 'off') return { text: 'Community', kind: 'community' };
-    if (food.source === 'custom') return { text: 'Yours', kind: 'user' };
+    if (food.source === 'custom') return { text: food.recipe ? 'Recipe' : 'Yours', kind: 'user' };
     if (food.source === 'usda-branded') return { text: 'Branded · USDA', kind: 'verified' };
     return { text: 'USDA', kind: 'verified' };
   }

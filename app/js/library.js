@@ -74,12 +74,16 @@
   /** A custom-food row as a food (the same shape as catalog foods). */
   function foodOfCustom(row) {
     var p = row.nutrients_per_100g || {}, sv = row.servings || [];
-    return {
+    var f = {
       id: 'custom:' + row.id, rowId: row.id, source: 'custom', verification: 'user', name: row.name, brand: row.brand || null,
       gtin: row.barcode || null, kcal: Number(p.kcal), protein_g: Number(p.protein_g), carbs_g: Number(p.carbs_g), fat_g: Number(p.fat_g),
       per: p.per === 'ml' ? 'ml' : 'g', serving_g: sv[0] ? Number(sv[0].g) : null, serving_label: sv[0] ? sv[0].label : null,
-      serving_raw: sv[0] && sv[0].raw != null ? sv[0].raw : null, servings: sv.slice(1), nutrients: p.nutrients || {}
+      serving_raw: sv[0] && sv[0].raw != null ? sv[0].raw : null, servings: sv.slice(1), nutrients: p.nutrients || {},
+      recipe: row.recipe ? true : undefined
     };
+    // A recipe without a servings count has no "serving": its only extra unit is the whole recipe.
+    if (row.recipe && !(row.recipe.servings > 1)) { f.serving_g = null; f.serving_label = null; f.serving_raw = null; f.servings = sv; }
+    return f;
   }
 
   /**

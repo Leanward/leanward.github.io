@@ -164,6 +164,10 @@ create table if not exists public.lw_custom_foods (
   servings           jsonb not null default '[]'::jsonb check (pg_column_size(servings) < 16384),
   primary key (user_id, id)
 );
+-- Recipes (LOG-11, v0.19): a recipe is one of your foods plus its ingredients and finished weight.
+alter table public.lw_custom_foods add column if not exists recipe jsonb;
+alter table public.lw_custom_foods drop constraint if exists lw_custom_foods_recipe_size;
+alter table public.lw_custom_foods add constraint lw_custom_foods_recipe_size check (recipe is null or pg_column_size(recipe) < 131072);
 
 -- Saved meal: a named list of items (food ref, quantity, unit).
 create table if not exists public.lw_saved_meals (
