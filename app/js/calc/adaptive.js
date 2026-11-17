@@ -60,7 +60,11 @@
 
     var series = trend.trendSeries(input.weights, { endDate: end });
     var at = function (d) { var r = series.filter(function (x) { return x.date <= d; }); return r[r.length - 1].trendKg; };
-    var t0 = at(start), t1 = at(end), days = core.daysBetween(start, end);   // 20 days of change between the two trend points
+    // The trend starts at the window's first day, or at the first weigh-in when there's none before it
+    // (a new user). Without this the check failed for anyone whose first weigh-in fell inside the window
+    // (found by the simulated users, tests/sim.test.js).
+    var from = series[0].date > start ? series[0].date : start;
+    var t0 = at(from), t1 = at(end), days = core.daysBetween(from, end);   // normally 20 days of change between the two trend points
     var dKg = t1 - t0;
     var meanIntake = complete.reduce(function (s, d) { return s + d.kcal; }, 0) / complete.length;
     var raw = meanIntake - dKg * targets.KCAL_PER_KG / days;
@@ -73,7 +77,7 @@
     var perUnit = us ? fmt(targets.KCAL_PER_KG * core.KG_PER_LB) : fmt(targets.KCAL_PER_KG);
     var steps = [
       'Average intake on ' + complete.length + ' fully logged days: ' + fmt(meanIntake) + ' kcal',
-      'Trend weight ' + start + ' → ' + end + ': ' + fmt(w(t0), us ? 1 : 2) + ' → ' + fmt(w(t1), us ? 1 : 2) + ' ' + wu + ' (' + core.fmtSigned(w(dKg), 2) + ' ' + wu + ')',
+      'Trend weight ' + from + ' → ' + end + ': ' + fmt(w(t0), us ? 1 : 2) + ' → ' + fmt(w(t1), us ? 1 : 2) + ' ' + wu + ' (' + core.fmtSigned(w(dKg), 2) + ' ' + wu + ')',
       'Estimated maintenance: ' + fmt(meanIntake) + ' − (' + core.fmtSigned(w(dKg), 2) + ' ' + wu + ' × ' + perUnit + ' ÷ ' + days + ' days) = ' + fmt(raw) + ' kcal',
       'Blended 70% new, 30% previous (' + fmt(prev) + '): ' + fmt(blended) + ' kcal'
     ];
