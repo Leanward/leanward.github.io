@@ -1,5 +1,5 @@
 /* Leanward — the add sheet: Recent and Frequent (LOG-2), Find a food (LOG-3), your own foods
- * (LOG-8, FDB-5), saved meals (LOG-9), Quick add (LOG-7), food detail with amount, unit and meal
+ * (LOG-8, FDB-5), recipes (LOG-11), saved meals (LOG-9), Quick add (LOG-7), food detail with amount, unit and meal
  * (NUT-5, LOG-5, FDB-1/3/5) and barcode scanning with "Create this food" (LOG-4).
  * Opened from the global + button or a Diary slot's +. Logging writes a diary entry (js/diary.js).
  * Barcode scanning uses ZXing (js/vendor/zxing.min.js, Apache-2.0), loaded the first time you scan.
@@ -7,7 +7,7 @@
 (function (root) {
   'use strict';
 
-  var FD = root.LW.foods, DY = root.LW.diary, L = root.LW.library, fmt = root.LW.calc.core.fmt, doc = root.document;
+  var FD = root.LW.foods, DY = root.LW.diary, L = root.LW.library, RC = root.LW.recipe, fmt = root.LW.calc.core.fmt, doc = root.document;
 
   var NUTRIENTS = DY.NUTRIENTS;   // id, label, unit, group (js/diary.js)
   var ISSUES = [['wrong-nutrients', 'Wrong nutrients'], ['wrong-serving', 'Wrong serving size'], ['wrong-name', 'Wrong name or brand'], ['duplicate', 'Duplicate'], ['other', 'Something else']];
@@ -41,13 +41,13 @@
         (prominent ? '<p class="small muted">Searches Open Food Facts, a public database with millions of products. Only the words you typed are sent.</p>' : '');
     }
     function resultsHtml() {
-      var a = S.sheet, mine = L.matchCustom(S.rows.customs, a.q);
+      var a = S.sheet, mine = L.matchCustom(S.rows.customs, a.q).filter(function (f) { return !(a.pick && f.recipe); });
       var own = mine.length ? '<span class="sec">Your foods</span><div class="list">' + mine.map(resultRow).join('') + '</div>' : '';
       var logged = DY.matchLogged(S.rows.diary, a.q, 5);
       if (logged.length) own = '<span class="sec">Logged before</span><div class="list">' + logged.map(function (e) { return loggedRow(e); }).join('') + '</div>' + own;
-      var meals = L.matchMeals(S.rows.meals, a.q);
+      var meals = a.pick ? [] : L.matchMeals(S.rows.meals, a.q);
       if (meals.length) own += '<span class="sec">Your saved meals</span><div class="list">' + meals.map(mealRow).join('') + '</div>';
-      var create = '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
+      var create = a.pick ? '' : '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
       if (a.error) return own + '<p class="small warn">' + esc(a.error) + '</p>' + onlineHtml(false) + create;
       if (a.q.trim().length < 2) return '<p class="small muted">Type at least 2 letters, or scan a barcode.</p>';
       if (a.loading && !a.results.length) return own + '<p class="small muted">Searching…</p>';
@@ -62,9 +62,9 @@
     }
     function recentHtml() {
       var all = S.rows.diary || [], rec = DY.recents(all, 12), freq = DY.frequents(all, ctx.today(), 30, 5);
-      var mine = L.matchCustom(S.rows.customs, '');
-      var own = '<span class="sec">Your foods</span>' + (mine.length ? '<div class="list">' + mine.slice(0, 8).map(resultRow).join('') + '</div>' : '<p class="small muted">Foods you create from a label (or copy and correct) are private to you.</p>') +
-        '<button type="button" class="btn ghost block" data-a="cfnew">Create a food</button>';
+      var mine = L.matchCustom(S.rows.customs, '').filter(function (f) { return !(S.sheet.pick && f.recipe); });
+      var own = '<span class="sec">Your foods and recipes</span>' + (mine.length ? '<div class="list">' + mine.slice(0, 8).map(resultRow).join('') + '</div>' : '<p class="small muted">Foods you create from a label (or copy and correct), and recipes you build, are private to you.</p>') +
+        (S.sheet.pick ? '' : '<div class="grid2"><button type="button" class="btn ghost block" data-a="cfnew">Create a food</button><button type="button" class="btn ghost block" data-a="rcnew">Create a recipe</button></div>');
       if (!rec.length) return '<p class="small muted">Foods you log show up here, so you can add them again in one tap, even offline.</p>' + own;
       var row = loggedRow;
       return (freq.length ? '<span class="sec">Frequent</span><div class="list">' + freq.map(function (f) { return row(f.entry, ' · ' + f.count + '× this month'); }).join('') + '</div>' : '') +
@@ -83,6 +83,11 @@
     function addView() {
       var a = S.sheet, online = root.navigator.onLine !== false;
       var tabs = '<div class="seg">' + [['foods', 'Foods'], ['meals', 'Meals'], ['quick', 'Quick add']].map(function (t) { return '<button type="button" data-a="addtab" data-v="' + t[0] + '" aria-pressed="' + (a.tab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>';
+      if (a.pick) return wrap('Add an ingredient',
+        '<div class="row"><h2>Add an ingredient</h2><button type="button" class="btn ghost sm" data-a="rcback">Back to recipe</button></div>' +
+        '<input type="search" id="fd-q" placeholder="Search foods (e.g. chickpeas canned, olive oil)" value="' + esc(a.q) + '" autocomplete="off" aria-label="Search foods" enterkeyhint="search">' +
+        (online ? '' : '<p class="small warn">You\'re offline. Search needs a connection; your recent foods below still work.</p>') +
+        '<div id="fd-results">' + (a.q.trim().length < 2 ? recentHtml() : resultsHtml()) + '</div>', ' tall');
       if (a.tab === 'quick') return wrap('Quick add', '<div class="row"><h2>Add to ' + esc(where()) + '</h2></div>' + tabs + quickHtml(), ' tall');
       if (a.tab === 'meals') return wrap('Saved meals', '<div class="row"><h2>Add to ' + esc(where()) + '</h2></div>' + tabs + mealsHtml(), ' tall');
       return wrap('Find a food',
@@ -148,8 +153,9 @@
             return '<button type="button" data-a="lgunit" data-v="' + i + '" aria-pressed="' + (i === ui) + '">' + esc(x.label) + '</button>';
           }).join('') + '</div></div></div>' +
         '<div class="targets" id="lg-tiles" aria-live="polite">' + tiles(f, qty, u) + '</div>' +
-        slotChips(d.slot) +
-        '<button type="button" class="btn block" data-a="logfood">Add to ' + esc(ctx.slotLabel(d.slot) + (d.date !== ctx.today() ? ', ' + ctx.dayName(d.date) : '')) + '</button>' +
+        (d.pick ? '<button type="button" class="btn block" data-a="rcput">Add to ' + esc(d.pick.r.name || 'recipe') + '</button>'
+          : slotChips(d.slot) + '<button type="button" class="btn block" data-a="logfood">Add to ' + esc(ctx.slotLabel(d.slot) + (d.date !== ctx.today() ? ', ' + ctx.dayName(d.date) : '')) + '</button>') +
+        (f.recipe ? recipeFacts(f) : '') +
         '<details data-keep="facts"' + (d.facts ? ' open' : '') + '><summary>Nutrition facts</summary>' +
           (f.serving_g ? '<div class="seg" style="margin-top:8px">' + [['100', 'Per 100 ' + per], ['serving', 'Per serving']].map(function (o) { return '<button type="button" data-a="fdbasis" data-v="' + o[0] + '" aria-pressed="' + ((d.basis || '100') === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
           '<p class="small muted">' + esc(label) + ': ' + fmt(v.kcal) + ' kcal · protein ' + fmt(v.protein_g, 1) + ' g · carbs ' + fmt(v.carbs_g, 1) + ' g · fat ' + fmt(v.fat_g, 1) + ' g</p>' +
@@ -159,10 +165,49 @@
           '<p class="small muted">Source: ' + esc(src) + (f.source_id ? ' (FoodData Central #' + esc(f.source_id) + ')' : '') + (f.gtin ? ' · barcode ' + esc(f.gtin.replace(/^0+(?=\d{12})/, '')) : '') + '. ' +
             (/^usda/.test(f.source) ? 'USDA data: public domain.' : f.source === 'custom' ? 'Only you can see it.' : '') + '</p>' +
           (f.attribution ? '<p class="small muted">' + esc(f.attribution) + '</p>' : '') + '</details>' +
-        (f.source === 'custom' ? '<button type="button" class="btn ghost block" data-a="cfedit">Edit this food</button>'
+        (d.pick ? '' : f.recipe ? '<button type="button" class="btn ghost block" data-a="rcedit">Edit this recipe</button>' : f.source === 'custom' ? '<button type="button" class="btn ghost block" data-a="cfedit">Edit this food</button>'
           : (d.reporting ? reportForm() : '<div class="linkrow"><button type="button" class="link" data-a="fdreport">Report a problem</button><button type="button" class="link" data-a="cfcopy">Make my own copy</button></div>')) +
         (d.back ? '<button type="button" class="btn ghost block" data-a="fdback">Back to results</button>' : ''), ' tall');
     }
+    /** What's in a recipe, under its amount: the finished weight and the ingredients. */
+    function recipeFacts(f) {
+      var row = (S.rows.customs || []).filter(function (r) { return r.id === f.rowId; })[0], rc = row && row.recipe;
+      if (!rc) return '';
+      return '<details data-keep="rcfacts"><summary>In this recipe (' + rc.items.length + ')</summary><div class="list">' + rc.items.map(function (it) {
+        return '<div class="item"><span><span class="t">' + esc(DY.calmName(it.name)) + '</span><span class="s">' + esc(fmt(it.qty, it.qty % 1 ? 1 : 0) + ' ' + it.unit) + (it.unit === 'g' ? '' : ' (' + fmt(it.g) + ' g)') + '</span></span><span class="k">' + fmt(DY.amountsFor(it.per100, it.g).kcal) + ' kcal</span></div>';
+      }).join('') + '</div><p class="small muted">Whole recipe ' + fmt(rc.cooked_g) + ' g ' + (rc.cooked_given ? 'when finished' : '(the ingredients\' weight; weigh the finished dish for a truer number)') + (rc.servings > 1 ? ' · ' + rc.servings + ' servings' : '') + '.</p></details>';
+    }
+
+    /* ---------- recipes (LOG-11) ---------- */
+    function recipeView() {
+      var sh = S.sheet, r = sh.r, t = RC.totals(r.items), cooked = r.cookedG > 0 ? r.cookedG : t.rawG, per = cooked > 0 ? 100 / cooked : 0;
+      var numIn = function (id, k, label, hint, ph) { return '<div class="field"><label for="' + id + '">' + label + (hint ? ' <span class="muted">' + hint + '</span>' : '') + '</label><input type="number" id="' + id + '" inputmode="decimal" step="any" data-r="' + k + '" value="' + (r[k] == null ? '' : r[k]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></div>'; };
+      var list = r.items.map(function (it, i) {
+        return '<div class="item"><span><span class="t">' + esc(DY.calmName(it.name)) + '</span><span class="s">' + fmt(DY.amountsFor(it.per100, it.g).kcal) + ' kcal' + (it.unit === 'g' ? '' : ' · ' + fmt(it.g) + ' g') + '</span></span>' +
+          '<span class="rcamt"><input type="number" inputmode="decimal" step="any" data-ri="' + i + '" value="' + it.qty + '" aria-label="Amount of ' + esc(it.name) + ' in ' + esc(it.unit) + '"><span class="small muted">' + esc(it.unit) + '</span>' +
+          '<button type="button" class="link quietdanger" data-a="rcdel" data-v="' + i + '" aria-label="Remove ' + esc(it.name) + '">✕</button></span></div>';
+      }).join('');
+      return wrap(sh.r.id ? 'Edit recipe' : 'Create a recipe',
+        '<div class="row"><h2>' + (sh.editing ? 'Edit recipe' : 'Create a recipe') + '</h2><button type="button" class="btn ghost sm" data-a="rccancel">Cancel</button></div>' +
+        '<div class="field"><label for="rc-name">Name</label><input type="text" id="rc-name" data-r="name" maxlength="200" value="' + esc(r.name || '') + '" placeholder="e.g. Chickpea kale bowl"></div>' +
+        '<span class="sec">Ingredients</span>' + (list ? '<div class="list">' + list + '</div>' : '<p class="small muted">Add what goes in, in raw or as-bought amounts.</p>') +
+        '<button type="button" class="btn ghost block" data-a="rcadd">+ Add an ingredient</button>' +
+        '<span class="sec">When it\'s done</span>' +
+        '<div class="grid2">' + numIn('rc-w', 'cookedG', 'Finished weight', 'g', t.rawG ? fmt(t.rawG) : '') + numIn('rc-s', 'servings', 'Servings', 'optional', 'e.g. 6') + '</div>' +
+        '<p class="small muted">Weigh the finished dish (take off the pot\'s weight). Cooking adds or loses water, not calories, so this is what makes "250 g of it" right. Blank uses the ingredients\' weight.</p>' +
+        '<div class="card" id="rc-out" aria-live="polite">' + recipeOut(r) + '</div>' +
+        (sh.err ? '<p class="small warn">' + esc(sh.err) + '</p>' : '') +
+        '<button type="button" class="btn block" data-a="rcsave">Save recipe</button>' +
+        (sh.editing ? '<button type="button" class="link quietdanger" data-a="rcdelete">Delete this recipe</button>' : ''), ' tall');
+    }
+    function recipeOut(r) {
+      var t = RC.totals(r.items), cooked = r.cookedG > 0 ? r.cookedG : t.rawG;
+      if (!t.rawG) return '<p class="small muted">Totals show here as you add ingredients.</p>';
+      var line = function (lab, f) { return '<div class="rcline"><span class="small muted">' + lab + '</span><b>' + fmt(t.kcal * f) + ' kcal · P ' + fmt(t.protein_g * f) + ' g · C ' + fmt(t.carbs_g * f) + ' g · F ' + fmt(t.fat_g * f) + ' g</b></div>'; };
+      return line('Whole recipe', 1) + (cooked > 0 ? line('Per 100 g', 100 / cooked) : '') + (r.servings > 1 ? line('Per serving (' + fmt(cooked / r.servings) + ' g)', 1 / r.servings) : '');
+    }
+    function openRecipe(r, extra) { S.sheet = Object.assign({ kind: 'recipe', r: r, err: '' }, extra); ctx.render(); }
+
     function reportForm() {
       var d = S.sheet;
       return '<div class="card" style="display:grid;gap:8px"><b>What\'s wrong?</b><div class="chips2">' + ISSUES.map(function (i) { return '<button type="button" data-a="fdissue" data-v="' + i[0] + '" aria-pressed="' + (d.issue === i[0]) + '">' + i[1] + '</button>'; }).join('') + '</div>' +
@@ -172,7 +217,9 @@
     function openFood(id, back, ctxs) {
       if (/^custom:/.test(id)) {
         var row = (S.rows.customs || []).filter(function (r) { return 'custom:' + r.id === id; })[0];
-        S.sheet = Object.assign({ kind: 'food', food: row ? L.foodOfCustom(row) : null, basis: row && row.servings && row.servings.length ? 'serving' : '100', back: back || null, error: row ? '' : 'This food was deleted.' }, ctxs);
+        var cf = row ? L.foodOfCustom(row) : null, plain = cf && cf.recipe && !cf.serving_g;
+        S.sheet = Object.assign({ kind: 'food', food: cf, basis: row && row.servings && row.servings.length && !plain ? 'serving' : '100', back: back || null, error: row ? '' : 'This food was deleted.' },
+          plain ? { unitIdx: DY.unitsFor(cf).map(function (u) { return u.label; }).indexOf('g'), qty: 100 } : null, ctxs);
         ctx.render(); return;
       }
       S.sheet = Object.assign({ kind: 'food', food: null, basis: '100', back: back || null }, ctxs);
@@ -325,15 +372,15 @@
       add: function () { var now = new Date(); S.sheet = false; openAdd(DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); },
       addto: function (slot) { var now = new Date(); S.sheet = false; openAdd(slot || DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); },
       addtab: function (v) { S.sheet.tab = v; ctx.render(); if (v === 'foods') focusSearch(); },
-      food: function (id) { var a = S.sheet, back = a && a.kind === 'add' ? { q: a.q, results: a.results, online: a.online } : null; openFood(id, back, { slot: a.slot, date: a.date, via: 'search' }); },
+      food: function (id) { var a = S.sheet, back = a && a.kind === 'add' ? { q: a.q, results: a.results, online: a.online } : null; openFood(id, back, { slot: a.slot, date: a.date, via: 'search', pick: a.pick || null }); },
       recent: function (id) {
         var a = S.sheet, e = (S.rows.diary || []).filter(function (x) { return x.id === id; })[0], f = e && DY.foodOfEntry(e);
         if (!f) return;
         var units = DY.unitsFor(f), lab = DY.unitLabelOf(e), ui = Math.max(0, units.map(function (u) { return u.label; }).indexOf(lab));
-        S.sheet = { kind: 'food', food: f, basis: '100', back: a.q ? { q: a.q, results: a.results || [], online: a.online } : { q: '', results: [] }, slot: a.slot, date: a.date, via: a.q ? 'search' : 'recent', qty: Number(e.qty) || 1, unitIdx: ui };
+        S.sheet = { kind: 'food', food: f, basis: '100', back: a.q ? { q: a.q, results: a.results || [], online: a.online } : { q: '', results: [] }, slot: a.slot, date: a.date, via: a.q ? 'search' : 'recent', qty: Number(e.qty) || 1, unitIdx: ui, pick: a.pick || null };
         ctx.render();
       },
-      fdback: function () { var b = S.sheet.back, sh = S.sheet; S.sheet = { kind: 'add', q: b.q, results: b.results, online: b.online, tab: 'foods', qa: {}, slot: sh.slot, date: sh.date }; ctx.render(); },
+      fdback: function () { var b = S.sheet.back, sh = S.sheet; S.sheet = { kind: 'add', q: b.q, results: b.results, online: b.online, tab: 'foods', qa: {}, slot: sh.slot, date: sh.date, pick: sh.pick || null }; ctx.render(); },
       fdbasis: function (v) { S.sheet.basis = v; S.sheet.facts = true; ctx.render(); },
       lgunit: function (v) { S.sheet.unitIdx = Number(v); ctx.render(); },
       slotpick: function (v) { if (S.sheet) { S.sheet.slot = v; ctx.render(); } },
@@ -381,6 +428,39 @@
         if (!root.confirm('Delete this food? Days you already logged keep it.')) return;
         ctx.remove('lw_custom_foods', c.editing).then(function () { ctx.toast('Food deleted'); openAdd(c.slot, c.date); });
       },
+      rcnew: function () { var a = S.sheet || {}; openRecipe({ id: null, name: a.kind === 'add' ? a.q.trim() : '', items: [], cookedG: null, servings: null }, { slot: a.slot, date: a.date }); },
+      rcedit: function () {
+        var d = S.sheet, row = (S.rows.customs || []).filter(function (r) { return r.id === d.food.rowId; })[0];
+        if (row) openRecipe(RC.editState(row), { editing: row.id, slot: d.slot, date: d.date });
+      },
+      rcadd: function () { var sh = S.sheet; S.sheet = { kind: 'add', q: '', results: [], tab: 'foods', qa: {}, slot: sh.slot, date: sh.date, pick: sh }; ctx.render(); focusSearch(); },
+      rcback: function () { S.sheet = S.sheet.pick; ctx.render(); },
+      rcput: function () {
+        var d = S.sheet, units = DY.unitsFor(d.food), u = units[d.unitIdx || 0], it;
+        try { it = RC.ingredientOf(d.food, d.qty == null ? 1 : d.qty, u); } catch (e) { ctx.toast(e.message); return; }
+        var rs = d.pick; rs.r.items = rs.r.items.concat([it]); rs.err = '';
+        S.sheet = rs; ctx.toast('Added ' + DY.calmName(it.name)); ctx.render();
+      },
+      rcdel: function (i) { var sh = S.sheet; sh.r.items = sh.r.items.filter(function (x, j) { return j !== Number(i); }); ctx.render(); },
+      rccancel: function () {
+        var sh = S.sheet;
+        if (sh.r.items.length && !sh.editing && !root.confirm('Discard this recipe?')) return;
+        S.sheet = false; openAdd(sh.slot, sh.date);
+      },
+      rcsave: function () {
+        var sh = S.sheet, b, old = sh.editing && (S.rows.customs || []).filter(function (r) { return r.id === sh.editing; })[0];
+        try { b = RC.build(sh.r, new Date().toISOString()); } catch (e) { sh.err = e.message; ctx.render(); return; }
+        var row = old ? Object.assign({}, old, b.row) : b.row;
+        ctx.save([['lw_custom_foods', row]]).then(function () {
+          ctx.toast(old ? 'Recipe saved' : 'Recipe created'); S.sheet = { kind: 'add', q: '', results: [], tab: 'foods', qa: {}, slot: sh.slot, date: sh.date };
+          openFood('custom:' + row.id, { q: '', results: [] }, { slot: sh.slot, date: sh.date, via: 'search' });
+        }, function (e) { sh.err = 'Couldn\'t save: ' + (e && e.message); ctx.render(); });
+      },
+      rcdelete: function () {
+        var sh = S.sheet;
+        if (!root.confirm('Delete this recipe? Days you already logged keep it.')) return;
+        ctx.remove('lw_custom_foods', sh.editing).then(function () { ctx.toast('Recipe deleted'); openAdd(sh.slot, sh.date); });
+      },
       meal: function (id) { var a = S.sheet; S.sheet = { kind: 'meal', id: id, factor: 1, slot: a.slot, date: a.date }; ctx.render(); },
       mealfactor: function (v) { S.sheet.factor = Number(v); ctx.render(); },
       mealback: function () { var m = S.sheet; S.sheet = { kind: 'add', q: '', results: [], tab: 'meals', qa: {}, slot: m.slot, date: m.date }; ctx.render(); },
@@ -426,6 +506,15 @@
         if (chk) chk.textContent = checkText(f);
         return true;
       }
+      if (sh.kind === 'recipe' && (el.dataset.r || el.dataset.ri != null)) {
+        var raw = el.value.trim();
+        if (el.dataset.r === 'name') sh.r.name = el.value;
+        else if (el.dataset.r) sh.r[el.dataset.r] = raw === '' ? null : Number(raw);
+        else { var i = Number(el.dataset.ri), q2 = Number(raw); if (raw !== '' && q2 > 0) sh.r.items[i] = RC.withQty(sh.r.items[i], q2); }
+        var out2 = doc.getElementById('rc-out');
+        if (out2) out2.innerHTML = recipeOut(sh.r);
+        return true;
+      }
       if (el.dataset.q) { var v = el.value.trim(); sh.qa[el.dataset.q] = el.dataset.q === 'label' ? el.value : (v === '' ? null : Number(v)); return true; }
       if (el.dataset.l === 'qty' && sh.kind === 'food') {
         sh.qty = el.value.trim() === '' ? null : Number(el.value);
@@ -444,7 +533,7 @@
     }
     function sheetView() {
       var k = S.sheet && S.sheet.kind;
-      return k === 'add' ? addView() : k === 'food' ? detailView() : k === 'scan' ? scanView() : k === 'custom' ? customView() : k === 'meal' ? mealView() : null;
+      return k === 'add' ? addView() : k === 'food' ? detailView() : k === 'scan' ? scanView() : k === 'custom' ? customView() : k === 'meal' ? mealView() : k === 'recipe' ? recipeView() : null;
     }
     return { actions: actions, onInput: onInput, sheetView: sheetView, stop: stopCamera };
   }

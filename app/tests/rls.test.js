@@ -23,7 +23,7 @@ const SAMPLE = {
   lw_goals: { type: "'lose-fat'", started_on: "'2026-11-01'" },
   lw_phases: { type: "'cut'", start_date: "'2026-11-01'", rate: '0.5', calc_version: "'1.0.0'" },
   lw_target_sets: { phase_id: "'p1'", effective_from: "'2026-11-01'", kcal: '2310', protein_g: '176', carbs_g: '246', fat_g: '69', origin: "'calculated'", calc_version: "'1.0.0'" },
-  lw_custom_foods: { name: "'Overnight oats'", nutrients_per_100g: `'{"kcal":150}'` },
+  lw_custom_foods: { name: "'Overnight oats'", nutrients_per_100g: `'{"kcal":150}'`, recipe: `'{"items":[],"cooked_g":1500}'` },
   lw_saved_meals: { name: "'Breakfast'", items: "'[]'" },
   lw_diary_entries: { date: "'2026-11-03'", slot: "'breakfast'", food_source: "'quick'", name: "'Quick add'", kcal: '450', logged_via: "'quick'" },
   lw_weights: { measured_at: "'2026-11-03T07:10:00Z'", date: "'2026-11-03'", kg: '80.4' },

@@ -281,3 +281,8 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .dvp { display: block; font-size: 14px; font-weight: 700; }
 .dvp.met { color: var(--ok); } .dvp.over { color: var(--bad); }
 .dvkey .dv { display: inline-block; width: 36px; vertical-align: middle; margin: 0 4px 0 0; }
+
+/* Recipe ingredients: amount box beside each one */
+.rcamt { display: inline-flex; align-items: center; gap: 6px; }
+.rcamt input { width: 68px; padding: 6px 8px; text-align: right; }
+.rcline { display: grid; gap: 1px; padding: 4px 0; } .rcline b { font-size: 14px; }
