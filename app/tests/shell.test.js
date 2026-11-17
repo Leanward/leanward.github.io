@@ -88,3 +88,17 @@ test('no secret keys are committed', () => {
   });
   assert.match(config.SUPABASE_KEY, /^sb_publishable_/);
 });
+
+test('Content-Security-Policy: scripts from this site only; network only to the known hosts (audit D6)', () => {
+  const fs = require('fs'), path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const m = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/);
+  assert.ok(m, 'index.html has a CSP');
+  const csp = Object.fromEntries(m[1].split(';').map((d) => d.trim().split(/\s+/)).map((p) => [p[0], p.slice(1)]));
+  assert.deepEqual(csp['script-src'], ["'self'"]);
+  assert.deepEqual(csp['object-src'], ["'none'"]);
+  const cfg = fs.readFileSync(path.join(__dirname, '..', 'js', 'config.js'), 'utf8');
+  for (const host of cfg.match(/https:\/\/[a-z0-9]+\.supabase\.co/g)) assert.ok(csp['connect-src'].includes(host), host + ' allowed');
+  assert.ok(!/<script>/.test(html) && !/ on[a-z]+="/.test(html), 'no inline scripts or handlers for the CSP to block');
+  for (const p of ['privacy.html', 'terms.html']) assert.match(fs.readFileSync(path.join(__dirname, '..', p), 'utf8'), /script-src 'none'/);
+});
