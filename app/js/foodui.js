@@ -13,7 +13,7 @@
   var ISSUES = [['wrong-nutrients', 'Wrong nutrients'], ['wrong-serving', 'Wrong serving size'], ['wrong-name', 'Wrong name or brand'], ['duplicate', 'Duplicate'], ['other', 'Something else']];
 
   function create(ctx) {
-    var S = ctx.state, esc = ctx.esc, timer = null, seq = 0, reader = null, scanStart = 0;
+    var S = ctx.state, esc = ctx.esc, timer = null, autoTimer = null, seq = 0, reader = null, scanStart = 0;
 
     function wrap(title, body, extra) {
       return '<div class="scrim" data-a="close"></div><div class="sheet' + (extra || '') + '" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="grab"></div>' + body + '</div>';
@@ -28,7 +28,7 @@
         '<span class="s">' + (f.brand ? esc(f.brand) + ' · ' : '') + fmt(Number(f.kcal)) + ' kcal · P ' + fmt(Number(f.protein_g), 1) + ' g per 100 ' + per + serving + '</span></span>' +
         '<span class="badge ' + b.kind + '">' + b.text + '</span></button>';
     }
-    /** "Search online" (Open Food Facts), on request: a button, or its results for this query. */
+    /** "Search online" (Open Food Facts): a button, or its results for this query. Runs by itself when the catalog has no exact match (autoOnline). */
     function onlineHtml(prominent) {
       var a = S.sheet, o = a.online;
       if (o && o.q === a.q.trim()) {
@@ -109,10 +109,21 @@
       FD.search(a.q).then(function (rows) {
         if (my !== seq || !S.sheet || S.sheet.kind !== 'add') return;
         a.results = rows; a.loading = false; a.ms = Date.now() - started; paint();
+        autoOnline(a, my);
       }, function (e) {
         if (my !== seq || !S.sheet) return;
         a.loading = false; a.error = root.navigator.onLine === false ? 'You\'re offline. Food search needs a connection.' : 'Search didn\'t work: ' + (e && e.message); paint();
       });
+    }
+    /** No exact match in the catalog: search Open Food Facts too, once typing has paused (owner, v0.24). */
+    function autoOnline(a, my) {
+      var q = a.q.trim();
+      root.clearTimeout(autoTimer);
+      if (!FD.needsOnline(a.results, q) || root.navigator.onLine === false || (a.online && a.online.q === q)) return;
+      autoTimer = root.setTimeout(function () {
+        if (my !== seq || S.sheet !== a || a.q.trim() !== q || (a.online && a.online.q === q)) return;
+        actions.offsearch();
+      }, 1000);
     }
     function paint() { var box = doc.getElementById('fd-results'); if (box) box.innerHTML = S.sheet.q.trim().length < 2 ? recentHtml() : resultsHtml(); }
 
@@ -536,7 +547,7 @@
       }
       if (el.id !== 'fd-q' || sh.kind !== 'add') return false;
       S.sheet.q = el.value;
-      root.clearTimeout(timer);
+      root.clearTimeout(timer); root.clearTimeout(autoTimer);
       if (el.value.trim().length < 2) { S.sheet.results = []; seq++; paint(); return true; }
       timer = root.setTimeout(runSearch, 250);
       return true;

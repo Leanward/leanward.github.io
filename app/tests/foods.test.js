@@ -89,3 +89,12 @@ test('search: does a result have every word the person typed? (closest matches, 
   assert.equal(FD.hasAllWords({ name: 'Greek yogurt, plain' }, 'greek yog'), true);  // a half-typed word
   assert.deepEqual(FD.queryWords("Trader Joe's  b 2% milk"), ['trader', 'joe', 'milk']);
 });
+
+test('search: Open Food Facts runs by itself only when the catalog has no exact match (v0.24)', () => {
+  const FD = require('../js/foods.js');
+  const bagel = { name: 'Everything Bagels, Everything', brand: "Thomas'" };
+  assert.equal(FD.needsOnline([], 'quest overload'), true);                        // nothing in the catalog
+  assert.equal(FD.needsOnline([bagel], 'thomas everything protein bagels'), true);  // closest matches only
+  assert.equal(FD.needsOnline([bagel], 'thomas everything bagels'), false);         // an exact match
+  assert.equal(FD.needsOnline([], 'qu'), false);                                    // too short to send
+});
