@@ -215,7 +215,13 @@
     return next();
   }
 
-  var api = { queryWords: queryWords, hasAllWords: hasAllWords, OFF_ATTRIBUTION: OFF_ATTRIBUTION, offSearchUrl: offSearchUrl, fromOffSearch: fromOffSearch, offSearch: offSearch, SOURCE_LABEL: SOURCE_LABEL, fromOff: fromOff, offCodes: offCodes, scale: scale, badge: badge, search: search, get: get, byBarcode: byBarcode };
+  /** Search Open Food Facts too: 3+ letters typed and no catalog food has every word (none at all, or closest matches only). */
+  function needsOnline(results, q) {
+    if (String(q || '').trim().length < 3) return false;
+    return !(results || []).some(function (f) { return hasAllWords(f, q); });
+  }
+
+  var api = { queryWords: queryWords, hasAllWords: hasAllWords, needsOnline: needsOnline, OFF_ATTRIBUTION: OFF_ATTRIBUTION, offSearchUrl: offSearchUrl, fromOffSearch: fromOffSearch, offSearch: offSearch, SOURCE_LABEL: SOURCE_LABEL, fromOff: fromOff, offCodes: offCodes, scale: scale, badge: badge, search: search, get: get, byBarcode: byBarcode };
   if (node) module.exports = api;
   else { root.LW.foods = api; }
 })(this);
