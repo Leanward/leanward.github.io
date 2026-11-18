@@ -15,8 +15,8 @@
     var S = ctx.state, esc = ctx.esc;
 
     function units() { return (S.rows.profile && S.rows.profile.units) || 'us'; }
-    function range() { return S.progressRange || '4w'; }
-    function rangeLabel() { var r = ME.RANGES.filter(function (x) { return x.id === range(); })[0]; return r.id === 'all' ? 'all time' : 'last ' + r.label; }
+    function range() { return S.progressRange || '30d'; }
+    function rangeLabel() { var r = ME.RANGES.filter(function (x) { return x.id === range(); })[0]; if (r.name) return r.name; return r.id === 'all' ? 'all time' : 'last ' + r.label; }
     function day(iso, long) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', long ? { weekday: 'short', month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric' }).replace(/(\w{3}) (\d)/, '$1\u00a0$2'); }
     function nowTime() { var d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function timeOf(iso) { var d = new Date(iso); return isNaN(d) ? '12:00' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
@@ -164,13 +164,136 @@
         }).join('') + '</div><button type="button" class="btn block" data-a="liftssave">Save</button>');
     }
 
+    /* ---------- the tab (approved design): sub-tabs, Overview first ---------- */
+    var SUBTABS = [['overview', 'Overview', 'grid'], ['weight', 'Weight', 'trend'], ['strength', 'Strength', 'dumbbell'], ['nutrition', 'Nutrition', 'fork'], ['body', 'Body Comp', 'person']];
+    function sub() { return S.progressTab || 'overview'; }
+    function rangeSeg() {
+      return '<div class="rangeseg" role="group" aria-label="Time range">' + [['7d', '7D'], ['30d', '30D'], ['90d', '90D'], ['all', 'ALL']].map(function (r) {
+        return '<button type="button" data-a="prange" data-v="' + r[0] + '" aria-pressed="' + (range() === r[0]) + '">' + r[1] + '</button>'; }).join('') + '</div>';
+    }
     function view() {
-      var today = ctx.today(), first = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort()[0];
-      var from = ME.rangeStart(range(), today, first);
-      return '<header class="top"><h1>Progress</h1></header>' + (ctx.readCard ? ctx.readCard() : '') +
-        '<div class="seg">' + ME.RANGES.map(function (r) { return '<button type="button" data-a="prange" data-v="' + r.id + '" aria-pressed="' + (range() === r.id) + '">' + r.label + '</button>'; }).join('') + '</div>' +
-        weightCard(from, today) + measureCard(from, today) + liftsCard(from, today) + intakeCard(from, today) +
-        '<p class="small muted center">Dashed lines mark where a phase started.</p>';
+      var UI = root.LW.ui, today = ctx.today(), first = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort()[0];
+      var from = ME.rangeStart(range(), today, first), c = ctx.coach ? ctx.coach() : null, t = sub();
+      var head = UI.brandbar(UI.iconBtn('more', 'progmenu', 'More for Progress')) +
+        '<div class="ttlrow"><div><h1>Progress</h1><span class="sub">' + esc(c ? c.week : 'No phase yet') + '</span></div></div>' +
+        '<div class="subnav" role="tablist" aria-label="Progress sections">' + SUBTABS.map(function (x) {
+          return '<button type="button" role="tab" data-a="ptab" data-v="' + x[0] + '" aria-pressed="' + (t === x[0]) + '" aria-selected="' + (t === x[0]) + '">' + UI.icon(x[2]) + x[1] + '</button>'; }).join('') + '</div>';
+      if (t === 'weight') return head + '<div class="row" style="justify-content:flex-end">' + rangeSeg() + '</div>' + weightCard(from, today);
+      if (t === 'strength') return head + '<div class="row" style="justify-content:flex-end">' + rangeSeg() + '</div>' + liftsCard(from, today);
+      if (t === 'nutrition') return head + '<div class="row" style="justify-content:flex-end">' + rangeSeg() + '</div>' + intakeCard(from, today);
+      if (t === 'body') return head + '<div class="row" style="justify-content:flex-end">' + rangeSeg() + '</div>' + measureCard(from, today);
+      return head + summaryCard(c, today) + overviewChart(from, today) + intelProgress(c) +
+        '<div class="pairs">' + bodyCompCard() + trainingCard() + '</div>' + nutritionCard(c, today);
+    }
+    /** Current weight (the trend) and the phase's target pace. */
+    function summaryCard(c, today) {
+      var u = ME.weightUnit(units()), start = c ? c.phase.start_date : core.addDays(today, -27);
+      var v = ME.weightView(S.rows.weights, units(), start, today);
+      if (!v.latest) return '<section class="card sumcard"><div><span class="lab">Current weight</span><div class="big">—</div><span class="small muted">No weigh-ins yet</span></div><span class="vr"></span>' + phaseBlock(c, null) + '</section>';
+      var since = v.latest.trend - v.trend[0].v, good = c && ((c.phase.type === 'cut' && since < 0) || (c.phase.type === 'bulk' && since > 0));
+      return '<section class="card sumcard"><div><span class="lab">Current weight</span><div class="big">' + fmt(v.latest.trend, 1) + '<small>' + u + '</small></div>' +
+        '<span class="small' + (good ? ' good' : ' muted') + '">' + (Math.abs(since) < 0.05 ? 'No change' : (since < 0 ? '↓ ' : '↑ ') + fmt(Math.abs(since), 1) + ' ' + u) + '</span> <span class="small muted">since start</span></div>' +
+        '<span class="vr"></span>' + phaseBlock(c, v.latest.trend) + '</section>';
+    }
+    function phaseBlock(c, trendNow) {
+      if (!c) return '<div><span class="lab">Phase target</span><div class="small muted">Set up a phase</div></div>';
+      var u = ME.weightUnit(units()), pace = c.plannedPct && trendNow ? c.plannedPct / 100 * trendNow : null;
+      var line = pace ? '≈ ' + fmtS(pace, 1) + ' ' + u + ' / week' : c.phase.type === 'recomp' ? 'About flat; waist down' : c.phase.type === 'maintenance' ? 'Hold steady' : 'Eat well, weight steady';
+      return '<button type="button" data-a="tab" data-v="phase" aria-label="Phase target: ' + esc(c.phaseName + ', ' + line) + '. Open Plan."><span class="lab">Phase target</span><span class="phase">' + esc(c.phaseName) + '</span><span class="small muted">' + esc(line) + '</span></button>';
+    }
+    function overviewChart(from, today) {
+      var UI = root.LW.ui, v = ME.weightView(S.rows.weights, units(), from, today);
+      var body = v.latest ? chart({ from: from, to: today, dots: v.dots, line: v.trend, dp: 1, summary: ME.weightSummary(v, units(), rangeLabel()) }) + legend([['k-dot', 'Weigh-in'], ['k-trend', 'Trend (smoothed)']])
+        : '<p class="small muted">No weigh-ins yet. Weigh in most mornings; the trend line smooths out water and food.</p><button type="button" class="btn sm" data-a="weigh">Log weight</button>';
+      return '<section class="card"><div class="cardhead"><h2>' + UI.icon('trend') + '<span>Weight Trend<span class="sub">' + (v.rate ? fmtS(v.rate.perWeek, 2) + ' ' + ME.weightUnit(units()) + '/week · last 14 days' : 'Building baseline') + '</span></span></h2>' + rangeSeg() + '</div>' + body + '</section>';
+    }
+    /** Leanward Intelligence on Progress: the read in one line, and the state of each kind of data. */
+    function intelProgress(c) {
+      var UI = root.LW.ui;
+      if (!c) return '';
+      var step = c.step, r = c.read, w = r ? r.signals.filter(function (x) { return x.id === 'weight'; })[0] : null, q = c.q, td = ctx.training ? ctx.training() : null;
+      var title = c.state === 'Collecting data' ? 'Building your baseline' : step ? step.title : (r ? r.summary : 'Building your baseline');
+      var text = step ? step.why[0] : 'Leanward is collecting data to judge your rate of progress, training and nutrition.';
+      var SIG = { 'on-track': 'On track', watch: 'Watch', 'off-track': 'Needs a look', collecting: 'Collecting data' };
+      var wTxt = w ? SIG[w.status] || 'Collecting data' : 'Collecting data', wShare = w && w.status !== 'collecting' ? 1 : Math.min(1, (q.weighIns14 || 0) / 8);
+      var tTxt = td ? td.week + ' of ' + (td.weekAim || '—') + ' this week' : 'Connect PR Forge', tShare = td && td.weekAim ? td.week / td.weekAim : 0;
+      var nShare = (q.loggedDays14 || 0) / 14;
+      var foot = '<div>' + UI.icon('scale') + '<span><b>Weight</b>' + wTxt + UI.bar(wShare) + '</span></div>' +
+        '<div' + (td ? '' : ' role="button" tabindex="0" data-a="ptab" data-v="strength"') + '>' + UI.icon('dumbbell') + '<span><b>Training</b>' + tTxt + UI.bar(tShare) + '</span></div>' +
+        '<div>' + UI.icon('fork') + '<span><b>Nutrition</b>' + Math.round(nShare * 100) + '% logged' + UI.bar(nShare) + '</span></div>';
+      var more = ctx.readCard ? '<details data-keep="fullread"' + (S.open_fullread ? ' open' : '') + '><summary>The full read and how it\'s judged</summary>' + ctx.readCard() + '</details>' : '';
+      return UI.intel({ state: esc(c.state), title: esc(title), text: esc(text), foot: foot, extra: more });
+    }
+    /** Body composition: only what was actually measured. Lean mass only with a body-fat entry (never estimated from weight). */
+    function bodyCompCard() {
+      var UI = root.LW.ui, lu = ME.lengthUnit(units()), wu = ME.weightUnit(units());
+      var waist = (S.rows.measures || []).filter(function (m) { return !m.deleted && m.site === 'waist'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+      var bf = (S.rows.bodyfat || []).filter(function (x) { return !x.deleted; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+      var v = ME.weightView(S.rows.weights, units(), core.addDays(ctx.today(), -27), ctx.today());
+      var lean = bf && v.latest ? v.latest.trend * (1 - Number(bf.pct) / 100) : null;
+      var row = function (ic, label, val, a, said) {
+        return '<div class="kv">' + UI.icon(ic) + '<span class="kvl">' + label + '<span class="val' + (val == null ? ' na' : '') + '">' + (val == null ? '—' : val) + '</span></span>' +
+          '<button type="button" class="addpill" data-a="' + a + '" aria-label="' + said + '">' + (val == null ? 'Add' : 'Update') + '</button></div>';
+      };
+      return '<section class="card minicard"><div class="cardhead"><h2>' + UI.icon('person') + 'Body Composition</h2><button type="button" class="chev" data-a="ptab" data-v="body" aria-label="Open body composition">' + UI.icon('chevron') + '</button></div>' +
+        row('tape', 'Waist', waist ? fmt(ME.cmToUnits ? ME.cmToUnits(Number(waist.cm), units()) : (units() === 'metric' ? Number(waist.cm) : Number(waist.cm) / 2.54), 1) + ' ' + lu : null, 'measure', 'Add a waist measurement') +
+        row('percent', 'Body fat', bf ? fmt(Number(bf.pct), 1) + '%' : null, 'bfadd', 'Add a body-fat measurement') +
+        row('lean', 'Lean Mass', lean != null ? fmt(lean, 1) + ' ' + wu : null, 'bfadd', 'Lean mass needs a body-fat measurement: add one') +
+        (bf ? '<p class="small muted" style="margin:0">Lean mass uses your ' + esc(day(bf.date)) + ' body-fat entry; it\'s an estimate.</p>' : '') + '</section>';
+    }
+    function trainingCard() {
+      var UI = root.LW.ui, td = ctx.training ? ctx.training() : null;
+      var head = '<div class="cardhead"><h2>' + UI.icon('dumbbell') + 'Training &amp; Strength</h2><button type="button" class="chev" data-a="ptab" data-v="strength" aria-label="Open strength">' + UI.icon('chevron') + '</button></div>';
+      if (!td) return '<section class="card minicard">' + head + '<p class="small muted" style="margin:0">Connect PR Forge to see your sessions and key lifts here.</p><button type="button" class="btn sm" data-a="ptab" data-v="strength">Connect</button></section>';
+      var aim = td.weekAim, consist = aim ? Math.min(100, Math.round(td.sessions28 / (aim * 4) * 100)) : null;
+      return '<section class="card minicard">' + head +
+        '<div class="ringstat"><div class="ring">' + UI.ring(aim ? td.week / aim : 0, 64, 6, 'ring-t') + '<div class="ringtxt">' + td.week + '/' + (aim || '—') + '</div></div>' +
+        '<span class="small"><b>Sessions</b><br><span class="muted">this week' + (aim ? ', of ' + aim + ' usual' : '') + '</span></span></div>' +
+        (consist != null ? '<span class="small muted">' + consist + '% consistency, last 4 weeks</span>' : '') +
+        '<button type="button" class="linkrow2" data-a="ptab" data-v="strength"><span>' + UI.icon('trend') + 'Key Lifts</span>' + UI.icon('chevron') + '</button></section>';
+    }
+    function nutritionCard(c, today) {
+      var UI = root.LW.ui, from = core.addDays(today, -13), v = ME.intakeView(S.rows.diary, from, today, targetOn);
+      var logged = c ? c.q.loggedDays14 || 0 : v.logged, share = logged / 14;
+      var row = function (label, avg, target, unit) {
+        var p = target ? Math.round(avg / target * 100) : null;
+        return '<div class="nutrow"><div class="top"><span>' + label + '</span><span class="v"><b>' + (avg == null ? '—' : fmt(avg)) + '</b><small>' + (target ? ' / ' + fmt(target) + ' ' + unit : ' ' + unit) + '</small></span></div>' +
+          UI.bar(p ? p / 100 : 0) + '<span class="pct">' + (p != null ? p + '%' : '') + '</span></div>';
+      };
+      return '<section class="card"><div class="cardhead"><h2>' + UI.icon('fork') + '<span>Nutrition<span class="sub">Average of logged days, last 14 days</span></span></h2><button type="button" class="chev" data-a="ptab" data-v="nutrition" aria-label="Open nutrition">' + UI.icon('chevron') + '</button></div>' +
+        '<div class="nutgrid"><div>' + row('Calories', v.avgKcal, v.avgKcalTarget, 'kcal') + row('Protein', v.avgProtein, v.avgProteinTarget, 'g') + '</div>' +
+        '<div class="consist"><span class="ctext">' + UI.icon('calendar') + '<b>Logging consistency</b><span class="muted">' + logged + ' of 14 days</span></span>' +
+        '<div class="ringstat"><div class="ring">' + UI.ring(share, 64, 6, 'ring-n') + '<div class="ringtxt">' + Math.round(share * 100) + '%</div></div></div></div></div></section>';
+    }
+
+    /** Today: the weight-trend and training cards (approved design). */
+    function minis() {
+      var UI = root.LW.ui, today = ctx.today(), u = ME.weightUnit(units()), c = ctx.coach ? ctx.coach() : null;
+      var start = c ? c.phase.start_date : core.addDays(today, -27), from28 = core.addDays(today, -27);
+      var v = ME.weightView(S.rows.weights, units(), start > from28 ? start : from28, today), vs = ME.weightView(S.rows.weights, units(), start, today);
+      var wCard;
+      if (!v.latest) {
+        wCard = '<button type="button" class="mini" data-a="weigh"><span class="mhead">' + UI.icon('scale') + 'Weight Trend</span><span class="big">—</span><span class="sub">Log your first weigh-in</span></button>';
+      } else {
+        var since = vs.latest.trend - vs.trend[0].v, good = c && ((c.phase.type === 'cut' && since < 0) || (c.phase.type === 'bulk' && since > 0));
+        var pts = v.trend, lo = Math.min.apply(null, pts.map(function (p) { return p.v; })), hi = Math.max.apply(null, pts.map(function (p) { return p.v; })), span = hi - lo || 1;
+        var xy = pts.map(function (p, i) { return [(4 + i / Math.max(1, pts.length - 1) * 92).toFixed(1), (26 - (p.v - lo) / span * 20).toFixed(1)]; });
+        var path = xy.map(function (q, i) { return (i ? 'L' : 'M') + q[0] + ' ' + q[1]; }).join(' '), end = xy[xy.length - 1];
+        wCard = '<button type="button" class="mini" data-a="ptab" data-v="weight" aria-label="Weight trend ' + fmt(v.latest.trend, 1) + ' ' + u + ', ' + (since < 0 ? 'down ' : 'up ') + fmt(Math.abs(since), 1) + ' since the phase started. Open weight.">' +
+          '<span class="mhead">' + UI.icon('scale') + 'Weight Trend' + UI.icon('chevron') + '</span><span class="big">' + fmt(v.latest.trend, 1) + '<small>' + u + '</small></span>' +
+          '<span class="sub' + (good ? ' good' : '') + '">' + (Math.abs(since) < 0.05 ? 'No change' : (since < 0 ? '↓ ' : '↑ ') + fmt(Math.abs(since), 1) + ' ' + u) + ' since start</span>' +
+          (pts.length > 1 ? '<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path d="' + path + '" vector-effect="non-scaling-stroke"/><circle cx="' + end[0] + '" cy="' + end[1] + '" r="2.6"/></svg>' : '') + '</button>';
+      }
+      var td = ctx.training ? ctx.training() : null, tCard;
+      if (!td) tCard = '<button type="button" class="mini" data-a="ptab" data-v="strength"><span class="mhead">' + UI.icon('dumbbell') + 'Training' + UI.icon('chevron') + '</span><span class="big">—</span><span class="sub">Connect PR Forge to see sessions</span></button>';
+      else {
+        var aim = Math.min(7, td.weekAim || 0), boxes = '';
+        for (var i = 0; i < Math.max(aim, td.week); i++) boxes += '<i class="' + (i < td.week ? 'on' : '') + '"></i>';
+        tCard = '<button type="button" class="mini" data-a="ptab" data-v="strength" aria-label="Training: ' + td.week + ' of ' + (aim || 'no usual number of') + ' sessions this week. Open strength.">' +
+          '<span class="mhead">' + UI.icon('dumbbell') + 'Training' + UI.icon('chevron') + '</span><span class="big">' + td.week + (aim ? '<small>/ ' + aim + ' sessions</small>' : '<small>sessions</small>') + '</span>' +
+          '<span class="sub">This week · PR Forge</span>' + (boxes ? '<span class="sess">' + boxes + '</span>' : '') + '</button>';
+      }
+      return '<div class="minis">' + wCard + tCard + '</div>';
     }
 
     /** Today: a small weight tile with the trend; tap to log (or shows that today is done). */
@@ -214,7 +337,13 @@
         '<div class="field"><label for="ms-d">Day</label><input type="date" id="ms-d" data-m="date" value="' + esc(sh.date) + '" max="' + ctx.today() + '"></div></div>' +
         '<button type="button" class="btn block" data-a="measuresave">Save</button>' + (sh.id ? '<p class="center"><button type="button" class="link quietdanger" data-a="measuredelete">Delete this measurement</button></p>' : ''));
     }
-    function sheetView() { var k = S.sheet && S.sheet.kind; return k === 'weigh' ? weighSheet() : k === 'measure' ? measureSheet() : k === 'lifts' ? liftsSheet() : null; }
+    function progMenuSheet() {
+      var b = function (a, label, v, primary) { return '<button type="button" class="btn ' + (primary ? '' : 'ghost ') + 'block" data-a="' + a + '"' + (v != null ? ' data-v="' + v + '"' : '') + '>' + label + '</button>'; };
+      return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="More for Progress"><div class="grab"></div><h2>Progress</h2>' +
+        b('weigh', 'Log weight', null, true) + b('measure', 'Add a measurement') + b('bfadd', 'Add body fat %') +
+        (ctx.training && ctx.training() ? b('liftspick', 'Choose key lifts') + b('pfrefresh', 'Update from PR Forge') : b('ptab', 'Connect PR Forge', 'strength')) + '</div>';
+    }
+    function sheetView() { var k = S.sheet && S.sheet.kind; if (k === 'progmenu') return progMenuSheet(); return k === 'weigh' ? weighSheet() : k === 'measure' ? measureSheet() : k === 'lifts' ? liftsSheet() : null; }
     function focus(id) { root.setTimeout(function () { var i = root.document.getElementById(id); if (i) i.focus(); }, 50); }
 
     function onInput(el) {
@@ -226,6 +355,9 @@
 
     var actions = {
       prange: function (v) { S.progressRange = v; ctx.render(); },
+      ptab: function (v) { if (S.sheet) S.sheet = false; S.progressTab = v; S.tab = 'progress'; ctx.render(); root.scrollTo(0, 0); },
+      bfadd: function () { S.sheet = { kind: 'measure', site: 'bodyfat', value: null, date: ctx.today(), method: 'scale' }; ctx.render(); focus('ms-v'); },
+      progmenu: function () { S.sheet = { kind: 'progmenu' }; ctx.render(); },
       weighall: function () { S.progressAllWeights = !S.progressAllWeights; ctx.render(); },
       measureall: function () { S.progressAllMeasures = !S.progressAllMeasures; ctx.render(); },
       weigh: function () { S.sheet = { kind: 'weigh', value: null, date: ctx.today(), time: nowTime(), note: '' }; ctx.render(); focus('we-v'); },
@@ -255,7 +387,7 @@
         ctx.save([['lw_measurements', row]]).then(function () { S.sheet = false; ctx.toast(old ? 'Saved' : 'Measurement added'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
       },
       pfconnect: function () { ctx.pf.connect(); },
-      pfrefresh: function () { ctx.pf.refresh(true); },
+      pfrefresh: function () { if (S.sheet && S.sheet.kind === 'progmenu') S.sheet = false; ctx.pf.refresh(true); },
       pfdisconnect: function () { ctx.pf.disconnect(); },
       liftspick: function () { S.sheet = { kind: 'lifts', picks: picks().slice() }; ctx.render(); },
       lifttoggle: function (id) {
@@ -287,7 +419,7 @@
       measuredelete: function () { var id = S.sheet.id; ctx.remove('lw_measurements', id).then(function () { S.sheet = false; ctx.toast('Deleted'); ctx.render(); }); }
     };
 
-    return { view: view, weightTile: weightTile, sheetView: sheetView, onInput: onInput, actions: actions };
+    return { view: view, weightTile: weightTile, minis: minis, sheetView: sheetView, onInput: onInput, actions: actions };
   }
 
   root.LW.progressui = { create: create };

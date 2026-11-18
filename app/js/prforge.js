@@ -144,8 +144,11 @@
       if (d >= from14) s14++;
     });
     var usual = counts.map(function (c, i) { return c >= 2 ? i : -1; }).filter(function (i) { return i >= 0; });
+    // This week (Monday to today) and the weekly aim: the usual training days, or the 4-week average.
+    var monday = shift(today, -((weekday(today) + 6) % 7)), week = Object.keys(dates).filter(function (d) { return d >= monday && d <= today; }).length;
     return { today: dates[today] ? 'logged' : usual.indexOf(weekday(today)) >= 0 ? 'usual' : null, usual: usual,
-      usualNames: usual.map(function (i) { return DAY_NAMES[i]; }), sessions14: s14, sessions28: s28, perWeek: Math.round(s28 / 4 * 10) / 10 };
+      usualNames: usual.map(function (i) { return DAY_NAMES[i]; }), sessions14: s14, sessions28: s28, perWeek: Math.round(s28 / 4 * 10) / 10,
+      week: week, weekAim: usual.length || Math.round(s28 / 4) };
   }
 
   var api = { trainingDays: trainingDays, MAX_LIFTS: MAX_LIFTS, LB_PER_KG: LB_PER_KG, NAMES: NAMES, nameOf: nameOf, bestSet: bestSet, summarize: summarize, series: series, forProgress: forProgress, toggle: toggle };

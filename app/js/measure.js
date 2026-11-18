@@ -20,7 +20,8 @@
     { id: 'thigh', label: 'Thigh', how: 'Around the middle of the thigh, standing, weight on both feet. Always the same leg.' },
     { id: 'neck', label: 'Neck', how: 'Just below the Adam\'s apple, tape level, looking straight ahead.' }
   ];
-  var RANGES = [{ id: '4w', label: '4 weeks', days: 28 }, { id: '12w', label: '12 weeks', days: 84 }, { id: '6m', label: '6 months', days: 182 }, { id: 'all', label: 'All', days: null }];
+  var RANGES = [{ id: '7d', label: '7D', name: 'last 7 days', days: 7 }, { id: '30d', label: '30D', name: 'last 30 days', days: 30 }, { id: '90d', label: '90D', name: 'last 90 days', days: 90 },
+    { id: '4w', label: '4 weeks', days: 28 }, { id: '12w', label: '12 weeks', days: 84 }, { id: '6m', label: '6 months', days: 182 }, { id: 'all', label: 'All', days: null }];
 
   function newId() { return root.LW && root.LW.model ? root.LW.model.newId() : (node ? require('crypto').randomUUID() : String(Math.random()).slice(2)); }
   function num(v) { return v === '' || v == null ? null : Number(v); }

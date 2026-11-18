@@ -423,8 +423,9 @@
   // Training days from PR Forge (NUT-9), worked out from the summary already kept on the phone.
   var training = function () { return state.pf.status === 'on' && state.pf.data && state.pf.data.exercises ? root.LW.prforge.trainingDays(state.pf.data.exercises, today()) : null; };
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); }, training: training });
-  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training,
-    tiles: function () { return '<div class="tiles">' + screens.phaseTile() + progressui.weightTile() + '</div>'; } });
+  var coach = function () { try { return screens.coach(); } catch (e) { return null; } };
+  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach,
+    minis: function () { return progressui.minis(); } });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;
   var pf = {
@@ -482,7 +483,7 @@
       return state.pf.data ? PF.forProgress(state.pf.data.exercises, picks) : {};
     }
   };
-  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, pf: pf, readCard: function () { return screens.readCard(); } });
+  var progressui = root.LW.progressui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, pf: pf, training: training, coach: coach, readCard: function () { return screens.readCard(); } });
   var foodui = root.LW.foodui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, slotLabel: diaryui.slotLabel, slotOptions: diaryui.slotOptions, slots: diaryui.slots, dayName: diaryui.dayName });
 
   /** Deletes a record (a tombstone until the cloud has it), reloads, and asks the Syncer to back it up. */

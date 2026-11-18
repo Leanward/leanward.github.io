@@ -410,7 +410,8 @@
         'If training starts to suffer, Progress will say so.</p>';
     }
     function trainingNow() { return ctx.training ? ctx.training() : null; }
-    function nextHtml(ph, t, r) {
+    /** The inputs to the next-week step (data quality, safety, training), shared by Progress and Today. */
+    function nextQ(ph, t) {
       var y = core.addDays(today(), -1), ci = t.calc_inputs || {};
       var days = root.LW.maint.intakeDays(S.rows.diary || [], function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); }, core.addDays(y, -13), y);
       var from14 = core.addDays(today(), -13), wd = {};
@@ -426,7 +427,27 @@
         floorKcal: floorKcal, targetKcal: Number(t.kcal), belowFloorDays7: below7, rate21Pct: r21 ? r21.pctPerWeek : null,
         sessions14: trainingNow() ? trainingNow().sessions14 : null, usualPerWeek: trainingNow() ? trainingNow().perWeek : null,
         targetWeeklyPct: ci.tdee > 0 && ci.kg > 0 ? C.targets.pace(t.kcal, ci.tdee, ci.kg).weeklyPct : null };
-      var n = C.progress.nextStep(ph.type, r, q);
+      q.loggedDays14Of = 14;
+      return q;
+    }
+    /**
+     * One summary for the Intelligence cards (approved design): the phase and week, the progress read,
+     * the next-week step, and the data state in plain words (no confidence percentage: there's no
+     * validated method for one). Nothing new is calculated here.
+     */
+    function coach() {
+      var ph = M.currentPhase(S.rows.phases), t = currentTargets();
+      if (!ph || !t) return null;
+      var r = readNow(ph, t), q = nextQ(ph, t), d = M.dayOf(ph, today());
+      var step = r ? C.progress.nextStep(ph.type, r, q) : null;
+      var sigs = r ? r.signals : [], w = sigs.filter(function (x) { return x.id === 'weight'; })[0];
+      var read = sigs.filter(function (x) { return x.status !== 'collecting'; });
+      var state = !w || w.status === 'collecting' ? 'Collecting data' : read.length < sigs.length ? 'Early signal' : 'Enough data to assess';
+      return { phase: ph, targets: t, read: r, step: step, q: q, state: state, phaseName: PHASE_NAME[ph.type], week: root.LW.ui.weekLabel(PHASE_NAME[ph.type], d), day: d,
+        plannedPct: C.targets.PHASES[ph.type].rates.length ? (ph.type === 'cut' ? -1 : ph.type === 'bulk' ? 1 : 0) * Number(ph.rate) : null };
+    }
+    function nextHtml(ph, t, r) {
+      var n = C.progress.nextStep(ph.type, r, nextQ(ph, t));
       if (!n) return '';
       var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait', 'weigh-more': 'wait', hold: 'wait' }[n.kind] || 'watch';
       return '<div class="next ' + tone + '"><span class="small muted">Next week</span><b>' + esc(n.title) + '</b>' +
@@ -740,7 +761,7 @@
 
     return {
       startOnboarding: startOnboarding, onboardingView: onboardingView, onInput: onInput, actions: actions,
-      hasSetup: hasSetup, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView
+      hasSetup: hasSetup, coach: coach, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView
     };
   }
 

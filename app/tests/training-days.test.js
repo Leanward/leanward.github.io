@@ -13,9 +13,11 @@ test('training days: usual weekdays from the last 4 weeks, today logged or usual
   const td = PF.trainingDays(ex, '2026-11-18');
   // Mon ×3, Wed ×2 → usual; Sat ×1 → not; Oct 1 is outside 28 days; Nov 16 counted once across exercises
   assert.deepEqual([td.today, td.usualNames, td.sessions14, td.sessions28, td.perWeek], ['usual', ['Mon', 'Wed'], 4, 6, 1.5]);
+  // this week = Mon 16 Nov to Wed 18 Nov: 1 session (the 16th); the weekly aim = 2 usual days
+  assert.deepEqual([td.week, td.weekAim], [1, 2]);
   assert.equal(PF.trainingDays(ex, '2026-11-16').today, 'logged');
   assert.equal(PF.trainingDays(ex, '2026-11-19').today, null);      // Thursday: rest day
-  assert.deepEqual(PF.trainingDays([], '2026-11-18'), { today: null, usual: [], usualNames: [], sessions14: 0, sessions28: 0, perWeek: 0 });
+  assert.deepEqual(PF.trainingDays([], '2026-11-18'), { today: null, usual: [], usualNames: [], sessions14: 0, sessions28: 0, perWeek: 0, week: 0, weekAim: 0 });
 });
 
 test('Today line: about half the carbs around training; nothing on rest days; total unchanged', () => {
