@@ -9,7 +9,7 @@
 
   var config = {
     // Bump on every release, together with CACHE in sw.js (a test checks they match).
-    VERSION: '0.25.0',
+    VERSION: '0.25.1',
     SUPABASE_URL: 'https://anxpwqbakjqnglqgccfo.supabase.co',
     SUPABASE_KEY: 'sb_publishable_CyK9gSeHLeQEYC89YZKt6Q_kTo1sfqw',
     // PR Forge's Supabase project, for the optional read-only "Connect PR Forge" (js/prforge.js).
