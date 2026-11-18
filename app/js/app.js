@@ -91,7 +91,7 @@
 
   function accountCard() {
     var a = state.account;
-    return '<section class="card" aria-labelledby="acct-h"><h2 id="acct-h">Account</h2>' +
+    return '<section class="card" aria-labelledby="acct-h"><div class="cardhead"><h2 id="acct-h">' + root.LW.ui.icon('lock') + 'Account</h2></div>' +
       '<p class="small muted">Signed in with Google as <b>' + esc(a.email || a.name || 'your Google account') + '</b>.</p>' +
       '<div class="actions"><button type="button" class="btn ghost" data-a="signout">Sign out</button></div>' +
       '<p class="small" style="margin-bottom:0"><button type="button" class="link" data-a="delacct">Delete my account</button></p></section>';
@@ -132,20 +132,24 @@
 
   function settingsCard() {
     var pfs = state.pf.status === 'on' ? 'Connected' + (state.pf.email ? ' as ' + state.pf.email : '') : state.pf.status === 'checking' ? 'Checking…' : 'Not connected';
-    return '<section class="card" aria-labelledby="set-h"><h2 id="set-h">Settings</h2>' +
-      '<div class="status"><span>Appearance</span><button type="button" class="link" data-a="appearance">Color and light or dark</button></div>' +
-      '<div class="status"><span>Meals</span><button type="button" class="link" data-a="slots">Rename, reorder or hide</button></div>' +
-      '<div class="status"><span>Targets and phase</span><button type="button" class="link" data-a="tab" data-v="phase">Open Plan</button></div>' +
-      '<div class="status"><span>PR Forge <span class="small muted">' + esc(pfs) + '</span></span><button type="button" class="link" data-a="tab" data-v="progress">' + (state.pf.status === 'on' ? 'Key lifts' : 'Connect') + '</button></div></section>';
+    var UI = root.LW.ui, row = function (ic, label, sub, a, v) {
+      return '<button type="button" class="setrow" data-a="' + a + '"' + (v ? ' data-v="' + v + '"' : '') + '>' + UI.icon(ic) + '<span><b>' + label + '</b><small>' + esc(sub) + '</small></span>' + UI.icon('chevron') + '</button>';
+    };
+    return '<section class="card" aria-labelledby="set-h"><div class="cardhead"><h2 id="set-h">' + UI.icon('gear') + 'Settings</h2></div>' +
+      row('sparkle', 'Appearance', 'Color and light or dark', 'appearance') +
+      row('fork', 'Meals', 'Rename, reorder or hide', 'slots') +
+      row('target', 'Targets and phase', 'Open Plan', 'tab', 'phase') +
+      // PR Forge opens Progress › Strength, where Connect and Key lifts live.
+      row('dumbbell', 'PR Forge', pfs + (state.pf.status === 'on' ? ' · Key lifts' : ' · Connect'), 'ptab', 'strength') + '</section>';
   }
   function dataCard() {
-    return '<section class="card" aria-labelledby="data-h"><h2 id="data-h">Your data</h2>' +
+    return '<section class="card" aria-labelledby="data-h"><div class="cardhead"><h2 id="data-h">' + root.LW.ui.icon('download') + 'Your data</h2></div>' +
       '<p class="small muted">Download everything you\'ve saved in Leanward: diary, your foods and meals, weigh-ins, measurements, phases and targets.</p>' +
       '<div class="actions"><button type="button" class="btn ghost" data-a="exportjson">Export as JSON</button><button type="button" class="btn ghost" data-a="exportcsv">Export as CSV</button></div>' +
       '<p class="small muted">JSON is one complete file. CSV is one spreadsheet file per kind of data. Lifts read from PR Forge stay in PR Forge and aren\'t included.</p></section>';
   }
   function supportCard() {
-    return '<section class="card" aria-labelledby="sup-h"><h2 id="sup-h">Support</h2>' +
+    return '<section class="card" aria-labelledby="sup-h"><div class="cardhead"><h2 id="sup-h">' + root.LW.ui.icon('heart') + 'Support</h2></div>' +
       '<p class="small muted">If tracking food or weight starts to feel stressful or takes over, you don\'t have to keep going alone. The National Alliance for Eating Disorders offers free support and help finding care.</p>' +
       '<p class="small"><a class="link" href="https://www.allianceforeatingdisorders.com/" target="_blank" rel="noopener">allianceforeatingdisorders.com</a></p>' +
       '<p class="small"><a class="link" href="privacy.html">Privacy</a> · <a class="link" href="terms.html">Terms</a></p></section>';
@@ -190,7 +194,7 @@
   function aboutCard() {
     var online = root.navigator.onLine !== false;
     return '<section class="card" aria-labelledby="about-h">' +
-      '<div class="row"><h2 id="about-h" style="margin:0">About</h2><span class="small muted">Version ' + esc(C.VERSION) + '</span></div>' +
+      '<div class="cardhead"><h2 id="about-h">' + root.LW.ui.icon('info') + 'About</h2><span class="small muted">Version ' + esc(C.VERSION) + '</span></div>' +
       '<details class="advanced"><summary>Advanced: connection and backup</summary>' +
       statusRow('Version', true, C.VERSION) +
       statusRow('Network', online, online ? 'Online' : 'Offline') +
@@ -207,7 +211,7 @@
   function tabView(id) {
     if (id === 'phase') return screens.phaseView();
     if (id === 'progress') return progressui.view();
-    if (id === 'profile') return '<header class="top"><h1>Profile</h1></header>' + screens.profileCard() + settingsCard() + dataCard() + accountCard() + supportCard() + aboutCard();
+    if (id === 'profile') return root.LW.ui.brandbar('') + '<div class="ttlrow"><div><h1>Profile</h1>' + (state.account && state.account.email ? '<span class="sub">' + esc(state.account.email) + '</span>' : '') + '</div></div>' + screens.profileCard() + settingsCard() + dataCard() + accountCard() + supportCard() + aboutCard();
     return diaryui.view();
   }
 

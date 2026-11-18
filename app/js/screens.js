@@ -503,7 +503,7 @@
       var c;
       try { c = maintCheck(); } catch (e) { return ''; }
       if (c.state === 'unavailable') return '';
-      var head = '<section class="card"><h2>Maintenance check</h2>';
+      var head = '<section class="card"><div class="cardhead"><h2>' + root.LW.ui.icon('scale') + 'Maintenance check</h2></div>';
       var span = c.windowStart ? niceDay(c.windowStart) + ' – ' + niceDay(c.windowEnd) : '';
       if (c.state === 'collecting' && c.warmingUp) {
         return head + '<p class="small">Your weight trend needs about 4 weeks of weigh-ins before it can be compared with what you eat; before that it lags and would underestimate your maintenance. The first check is on <b>' + esc(niceDay(c.from)) + '</b>. Keep logging and weighing in.</p></section>';
@@ -560,18 +560,20 @@
       var sets = (S.rows.sets || []).filter(function (s) { return s.phase_id === ph.id && !s.deleted; }).sort(function (x, y) { return x.effective_from < y.effective_from ? 1 : -1; });
       var past = (S.rows.phases || []).filter(function (p) { return p.end_date && !p.deleted; }).sort(function (x, y) { return x.start_date < y.start_date ? 1 : -1; });
       var steps = (t.calc_inputs && t.calc_inputs.steps) || [];
-      return '<header class="top row"><h1>Plan</h1><button type="button" class="btn ghost sm" data-a="newphase">Start a new phase</button></header>' +
-        '<section class="card">' + (g && M.goalById(g.type).label.toLowerCase() !== PHASE_NAME[ph.type].toLowerCase() ? '<span class="small muted">Goal: ' + esc(M.goalById(g.type).label) + '</span>' : '<span class="small muted">Current phase</span>') +
-          '<div style="font-size:22px;font-weight:700;margin-top:2px">' + PHASE_NAME[ph.type] + '</div>' +
+      var UI = root.LW.ui;
+      return UI.brandbar('') + '<div class="ttlrow"><div><h1>Plan</h1><span class="sub">' + esc(UI.weekLabel(PHASE_NAME[ph.type], d)) + '</span></div>' +
+          '<button type="button" class="phasepill" data-a="newphase">' + UI.icon('plus') + 'New phase</button></div>' +
+        '<section class="card phasecard"><div class="cardhead"><h2>' + UI.icon('plan') + 'Current phase</h2></div>' + (g && M.goalById(g.type).label.toLowerCase() !== PHASE_NAME[ph.type].toLowerCase() ? '<span class="small muted">Goal: ' + esc(M.goalById(g.type).label) + '</span>' : '<span class="small muted">Current phase</span>') +
+          '<div class="phasebig">' + PHASE_NAME[ph.type] + '</div>' +
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + (paceNote(ph, t) ? 'planned ' : '') + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' + paceNote(ph, t) +
-          '<div class="route"><i style="width:' + pos + '%"></i></div>' +
+          UI.bar(pos / 100, 'route2') +
           '<div class="row small muted"><span>Started ' + nd(ph.start_date) + '</span><span>' + (ph.planned_end ? 'Planned end ~' + nd(ph.planned_end) : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
         maintCard(t) +
-        '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
+        '<section class="card"><div class="cardhead"><h2>' + UI.icon('target') + 'Targets</h2><button type="button" class="addpill" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
           carbNote(t) +
           (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type, fromCheck(t) ? 'tracking-check' : null) + '</div>' : '') +
-          '<button type="button" class="link" data-a="editmaint" style="margin-top:6px">Know your real maintenance or BMR?</button>' +
+          '<button type="button" class="linkrow2" data-a="editmaint" style="margin-top:10px"><span>' + UI.icon('scale') + 'Know your real maintenance or BMR?</span>' + UI.icon('chevron') + '</button>' +
           '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + nd(t.effective_from) + '</p>' +
           '<details><summary>How these are worked out</summary><div class="working">' + steps.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') +
             (t.origin === 'manual' && t.calc_inputs && t.calc_inputs.calculated ? '<div>Changed by you. Calculated: ' + fmt(t.calc_inputs.calculated.kcal) + ' kcal · P ' + t.calc_inputs.calculated.proteinG + ' · C ' + t.calc_inputs.calculated.carbsG + ' · F ' + t.calc_inputs.calculated.fatG + '</div>' : '') +
@@ -579,7 +581,7 @@
           (sets.length > 1 ? '<details style="margin-top:8px"><summary>Target history (' + sets.length + ' versions)</summary><div class="list">' + sets.map(function (s) {
             return '<div class="item"><span><span class="t">' + fmt(s.kcal) + ' kcal · P ' + s.protein_g + ' · C ' + s.carbs_g + ' · F ' + s.fat_g + '</span><span class="s">From ' + nd(s.effective_from) + ' · ' + (s.origin === 'manual' ? 'set by you' : s.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + '</span></span></div>';
           }).join('') + '</div></details>' : '') + '</section>' +
-        '<section class="card"><h2>Phase history</h2><div class="list">' +
+        '<section class="card"><div class="cardhead"><h2>' + UI.icon('history') + 'Phase history</h2></div><div class="list">' +
           '<div class="item"><span><span class="t">' + PHASE_NAME[ph.type] + ' · current</span><span class="s">Since ' + nd(ph.start_date) + '</span></span><span class="small">Day ' + d.day + '</span></div>' +
           past.map(function (p) { return '<div class="item"><span><span class="t">' + PHASE_NAME[p.type] + '</span><span class="s">' + nd(p.start_date) + ' – ' + nd(p.end_date) + '</span></span></div>'; }).join('') +
         '</div></section>';
@@ -596,7 +598,7 @@
       var p = S.rows.profile;
       if (!p) return '';
       var cp = profileNow(), age = cp.dob ? core.ageOn(cp.dob, today()) : null;
-      return '<section class="card"><h2>Your details</h2><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
+      return '<section class="card"><div class="cardhead"><h2>' + root.LW.ui.icon('person') + 'Your details</h2></div><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
         '<div class="row" style="margin-top:8px"><span class="small">Units</span><div class="seg" style="width:170px">' + [['us', 'US'], ['metric', 'Metric']].map(function (u) { return '<button type="button" data-a="units" data-v="' + u[0] + '" aria-pressed="' + (p.units === u[0]) + '">' + u[1] + '</button>'; }).join('') + '</div></div>' +
         '<button type="button" class="btn ghost block" data-a="editdetails">Edit details</button>' +
         '<p class="small muted">Your weight comes from your latest weigh-in. To change your goal or phase, use Plan → Start a new phase.</p></section>';
