@@ -509,3 +509,51 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .setrow > .ic:last-child { color: var(--muted); width: 16px; height: 16px; }
 .setrow b { display: block; font-size: 15px; font-weight: 600; }
 .setrow small { display: block; font-size: 12.5px; color: var(--muted); }
+
+/* ============ Sheets, forms and setup in the approved design system (v0.22.2) ============ */
+.scrim { background: rgba(5, 6, 9, .62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.sheet { background: var(--card); border-top: 1px solid var(--line); border-radius: 26px 26px 0 0; padding: 10px var(--gut) calc(24px + env(safe-area-inset-bottom, 0px)); gap: 14px; box-shadow: 0 -12px 40px rgba(0, 0, 0, .35); }
+.grab { width: 40px; height: 5px; background: var(--line); margin-bottom: 6px; }
+.sheet h2, .sheet .row > h2 { font-size: 21px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+.sheet h3 { font-size: 16px; margin: 0; }
+.sec { font-size: 11px; letter-spacing: .06em; color: var(--muted); margin: 6px 0 -6px; }
+/* buttons: coral primary, quiet secondary on the raised surface */
+.btn { border-radius: 16px; padding: 13px 18px; font-weight: 700; }
+.btn:not(.ghost):not(.sm):not(.google):not(.danger) { color: var(--ink); box-shadow: 0 6px 18px rgba(var(--g1-rgb), .28); }
+.btn.ghost { background: var(--raised); border-color: transparent; }
+.btn.sm { border-radius: 999px; padding: 7px 14px; font-weight: 600; background: rgba(var(--g1-rgb), .12); border: 1px solid rgba(var(--g1-rgb), .5); color: var(--fg); box-shadow: none; }
+.btn.sm.ghost { background: var(--raised); border-color: var(--line); }
+button.link { color: var(--fg); }
+/* fields */
+input[type=text], input[type=number], input[type=date], input[type=email], input[type=password], input[type=search], input[type=time], select, textarea {
+  background: var(--raised); border: 1px solid transparent; border-radius: 14px; min-height: 48px; padding: 12px 14px; transition: border-color .15s, box-shadow .15s; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(var(--g1-rgb), .8); box-shadow: 0 0 0 3px rgba(var(--g1-rgb), .18); }
+.field label, .field .lab { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.amount input { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* segmented controls: the selected option is the coral pill (as on Progress) */
+.seg { background: var(--raised); border-radius: 999px; padding: 4px; gap: 4px; }
+.seg button { border-radius: 999px; min-height: 38px; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--ink); box-shadow: none; }
+.seg.rows { border-radius: 18px; } .seg.rows button { border-radius: 14px; }
+/* chips: selected = coral fill */
+.chips2 button { background: var(--raised); border-color: transparent; padding: 8px 14px; }
+.chips2 button[aria-pressed="true"] { background: linear-gradient(135deg, var(--g1), var(--g2)); border-color: transparent; color: var(--ink); }
+/* tiles, lists, badges */
+.targets > div, .targets div { background: var(--raised); border-radius: 14px; padding: 10px 4px; }
+.targets b { font-size: 18px; font-weight: 800; }
+.item .t { font-size: 14.5px; }
+.item .s { font-size: 12px; }
+.item .k { font-variant-numeric: tabular-nums; }
+.badge { border-radius: 999px; padding: 3px 9px; background: var(--raised); }
+.sheet .card { background: var(--raised); border-color: transparent; }
+.warnbox { border-radius: 14px; }
+.opt { border-radius: 16px; background: var(--raised); border-color: transparent; padding: 13px 15px; }
+.opt[aria-checked="true"] { border-color: var(--g1); box-shadow: inset 0 0 0 1px var(--g1); background: rgba(var(--g1-rgb), .1); }
+/* phase setup and sign-in */
+.ob h2 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+.ob .lede { font-size: 14.5px; }
+.signin .brand h1 { font-weight: 800; font-style: italic; letter-spacing: -.02em; }
+/* light mode: the raised surface is a soft gray on white sheets */
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .sheet { background: #fff; } }
+:root[data-theme="light"] .sheet { background: #fff; }
+/* text on coral fills is dark ink: white on #FF756F is ~2.6:1, ink is ~7:1 (WCAG AA needs 4.5:1) */
