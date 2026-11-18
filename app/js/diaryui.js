@@ -102,9 +102,10 @@
         var ic = '<span class="micon">' + UI.icon(MEAL_ICON[sl.id] || 'fork') + '</span>';
         var add = '<button type="button" class="dotbtn" data-a="addto" data-v="' + sl.id + '" aria-label="Add to ' + esc(sl.label) + '">' + UI.icon('plus') + '</button>';
         if (!se.length) {
-          var repeat = sl.id === 'breakfast' && yEntries.some(function (e) { return e.slot === 'breakfast'; });
+          // Any empty meal that had food the day before (owner's beta feedback: not just breakfast).
+          var repeat = yEntries.some(function (e) { return e.slot === sl.id; });
           out += '<section class="mempty">' + ic + '<span><b>' + esc(sl.label) + '</b>' +
-            (repeat ? '<button type="button" class="link" data-a="repeatbf">Repeat yesterday\'s</button>' : '<span>Add your meal</span>') + '</span>' + add + '</section>';
+            (repeat ? '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '<span>Add your meal</span>') + '</span>' + add + '</section>';
           return;
         }
         var t = DY.totals(se), open = !!S['open_meal_' + sl.id];
@@ -165,6 +166,7 @@
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(slotLabel(sh.slot)) + '"><div class="grab"></div>' +
         '<h2>' + esc(slotLabel(sh.slot)) + '</h2><p class="small muted">' + list.length + ' item' + (list.length === 1 ? '' : 's') + ' · ' + fmt(t.kcal) + ' kcal</p>' +
         '<button type="button" class="btn block" data-a="addto" data-v="' + sh.slot + '">Add food to ' + esc(slotLabel(sh.slot)) + '</button>' +
+        (entriesOn(DY.addDays(sh.date, -1)).some(function (e) { return e.slot === sh.slot; }) ? '<button type="button" class="btn ghost block" data-a="repeatmeal" data-v="' + sh.slot + '">Add yesterday\'s ' + esc(slotLabel(sh.slot).toLowerCase()) + '</button>' : '') +
         '<button type="button" class="btn ghost block" data-a="savemeal" data-v="' + sh.slot + '">Save as a meal</button>' +
         '<button type="button" class="btn ghost block" data-a="copymeal" data-v="' + sh.slot + '">Copy to another day or meal</button></div>';
     }
@@ -407,10 +409,13 @@
         var rows = DY.copyEntries([e], ctx.today(), slot).map(function (r) { r.logged_via = 'recent'; return ['lw_diary_entries', r]; });
         ctx.save(rows).then(function () { ctx.toast('Added to ' + slotLabel(slot) + '. Tap it below to change it.'); ctx.render(); });
       },
-      repeatbf: function () {
+      /** Yesterday's food in this meal, added to the same meal on the day shown (LOG-10). */
+      repeatmeal: function (slot) {
+        if (S.sheet && S.sheet.kind === 'mealmenu') S.sheet = false;
         var date = S.diaryDate || ctx.today();
-        var src = entriesOn(DY.addDays(date, -1)).filter(function (e) { return e.slot === 'breakfast'; });
-        ctx.save(DY.copyEntries(src, date).map(function (r) { return ['lw_diary_entries', r]; })).then(function () { ctx.toast('Breakfast repeated'); ctx.render(); });
+        var src = entriesOn(DY.addDays(date, -1)).filter(function (e) { return e.slot === slot; });
+        if (!src.length) return;
+        ctx.save(DY.copyEntries(src, date).map(function (r) { return ['lw_diary_entries', r]; })).then(function () { ctx.toast('Added yesterday\'s ' + slotLabel(slot).toLowerCase()); ctx.render(); });
       }
     };
 
