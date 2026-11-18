@@ -44,9 +44,11 @@
     return '<svg class="ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[name] || '') + '</svg>';
   }
 
-  /** The brand row: mark + wordmark on the left, actions (already-built buttons) on the right. */
+  /** The brand row: the leaf + wordmark on the left, actions (already-built buttons) on the right. */
   function brandbar(actions) {
-    return '<div class="brandbar"><span class="wordmark"><svg viewBox="0 0 30 20" aria-hidden="true"><path d="M7 1h7L8 19H1z" fill="var(--g1)"/><path d="M19 1h7l-6 18h-7z" fill="var(--g2)"/></svg>Leanward</span>' +
+    // The green leaf is the brand mark: it keeps its own colors whatever the theme (owner, 2026-11-18);
+    // the light-mode file is the same leaf adjusted for contrast on a white background.
+    return '<div class="brandbar"><span class="wordmark"><img class="mk-d" src="icons/mark.svg" alt="" width="22" height="23"><img class="mk-l" src="icons/mark-light.svg" alt="" width="22" height="23">Leanward</span>' +
       '<span class="brandacts">' + (actions || '') + '</span></div>';
   }
   /** A round icon button that does something (data-a). */

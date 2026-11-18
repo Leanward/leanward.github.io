@@ -311,7 +311,10 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 /* brand row and titles */
 .brandbar { display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
 .wordmark { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-style: italic; font-size: 18px; letter-spacing: -.01em; }
-.wordmark svg { width: 26px; height: 18px; }
+.wordmark img { width: 22px; height: 23px; }
+.wordmark .mk-l { display: none; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .wordmark .mk-l { display: inline; } :root:not([data-theme="dark"]) .wordmark .mk-d { display: none; } }
+:root[data-theme="light"] .wordmark .mk-l { display: inline; } :root[data-theme="light"] .wordmark .mk-d { display: none; }
 .brandacts { display: inline-flex; gap: 10px; }
 .roundbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--fg); display: grid; place-content: center; cursor: pointer; position: relative; }
 .roundbtn .ic { width: 19px; height: 19px; }
