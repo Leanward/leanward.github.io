@@ -37,6 +37,8 @@
         return '<span class="sec">Online · Open Food Facts</span>' + (o.results.length ? '<div class="list">' + o.results.map(resultRow).join('') + '</div><p class="small muted">' + esc(FD.OFF_ATTRIBUTION) + '</p>'
           : '<p class="small muted">Open Food Facts has nothing for "' + esc(a.q) + '" either. Create it from the label below.</p>');
       }
+      // It's about to run by itself (autoOnline): say so rather than offer a button for it.
+      if (!a.loading && !a.error && root.navigator.onLine !== false && FD.needsOnline(a.results, a.q)) return '<span class="sec">Online · Open Food Facts</span><p class="small muted">Searching Open Food Facts…</p>';
       return '<button type="button" class="btn ' + (prominent ? '' : 'ghost ') + 'block" data-a="offsearch">Search online (Open Food Facts)</button>' +
         (prominent ? '<p class="small muted">Searches Open Food Facts, a public database with millions of products. Only the words you typed are sent.</p>' : '');
     }
