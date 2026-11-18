@@ -233,6 +233,7 @@
    *      targetWeeklyPct?, manualTarget?,
    *      floorKcal?, targetKcal? (never suggest eating less when that would go under the floor),
    *      belowFloorDays7? (of the last 7 days, those logged under the floor), rate21Pct? (weight trend over 21 days) }
+   * sessions14?, usualPerWeek? (PR Forge training, NUT-9): a strength dip after fewer sessions than usual is said to be that.
    * Safety first (audit C1/C2): 5+ of 7 days logged under the floor, or losing more than 1.5% a week for
    * 3 weeks, gives a "care" step: no deficit advice, a suggestion to talk to a dietitian or doctor.
    * Rules (coaching review, 2026-11-17): 10+ of 14 days logged and 8+ weigh-ins before any change; the
@@ -290,6 +291,8 @@
     };
     var keep = function (extra) { return { kind: 'keep', title: 'Keep your current targets', evidence: notes, why: (['This is consistent with a productive ' + name + '.' + (extra || '')]) }; };
     var recovery = function (lead) {
+      var fewer = q.sessions14 != null && q.usualPerWeek >= 1 && q.sessions14 < q.usualPerWeek * 2 * 0.6;
+      if (fewer) return { kind: 'recovery', title: 'Fewer sessions lately', evidence: notes, why: [lead + ' You trained ' + q.sessions14 + ' time' + (q.sessions14 === 1 ? '' : 's') + ' in the last 14 days; you usually train about ' + fmt(q.usualPerWeek, 1) + ' times a week. A dip after fewer sessions is expected and usually comes back with training; it isn\'t a sign of muscle loss on its own. Keep protein at target.'] };
       return { kind: 'recovery', title: 'Look after recovery', evidence: notes, why: [lead].concat([down.map(function (l) { return l.label; }).join(' and ') + (down.length === 1 ? ' is' : ' are') + ' down more than expected. Check sleep, keep protein at target, and put more of your carbs around training. Eat ' + size + ' kcal more a day.']) };
     };
 

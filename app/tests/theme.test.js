@@ -3,13 +3,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../js/theme.js');
 
-test('five palettes, each with a distinct color per phase (Mono is one calm color)', () => {
-  assert.deepEqual(T.PALETTES.map((p) => p.id), ['aurora', 'ocean', 'sunset', 'moss', 'mono']);
+test('six palettes: one color for Coral (the approved accent) and Mono, a distinct color per phase for the rest', () => {
+  assert.deepEqual(T.PALETTES.map((p) => p.id), ['coral', 'aurora', 'ocean', 'sunset', 'moss', 'mono']);
+  // the approved design's accent (handoff color tokens: coral #FF756F, warm orange #FFAA68)
+  assert.deepEqual(T.colors(T.normalize(null), 'bulk'), ['#ff756f', '#ffaa68']);
   const phases = ['cut', 'recomp', 'bulk', 'maintenance', 'nutrition'];
   T.PALETTES.forEach((p) => {
     assert.deepEqual(Object.keys(p.c), phases, p.id);
     const firsts = new Set(phases.map((ph) => p.c[ph][0]));
-    assert.equal(firsts.size, p.id === 'mono' ? 1 : 5, p.id);
+    assert.equal(firsts.size, p.id === 'mono' || p.id === 'coral' ? 1 : 5, p.id);
   });
 });
 
@@ -17,9 +19,9 @@ test('the color follows the phase, or stays on the palette\'s signature color', 
   assert.deepEqual(T.colors({ palette: 'aurora', follow: true }, 'cut'), ['#5fa8e8', '#7fe0f0']);
   assert.deepEqual(T.colors({ palette: 'aurora', follow: false }, 'cut'), ['#8a7cf8', '#e37bb3']);   // Aurora's signature is recomp
   assert.deepEqual(T.colors({ palette: 'ocean', follow: false }, 'bulk'), ['#3e7bfa', '#53c7f0']);
-  assert.deepEqual(T.colors({ palette: 'nope' }, 'unknown-phase'), ['#8a7cf8', '#e37bb3']);          // defaults
+  assert.deepEqual(T.colors({ palette: 'nope' }, 'unknown-phase'), ['#ff756f', '#ffaa68']);          // defaults: Coral
   assert.deepEqual(T.normalize({ palette: 'moss', follow: 0, mode: 'sepia' }), { palette: 'moss', follow: false, mode: 'match', text: 'default' });
-  assert.deepEqual(T.normalize(null), { palette: 'aurora', follow: true, mode: 'match', text: 'default' });
+  assert.deepEqual(T.normalize(null), { palette: 'coral', follow: true, mode: 'match', text: 'default' });
   assert.deepEqual([T.textScale({}), T.textScale({ text: 'large' }), T.textScale({ text: 'larger' }), T.textScale({ text: 'huge' })], [1, 1.12, 1.25, 1]);
   assert.equal(T.rgb('#8a7cf8'), '138, 124, 248');
 });

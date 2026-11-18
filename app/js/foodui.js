@@ -373,6 +373,8 @@
     var actions = {
       add: function () { var now = new Date(); S.sheet = false; openAdd(DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); },
       addto: function (slot) { var now = new Date(); S.sheet = false; openAdd(slot || DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); },
+      addmeals: function () { var now = new Date(); S.sheet = false; openAdd(DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); S.sheet.tab = 'meals'; ctx.render(); },
+      addquick: function () { var now = new Date(); S.sheet = false; openAdd(DY.slotForTime(now.getHours() * 60 + now.getMinutes()), S.tab === 'home' && S.diaryDate ? S.diaryDate : ctx.today()); S.sheet.tab = 'quick'; ctx.render(); },
       addtab: function (v) { S.sheet.tab = v; ctx.render(); if (v === 'foods') focusSearch(); },
       food: function (id) { var a = S.sheet, back = a && a.kind === 'add' ? { q: a.q, results: a.results, online: a.online } : null; openFood(id, back, { slot: a.slot, date: a.date, via: 'search', pick: a.pick || null }); },
       recent: function (id) {

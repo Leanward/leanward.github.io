@@ -2,7 +2,8 @@
  * iPhone. The palettes are the ones agreed in prototype/appearance/. The choice is saved with the
  * profile and mirrored on the phone so the right colors show before the account has loaded.
  *
- * Default: Aurora, color follows the phase, mode Match iPhone. (PRD ACC-6 says Dark; the app has
+ * Default (v0.22, approved design): Coral — the coral-to-warm-orange accent of the approved mockups in
+ * every phase. Earlier default: Aurora, color follows the phase, mode Match iPhone. (PRD ACC-6 says Dark; the app has
  * followed the phone's setting since M0, and changing that under people would be a surprise.)
  */
 (function (root) {
@@ -12,6 +13,8 @@
 
   // Each palette gives every phase its own pair of colors; `sig` is the one used when color doesn't follow the phase.
   var PALETTES = [
+    { id: 'coral', name: 'Coral', note: 'The Leanward look', sig: 'cut',
+      c: { cut: ['#ff756f', '#ffaa68'], recomp: ['#ff756f', '#ffaa68'], bulk: ['#ff756f', '#ffaa68'], maintenance: ['#ff756f', '#ffaa68'], nutrition: ['#ff756f', '#ffaa68'] } },
     { id: 'aurora', name: 'Aurora', note: 'Balanced', sig: 'recomp',
       c: { cut: ['#5fa8e8', '#7fe0f0'], recomp: ['#8a7cf8', '#e37bb3'], bulk: ['#f0954a', '#f2c14e'], maintenance: ['#5dbb8a', '#a6d9a0'], nutrition: ['#f07f7f', '#f5a97f'] } },
     { id: 'ocean', name: 'Ocean', note: 'Cool blues and teals', sig: 'cut',
@@ -26,7 +29,7 @@
   var MODES = [['match', 'Match iPhone'], ['dark', 'Dark'], ['light', 'Light']];
   // Text size (§9, accessibility): the whole app scales, so nothing is cut off at the larger sizes.
   var TEXT = [['default', 'Default', 1], ['large', 'Large', 1.12], ['larger', 'Larger', 1.25]];
-  var DEFAULT = { palette: 'aurora', follow: true, mode: 'match', text: 'default' };
+  var DEFAULT = { palette: 'coral', follow: true, mode: 'match', text: 'default' };
 
   /** A saved choice made safe: unknown values fall back to the defaults. */
   function normalize(a) {

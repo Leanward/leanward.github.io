@@ -400,7 +400,18 @@
      * number, and how each is judged one tap away.
      */
     /** "Next week" (PRG-4): one step with its reasons, after the data-quality checks. */
-    function nextHtml(ph, t, r) {
+    /** Plan (NUT-9): for people training 4+ days a week, carbs per kg with context. Education only. */
+    function carbNote(t) {
+      var td = trainingNow(), kg = t.calc_inputs && Number(t.calc_inputs.kg);
+      if (!td || !(td.perWeek >= 4) || !(kg > 0) || !(t.carbs_g > 0)) return '';
+      var gkg = t.carbs_g / kg;
+      return '<p class="small muted" style="margin:8px 0 0">You train about ' + fmt(td.perWeek, 1) + ' times a week (PR Forge). Your carbs are ' + fmt(gkg, 1) + ' g per kg. ' +
+        (gkg < 3 ? 'People training hard most days often do better with 3–5 g/kg; in a cut that isn\'t always possible, so put more of them around training. ' : 'That suits regular training. ') +
+        'If training starts to suffer, Progress will say so.</p>';
+    }
+    function trainingNow() { return ctx.training ? ctx.training() : null; }
+    /** The inputs to the next-week step (data quality, safety, training), shared by Progress and Today. */
+    function nextQ(ph, t) {
       var y = core.addDays(today(), -1), ci = t.calc_inputs || {};
       var days = root.LW.maint.intakeDays(S.rows.diary || [], function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); }, core.addDays(y, -13), y);
       var from14 = core.addDays(today(), -13), wd = {};
@@ -414,8 +425,29 @@
       var r21 = series.length && (wts.filter(function (w) { return w.date >= core.addDays(today(), -20); }).length >= 10) ? C.trend.rateOfChange(series, 21) : null;
       var q = { loggedDays14: days.filter(function (d) { return d.complete; }).length, weighIns14: Object.keys(wd).length, manualTarget: t.origin === 'manual',
         floorKcal: floorKcal, targetKcal: Number(t.kcal), belowFloorDays7: below7, rate21Pct: r21 ? r21.pctPerWeek : null,
+        sessions14: trainingNow() ? trainingNow().sessions14 : null, usualPerWeek: trainingNow() ? trainingNow().perWeek : null,
         targetWeeklyPct: ci.tdee > 0 && ci.kg > 0 ? C.targets.pace(t.kcal, ci.tdee, ci.kg).weeklyPct : null };
-      var n = C.progress.nextStep(ph.type, r, q);
+      q.loggedDays14Of = 14;
+      return q;
+    }
+    /**
+     * One summary for the Intelligence cards (approved design): the phase and week, the progress read,
+     * the next-week step, and the data state in plain words (no confidence percentage: there's no
+     * validated method for one). Nothing new is calculated here.
+     */
+    function coach() {
+      var ph = M.currentPhase(S.rows.phases), t = currentTargets();
+      if (!ph || !t) return null;
+      var r = readNow(ph, t), q = nextQ(ph, t), d = M.dayOf(ph, today());
+      var step = r ? C.progress.nextStep(ph.type, r, q) : null;
+      var sigs = r ? r.signals : [], w = sigs.filter(function (x) { return x.id === 'weight'; })[0];
+      var read = sigs.filter(function (x) { return x.status !== 'collecting'; });
+      var state = !w || w.status === 'collecting' ? 'Collecting data' : read.length < sigs.length ? 'Early signal' : 'Enough data to assess';
+      return { phase: ph, targets: t, read: r, step: step, q: q, state: state, phaseName: PHASE_NAME[ph.type], week: root.LW.ui.weekLabel(PHASE_NAME[ph.type], d), day: d,
+        plannedPct: C.targets.PHASES[ph.type].rates.length ? (ph.type === 'cut' ? -1 : ph.type === 'bulk' ? 1 : 0) * Number(ph.rate) : null };
+    }
+    function nextHtml(ph, t, r) {
+      var n = C.progress.nextStep(ph.type, r, nextQ(ph, t));
       if (!n) return '';
       var tone = { keep: 'ok', wait: 'wait', 'log-more': 'wait', 'weigh-more': 'wait', hold: 'wait' }[n.kind] || 'watch';
       return '<div class="next ' + tone + '"><span class="small muted">Next week</span><b>' + esc(n.title) + '</b>' +
@@ -537,6 +569,7 @@
         maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
+          carbNote(t) +
           (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type, fromCheck(t) ? 'tracking-check' : null) + '</div>' : '') +
           '<button type="button" class="link" data-a="editmaint" style="margin-top:6px">Know your real maintenance or BMR?</button>' +
           '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + nd(t.effective_from) + '</p>' +
@@ -728,7 +761,7 @@
 
     return {
       startOnboarding: startOnboarding, onboardingView: onboardingView, onInput: onInput, actions: actions,
-      hasSetup: hasSetup, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView
+      hasSetup: hasSetup, coach: coach, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView
     };
   }
 

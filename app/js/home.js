@@ -28,7 +28,7 @@
   function insight(i) {
     var t = i.totals, tg = i.target;
     if (i.lastLogDate && (!t || !t.entries) && core.daysBetween(i.lastLogDate, i.today) >= AWAY_DAYS) {
-      return { id: 'welcome-back', title: 'Welcome back',
+      return { id: 'welcome-back', short: 'Log one meal', why: 'Keeps your averages accurate', title: 'Welcome back',
         text: 'Pick up from today; there\'s nothing to catch up on. Days you didn\'t log simply don\'t count toward your averages.', action: { a: 'addto', label: 'Log food' } };
     }
     if (tg && t && t.entries > 0 && i.minutes >= EVENING_MIN) {
@@ -36,27 +36,40 @@
         // Counted toward the adequate amount (1.6 g/kg) when it's known, the same line the ✓ uses (audit D5).
         var aim = i.adequateProtein > 0 && i.adequateProtein < tg.protein_g ? i.adequateProtein : tg.protein_g;
         var left = Math.round(aim - t.protein_g);
-        return { id: 'protein-low', title: 'Protein is running low today',
+        return { id: 'protein-low', short: 'Add about ' + Math.max(10, Math.round(left / 10) * 10) + ' g protein', why: 'Helps keep muscle', title: 'Protein is running low today',
           text: fmt(t.protein_g) + ' g so far. About ' + fmt(left) + ' g more reaches ' + (aim < tg.protein_g ? 'an adequate ' + fmt(aim) + ' g' : 'your ' + fmt(aim) + ' g target') + ': a serving of chicken, fish, Greek yogurt or a shake covers 20 to 40 g.',
           action: { a: 'addto', label: 'Log food' } };
       }
       var fiber = (t.nutrients && t.nutrients.fiber) || 0, cov = t.coverage && t.coverage.fiber != null ? t.coverage.fiber : 0;
       if (tg.fiber_g > 0 && cov >= 0.5 && fiber < tg.fiber_g * FIBER_LOW) {
-        return { id: 'fiber-low', title: 'Fiber is low so far today',
+        return { id: 'fiber-low', short: 'Add a fiber-rich food', why: 'Fullness and digestion', title: 'Fiber is low so far today',
           text: fmt(fiber) + ' of ' + fmt(tg.fiber_g) + ' g. Beans, lentils, berries, oats or vegetables with dinner would close most of the gap.',
           action: { a: 'addto', label: 'Log food' } };
       }
     }
     var since = i.lastWeighDate ? core.daysBetween(i.lastWeighDate, i.today) : null;
     if (since != null && since >= NO_WEIGH_DAYS) {
-      return { id: 'no-weigh-in', title: 'No weigh-in for ' + since + ' days',
+      return { id: 'no-weigh-in', short: 'Weigh in tomorrow morning', why: 'Keeps your trend current', title: 'No weigh-in for ' + since + ' days',
         text: 'A weigh-in or two this week keeps your trend and the progress read up to date. Any morning works.', action: { a: 'weigh', label: 'Log weight' } };
     }
     if (since == null && i.firstUseDate && core.daysBetween(i.firstUseDate, i.today) >= 2) {
-      return { id: 'no-weigh-in', title: 'Add your first weigh-in',
+      return { id: 'no-weigh-in', short: 'Log your first weigh-in', why: 'Starts your weight trend', title: 'Add your first weigh-in',
         text: 'Weighing in most mornings lets Leanward draw your trend and tell you whether the phase is working.', action: { a: 'weigh', label: 'Log weight' } };
     }
     return null;
+  }
+
+  /**
+   * The training-day line on Today (NUT-9): guidance only, the day's targets don't change.
+   * i: { training: PF.trainingDays(...) result, carbsTarget, carbsEaten }. Null on other days.
+   */
+  function trainingLine(i) {
+    var td = i.training;
+    if (!td || !td.today || !(i.carbsTarget > 0)) return null;
+    var around = Math.round(i.carbsTarget / 2 / 5) * 5;
+    var lead = td.today === 'logged' ? 'Logged in PR Forge today.' : 'You usually train on ' + td.usualNames.join(', ') + ' (PR Forge).';
+    return { title: td.today === 'logged' ? 'Trained today' : 'Training day',
+      text: lead + ' Putting about half of today\'s carbs, around ' + around + ' g, in the meals before and after training helps you train hard and recover. Your total for the day stays ' + Math.round(i.carbsTarget) + ' g.' };
   }
 
   /* ---------- export (ACC-2) ---------- */
@@ -90,7 +103,7 @@
       .map(function (t) { return { name: 'leanward-' + t.replace(/^lw_/, '') + '.csv', text: toCsv(tables[t]) }; });
   }
 
-  var api = { insight: insight, toExport: toExport, toCsv: toCsv, csvFiles: csvFiles };
+  var api = { trainingLine: trainingLine, insight: insight, toExport: toExport, toCsv: toCsv, csvFiles: csvFiles };
   if (node) module.exports = api;
   else { root.LW.home = api; }
 })(this);
