@@ -561,10 +561,13 @@ as $$
     from words, generate_series(1, coalesce(array_length(words.w, 1), 0)) as k
     where array_length(words.w, 1) >= 3 or (array_length(words.w, 1) = 2 and k = 1)
   ), part_hits as (
-    select f.* from public.lw_foods f, qq
-    where not exists (select 1 from text_hits) and exists (select 1 from part_q pq where f.search @@ pq.q)
-    order by (select count(*) from unnest(qq.each_word) wq where f.search @@ wq) desc,
-      (case when f.source <> 'usda-branded' then 1 else 0 end) desc
+    -- A join, so each partial query uses the search index (a per-row EXISTS scanned the whole catalog).
+    select p.* from (
+      select distinct on (f.id) f.* from part_q pq join public.lw_foods f on f.search @@ pq.q
+      where not exists (select 1 from text_hits)
+    ) p, qq
+    order by (select count(*) from unnest(qq.each_word) wq where p.search @@ wq) desc,
+      (case when p.source <> 'usda-branded' then 1 else 0 end) desc
     limit 500
   ), fuzzy_hits as (
     select f.* from public.lw_foods f, qq
