@@ -79,3 +79,13 @@ test('Search online gives up with a clear message instead of hanging, and falls 
     await assert.rejects(F.offSearch('quest overload', { timeoutMs: 20 }), /didn't answer in time.*create the food/);
   } finally { global.fetch = saved.fetch; }
 });
+
+test('search: does a result have every word the person typed? (closest matches, v0.23)', () => {
+  const FD = require('../js/foods.js');
+  const bagel = { name: 'Everything Bagels, Everything', brand: "Thomas'" };
+  assert.equal(FD.hasAllWords(bagel, 'Thomas everything bagels'), true);
+  assert.equal(FD.hasAllWords(bagel, "thomas' everything bagel"), true);     // apostrophe, singular
+  assert.equal(FD.hasAllWords(bagel, 'thomas everything protein bagels'), false);
+  assert.equal(FD.hasAllWords({ name: 'Greek yogurt, plain' }, 'greek yog'), true);  // a half-typed word
+  assert.deepEqual(FD.queryWords("Trader Joe's  b 2% milk"), ['trader', 'joe', 'milk']);
+});

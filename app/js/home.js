@@ -67,7 +67,9 @@
     var td = i.training;
     if (!td || !td.today || !(i.carbsTarget > 0)) return null;
     var around = Math.round(i.carbsTarget / 2 / 5) * 5;
-    var lead = td.today === 'logged' ? 'Logged in PR Forge today.' : 'You usually train on ' + td.usualNames.join(', ') + ' (PR Forge).';
+    var src = td.manual ? (td.label ? td.label : 'your schedule') : 'PR Forge';
+    var lead = td.today === 'logged' ? 'Logged in PR Forge today.' : td.today === 'marked' ? 'You marked today as a training day' + (td.label ? ' (' + td.label + ')' : '') + '.'
+      : 'You usually train on ' + td.usualNames.join(', ') + ' (' + src + ').';
     return { title: td.today === 'logged' ? 'Trained today' : 'Training day',
       text: lead + ' Putting about half of today\'s carbs, around ' + around + ' g, in the meals before and after training helps you train hard and recover. Your total for the day stays ' + Math.round(i.carbsTarget) + ' g.' };
   }

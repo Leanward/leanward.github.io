@@ -154,6 +154,18 @@
   }
 
   /** The Open Food Facts text-search URL for a query. */
+  /** The query's words as the catalog search sees them: lower case, 's and apostrophes dropped, 2+ letters. */
+  function queryWords(q) {
+    return String(q || '').toLowerCase().replace(/['’`]s\b/g, '').replace(/['’`]/g, '').split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 2; });
+  }
+  /** True when every query word starts a word of the food's name or brand (plural "bagels" also matches "bagel"). */
+  function hasAllWords(food, q) {
+    var words = queryWords(q), toks = queryWords((food && food.name || '') + ' ' + (food && food.brand || ''));
+    return words.every(function (w) {
+      var stem = w.length > 3 && /s$/.test(w) ? w.slice(0, -1) : w;
+      return toks.some(function (t) { return t.indexOf(w) === 0 || t.indexOf(stem) === 0; });
+    });
+  }
   function offSearchUrl(q, host) {
     return (host || OFF_SEARCH_HOSTS[0]) + '/cgi/search.pl?search_terms=' + encodeURIComponent(String(q || '').trim().slice(0, 100)) +
       '&search_simple=1&action=process&json=1&page_size=24&sort_by=unique_scans_n&fields=' + OFF_FIELDS;
@@ -203,7 +215,7 @@
     return next();
   }
 
-  var api = { OFF_ATTRIBUTION: OFF_ATTRIBUTION, offSearchUrl: offSearchUrl, fromOffSearch: fromOffSearch, offSearch: offSearch, SOURCE_LABEL: SOURCE_LABEL, fromOff: fromOff, offCodes: offCodes, scale: scale, badge: badge, search: search, get: get, byBarcode: byBarcode };
+  var api = { queryWords: queryWords, hasAllWords: hasAllWords, OFF_ATTRIBUTION: OFF_ATTRIBUTION, offSearchUrl: offSearchUrl, fromOffSearch: fromOffSearch, offSearch: offSearch, SOURCE_LABEL: SOURCE_LABEL, fromOff: fromOff, offCodes: offCodes, scale: scale, badge: badge, search: search, get: get, byBarcode: byBarcode };
   if (node) module.exports = api;
   else { root.LW.foods = api; }
 })(this);

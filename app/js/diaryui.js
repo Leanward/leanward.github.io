@@ -284,12 +284,21 @@
         (groups.length ? '' : '<p class="small muted">Log some food to see its nutrients.</p>'));
     }
 
+    /** Training or rest for the day shown (NUT-9b): a one-off change to the usual schedule. */
+    function trainMenu(date) {
+      var m = ((S.rows.profile && S.rows.profile.preferences) || {}).training || {}, mark = (m.days || {})[date];
+      var td = date === ctx.today() && ctx.training ? ctx.training() : null, usual = td && (td.today === 'usual' || td.today === 'logged');
+      var b = function (v, label) { return '<button type="button" class="btn ghost block" data-a="trmark" data-v="' + v + '">' + label + '</button>'; };
+      if (mark === true) return b('clear', 'Not a training day after all');
+      if (mark === false) return b('clear', 'Undo rest day');
+      return b('on', 'Mark as a training day') + (usual ? b('off', 'Rest day today') : '');
+    }
     /** Today's ⋯ menu: the day-level actions that used to sit on the screen itself. */
     function todayMenuSheet() {
       var date = S.diaryDate || ctx.today(), today = ctx.today(), y = DY.addDays(date, -1);
       var b = function (a, label, v, primary) { return '<button type="button" class="btn ' + (primary ? '' : 'ghost ') + 'block" data-a="' + a + '"' + (v != null ? ' data-v="' + v + '"' : '') + '>' + label + '</button>'; };
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="More for this day"><div class="grab"></div><h2>' + esc(dayName(date)) + '</h2>' +
-        b('nutrients', 'Nutrients for the day', null, true) + b('weigh', 'Log weight') +
+        b('nutrients', 'Nutrients for the day', null, true) + b('weigh', 'Log weight') + trainMenu(date) +
         (!entriesOn(date).length && entriesOn(y).length ? b('copyday', 'Copy ' + (y === DY.addDays(today, -1) ? 'yesterday' : 'the day before')) : '') +
         '<div class="grid2">' + b('day', '‹ Previous day', -1) + (date < today ? b('day', 'Next day ›', 1) : b('close', 'Close')) + '</div>' +
         b('slots', 'Rename, reorder or hide meals') + '</div>';

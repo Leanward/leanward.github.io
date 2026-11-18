@@ -21,7 +21,11 @@ const foods = [
   ['usda:10', 'usda-branded', 'verified', 'Banana', 'Kid Vids', null, 89, 1, 23, 0.3, null],
   ['usda:11', 'usda-branded', 'verified', 'Banana Chips', 'Banana Joe', null, 520, 2, 58, 34, null],
   ['usda:12', 'usda-sr-legacy', 'verified', 'Salmonberries, raw (Alaska Native)', null, null, 47, 1.4, 10, 0.4, 'raw'],
-  ['usda:13', 'usda-sr-legacy', 'verified', 'Fish, salmon, Atlantic, farmed, raw', null, null, 208, 20, 0, 13, 'raw']
+  ['usda:13', 'usda-sr-legacy', 'verified', 'Fish, salmon, Atlantic, farmed, raw', null, null, 208, 20, 0, 13, 'raw'],
+  // Seen on the real catalog (2026-11-18): Thomas' protein bagels aren't in it, and "protein bagel" showed protein bars.
+  ['usda:14', 'usda-branded', 'verified', 'Everything Bagels, Everything', "Thomas'", null, 250, 9, 49, 2, null],
+  ['usda:15', 'usda-branded', 'verified', 'Plain Bagels, Plain', "Thomas'", null, 245, 9, 48, 1.5, null],
+  ['usda:16', 'usda-sr-legacy', 'verified', 'Formulated Bar, SOUTH BEACH protein bar', null, null, 380, 30, 40, 12, null]
 ];
 const q = (v) => (v == null ? 'null' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
 const insert = `insert into public.lw_foods (id, source, source_id, verification, name, brand, gtin, kcal, protein_g, carbs_g, fat_g, preparation) values
@@ -50,7 +54,9 @@ test('catalog search and barcode lookup (real PostgreSQL)', { skip: BIN ? false 
       ['dairy fa', 'a half-typed brand matches'],
       ["snack co's banana", 'apostrophes and one-letter words are ignored'],
       ['b', 'one letter: no results'],
-      ['zzzzqq', 'no match']
+      ['zzzzqq', 'no match'],
+      ['thomas everything protein bagels', 'no food has every word: closest matches (all but one)'],
+      ['protein bagel', 'two words, no exact match: the food (last word) wins over the describing word']
     ];
     db.file('q.sql', as + '\n' + queries.map(([t]) => search(t)).join('\n') +
       `\nselect id from public.lw_food_by_barcode('00012345678905');\nselect count(*) from public.lw_food_by_barcode('12345');`);
@@ -72,6 +78,9 @@ test('catalog search and barcode lookup (real PostgreSQL)', { skip: BIN ? false 
     assert.ok(res["snack co's banana"][0] === 'usda:4' || res["snack co's banana"][0] === 'usda:5', JSON.stringify(res["snack co's banana"]));
     assert.deepEqual(res.b, []);
     assert.deepEqual(res.zzzzqq, []);
+    assert.equal(res['thomas everything protein bagels'][0], 'usda:14', JSON.stringify(res['thomas everything protein bagels']));
+    assert.ok(['usda:14', 'usda:15'].includes(res['protein bagel'][0]), JSON.stringify(res['protein bagel']));
+    assert.ok(!res['protein bagel'].includes('usda:16'), 'no protein bars for "protein bagel"');
     assert.equal(out[queries.length], 'usda:4', 'barcode lookup');
     assert.equal(out[queries.length + 1], '0', 'a malformed barcode finds nothing');
 
