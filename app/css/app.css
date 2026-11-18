@@ -303,7 +303,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 :root { --raised: #22242b; --r-card: 20px; --gut: 16px; }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --raised: #eceef3; --card: #ffffff; } }
 :root[data-theme="light"] { --raised: #eceef3; --card: #ffffff; }
-.num, .hero2 b, .mrow2 .v, .mini .big, .sumcard .big, .ringtxt b { font-variant-numeric: tabular-nums; }
+.num, .hero2 b, .mrow2 .v, .sumcard .big, .ringtxt b { font-variant-numeric: tabular-nums; }
 .ic { width: 20px; height: 20px; flex: none; }
 .view { gap: 16px; }
 .card { border-radius: var(--r-card); }
@@ -352,21 +352,6 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .heronote { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--muted); }
 
 /* compact cards */
-.minis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.mini { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); padding: 13px 14px; text-align: left; color: var(--fg); font: inherit; cursor: pointer; display: grid; gap: 4px; min-width: 0; }
-.mini .mhead { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
-.mini .mhead .ic { width: 18px; height: 18px; color: var(--g1); }
-.mini .mhead .ic:last-child { width: 14px; height: 14px; color: var(--muted); }
-.mini .big { font-size: 25px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
-.mini .big small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 3px; }
-.mini .sub { font-size: 12px; color: var(--muted); }
-.mini .sub.good { color: var(--ok); }
-.spark { width: 100%; height: 30px; }
-.spark path { fill: none; stroke: var(--g1); stroke-width: 2; stroke-linecap: round; }
-.spark circle { fill: var(--g1); stroke: var(--card); stroke-width: 2; }
-.sess { display: flex; gap: 7px; margin-top: 6px; flex-wrap: wrap; }
-.sess i { width: 22px; height: 22px; border-radius: 6px; background: var(--raised); }
-.sess i.on { background: linear-gradient(135deg, var(--g1), var(--g2)); }
 
 /* Leanward Intelligence */
 .intel { position: relative; overflow: hidden; border-color: rgba(var(--g1-rgb), .55); background: radial-gradient(120% 90% at 100% 0%, rgba(var(--g1-rgb), .22), transparent 60%), linear-gradient(180deg, rgba(var(--g1-rgb), .08), rgba(var(--g1-rgb), .02)), var(--card); display: grid; gap: 8px; }
@@ -464,11 +449,10 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .tabs [aria-current="page"] { color: var(--fg); font-weight: 700; position: relative; }
 .tabs [aria-current="page"]::after { content: ""; position: absolute; bottom: -2px; left: 50%; width: 22px; margin-left: -11px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--g1), var(--g2)); box-shadow: 0 0 8px rgba(var(--g1-rgb), .6); }
 .tabs .plus { background: linear-gradient(135deg, var(--g1), var(--g2)); color: #fff; font-weight: 300; box-shadow: 0 6px 20px rgba(var(--g1-rgb), .45), 0 0 0 5px var(--bg); }
-@media (max-width: 370px) { .hero2 .ring { width: 100px; height: 100px; } .hero2 .ringtxt b { font-size: 21px; } .mini .big { font-size: 21px; } .sumcard .big { font-size: 28px; } .ttlrow h1 { font-size: 28px; } }
+@media (max-width: 370px) { .hero2 .ring { width: 100px; height: 100px; } .hero2 .ringtxt b { font-size: 21px; } .sumcard .big { font-size: 28px; } .ttlrow h1 { font-size: 28px; } }
 .chev { width: 28px; height: 28px; border: 0; background: none; color: var(--muted); display: grid; place-content: center; cursor: pointer; padding: 0; }
 .chev .ic { width: 18px; height: 18px; }
 .pairs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.minis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .kv { grid-template-columns: 18px minmax(0, 1fr) auto auto; gap: 6px; }
 .kv > span:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .minicard { min-width: 0; overflow: hidden; }

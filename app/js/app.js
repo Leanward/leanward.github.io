@@ -463,8 +463,7 @@
   }
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); }, training: training });
   var coach = function () { try { return screens.coach(); } catch (e) { return null; } };
-  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach,
-    minis: function () { return progressui.minis(); } });
+  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;
   var pf = {
