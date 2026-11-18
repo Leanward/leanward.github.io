@@ -420,8 +420,10 @@
   }
 
   /* ---------- M3 screens ---------- */
-  var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); } });
-  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today,
+  // Training days from PR Forge (NUT-9), worked out from the summary already kept on the phone.
+  var training = function () { return state.pf.status === 'on' && state.pf.data && state.pf.data.exercises ? root.LW.prforge.trainingDays(state.pf.data.exercises, today()) : null; };
+  var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); }, training: training });
+  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training,
     tiles: function () { return '<div class="tiles">' + screens.phaseTile() + progressui.weightTile() + '</div>'; } });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;

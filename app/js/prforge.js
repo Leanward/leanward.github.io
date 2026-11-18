@@ -125,7 +125,30 @@
     return list;
   }
 
-  var api = { MAX_LIFTS: MAX_LIFTS, LB_PER_KG: LB_PER_KG, NAMES: NAMES, nameOf: nameOf, bestSet: bestSet, summarize: summarize, series: series, forProgress: forProgress, toggle: toggle };
+  /**
+   * Training days from PR Forge (NUT-9): any day with a finished workout that had a weighted set.
+   * Works on the summary Leanward already keeps (exercise session dates), so it needs no new data.
+   * Returns { today: 'logged' | 'usual' | null, usual: [0–6 weekdays trained on 2+ times in the last
+   * 4 weeks], sessions14, sessions28, perWeek (average over 4 weeks) }.
+   */
+  var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function weekday(date) { return new Date(date + 'T12:00:00Z').getUTCDay(); }
+  function shift(date, n) { var d = new Date(date + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function trainingDays(exercises, today) {
+    var dates = {};
+    (exercises || []).forEach(function (ex) { (ex.sessions || []).forEach(function (s) { if (s.date <= today) dates[s.date] = 1; }); });
+    var from28 = shift(today, -27), from14 = shift(today, -13), counts = [0, 0, 0, 0, 0, 0, 0], s14 = 0, s28 = 0;
+    Object.keys(dates).forEach(function (d) {
+      if (d < from28) return;
+      s28++; counts[weekday(d)]++;
+      if (d >= from14) s14++;
+    });
+    var usual = counts.map(function (c, i) { return c >= 2 ? i : -1; }).filter(function (i) { return i >= 0; });
+    return { today: dates[today] ? 'logged' : usual.indexOf(weekday(today)) >= 0 ? 'usual' : null, usual: usual,
+      usualNames: usual.map(function (i) { return DAY_NAMES[i]; }), sessions14: s14, sessions28: s28, perWeek: Math.round(s28 / 4 * 10) / 10 };
+  }
+
+  var api = { trainingDays: trainingDays, MAX_LIFTS: MAX_LIFTS, LB_PER_KG: LB_PER_KG, NAMES: NAMES, nameOf: nameOf, bestSet: bestSet, summarize: summarize, series: series, forProgress: forProgress, toggle: toggle };
   if (node) { module.exports = api; return; }
 
   /* ---------- browser: the read-only PR Forge client ---------- */

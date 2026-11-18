@@ -400,6 +400,16 @@
      * number, and how each is judged one tap away.
      */
     /** "Next week" (PRG-4): one step with its reasons, after the data-quality checks. */
+    /** Plan (NUT-9): for people training 4+ days a week, carbs per kg with context. Education only. */
+    function carbNote(t) {
+      var td = trainingNow(), kg = t.calc_inputs && Number(t.calc_inputs.kg);
+      if (!td || !(td.perWeek >= 4) || !(kg > 0) || !(t.carbs_g > 0)) return '';
+      var gkg = t.carbs_g / kg;
+      return '<p class="small muted" style="margin:8px 0 0">You train about ' + fmt(td.perWeek, 1) + ' times a week (PR Forge). Your carbs are ' + fmt(gkg, 1) + ' g per kg. ' +
+        (gkg < 3 ? 'People training hard most days often do better with 3–5 g/kg; in a cut that isn\'t always possible, so put more of them around training. ' : 'That suits regular training. ') +
+        'If training starts to suffer, Progress will say so.</p>';
+    }
+    function trainingNow() { return ctx.training ? ctx.training() : null; }
     function nextHtml(ph, t, r) {
       var y = core.addDays(today(), -1), ci = t.calc_inputs || {};
       var days = root.LW.maint.intakeDays(S.rows.diary || [], function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); }, core.addDays(y, -13), y);
@@ -414,6 +424,7 @@
       var r21 = series.length && (wts.filter(function (w) { return w.date >= core.addDays(today(), -20); }).length >= 10) ? C.trend.rateOfChange(series, 21) : null;
       var q = { loggedDays14: days.filter(function (d) { return d.complete; }).length, weighIns14: Object.keys(wd).length, manualTarget: t.origin === 'manual',
         floorKcal: floorKcal, targetKcal: Number(t.kcal), belowFloorDays7: below7, rate21Pct: r21 ? r21.pctPerWeek : null,
+        sessions14: trainingNow() ? trainingNow().sessions14 : null, usualPerWeek: trainingNow() ? trainingNow().perWeek : null,
         targetWeeklyPct: ci.tdee > 0 && ci.kg > 0 ? C.targets.pace(t.kcal, ci.tdee, ci.kg).weeklyPct : null };
       var n = C.progress.nextStep(ph.type, r, q);
       if (!n) return '';
@@ -537,6 +548,7 @@
         maintCard(t) +
         '<section class="card"><div class="row"><h2 style="margin:0">Targets</h2><button type="button" class="btn sm" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
+          carbNote(t) +
           (t.calc_inputs && t.calc_inputs.tdee ? '<div style="margin-top:10px">' + maintLine(t.calc_inputs.tdee, t.calc_inputs.energySource || 'formula', t.calc_inputs.formulaTdee, t.kcal, ph.type, fromCheck(t) ? 'tracking-check' : null) + '</div>' : '') +
           '<button type="button" class="link" data-a="editmaint" style="margin-top:6px">Know your real maintenance or BMR?</button>' +
           '<p class="small muted">Fiber ' + t.fiber_g + ' g · ' + (t.origin === 'manual' ? 'set by you' : t.origin === 'recommendation' ? 'from the maintenance check' : 'calculated') + ' from ' + nd(t.effective_from) + '</p>' +

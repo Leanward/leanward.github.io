@@ -59,6 +59,19 @@
     return null;
   }
 
+  /**
+   * The training-day line on Today (NUT-9): guidance only, the day's targets don't change.
+   * i: { training: PF.trainingDays(...) result, carbsTarget, carbsEaten }. Null on other days.
+   */
+  function trainingLine(i) {
+    var td = i.training;
+    if (!td || !td.today || !(i.carbsTarget > 0)) return null;
+    var around = Math.round(i.carbsTarget / 2 / 5) * 5;
+    var lead = td.today === 'logged' ? 'Logged in PR Forge today.' : 'You usually train on ' + td.usualNames.join(', ') + ' (PR Forge).';
+    return { title: td.today === 'logged' ? 'Trained today' : 'Training day',
+      text: lead + ' Putting about half of today\'s carbs, around ' + around + ' g, in the meals before and after training helps you train hard and recover. Your total for the day stays ' + Math.round(i.carbsTarget) + ' g.' };
+  }
+
   /* ---------- export (ACC-2) ---------- */
   var SKIP = ['rev', 'dirty', 'user_id', 'deleted'];
   function clean(row) { var o = {}; Object.keys(row).forEach(function (k) { if (SKIP.indexOf(k) < 0) o[k] = row[k]; }); return o; }
@@ -90,7 +103,7 @@
       .map(function (t) { return { name: 'leanward-' + t.replace(/^lw_/, '') + '.csv', text: toCsv(tables[t]) }; });
   }
 
-  var api = { insight: insight, toExport: toExport, toCsv: toCsv, csvFiles: csvFiles };
+  var api = { trainingLine: trainingLine, insight: insight, toExport: toExport, toCsv: toCsv, csvFiles: csvFiles };
   if (node) module.exports = api;
   else { root.LW.home = api; }
 })(this);

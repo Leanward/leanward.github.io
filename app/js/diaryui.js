@@ -81,7 +81,7 @@
         '<button type="button" class="iconbtn" data-a="day" data-v="1" aria-label="Next day"' + (date >= today ? ' disabled style="opacity:.35"' : '') + '>›</button></header>' +
         heroCard(date);
       // Today only: the phase and weight tiles, at most one tip, and quick log for the time of day.
-      if (date === today) out += (ctx.tiles ? ctx.tiles() : '') + insightCard() + quickLog();
+      if (date === today) out += trainingCard() + (ctx.tiles ? ctx.tiles() : '') + insightCard() + quickLog();
       if (!es.length) {
         out += yEntries.length
           ? '<section class="card slim"><div class="row"><span class="small">Nothing logged ' + (date === today ? 'yet today' : 'this day') + '.</span><button type="button" class="btn sm" data-a="copyday">Copy ' + (y === DY.addDays(today, -1) ? 'yesterday' : 'the day before') + '</button></div></section>'
@@ -128,6 +128,11 @@
       }).join('') + '</div></section>';
     }
     /** Home (HOM-4): at most one insight card. */
+    /** Training day (NUT-9): one quiet line, only on training days, only with PR Forge connected. */
+    function trainingCard() {
+      var tg = targetsFor(ctx.today()), l = ctx.training && tg ? root.LW.home.trainingLine({ training: ctx.training(), carbsTarget: Number(tg.carbs_g) }) : null;
+      return l ? '<section class="card trainline"><b>' + esc(l.title) + '</b><p class="small muted">' + esc(l.text) + '</p></section>' : '';
+    }
     function insightCard() {
       var today = ctx.today(), now = new Date();
       var lastW = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return w.date; }).sort().pop() || null;
