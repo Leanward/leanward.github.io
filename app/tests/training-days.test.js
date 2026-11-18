@@ -17,7 +17,7 @@ test('training days: usual weekdays from the last 4 weeks, today logged or usual
   assert.deepEqual([td.week, td.weekAim], [1, 2]);
   assert.equal(PF.trainingDays(ex, '2026-11-16').today, 'logged');
   assert.equal(PF.trainingDays(ex, '2026-11-19').today, null);      // Thursday: rest day
-  assert.deepEqual(PF.trainingDays([], '2026-11-18'), { today: null, usual: [], usualNames: [], sessions14: 0, sessions28: 0, perWeek: 0, week: 0, weekAim: 0 });
+  assert.deepEqual(PF.trainingDays([], '2026-11-18'), { today: null, usual: [], label: null, manual: false, usualNames: [], sessions14: 0, sessions28: 0, perWeek: 0, week: 0, weekAim: 0, restToday: false });
 });
 
 test('Today line: about half the carbs around training; nothing on rest days; total unchanged', () => {
@@ -40,4 +40,26 @@ test('a strength dip after fewer sessions than usual is said to be that, not mus
   // the usual number of sessions → the recovery advice as before
   assert.equal(P.nextStep('cut', { signals: [w, lift] }, Object.assign({ sessions14: 6, usualPerWeek: 3 }, q)).title, 'Look after recovery');
   assert.equal(P.nextStep('cut', { signals: [w, lift] }, q).title, 'Look after recovery');
+});
+
+test('training days you set yourself: a weekly schedule, one-off training days and rest days (NUT-9b)', () => {
+  // no PR Forge at all; hockey on Tue and Thu. 2026-11-17 is a Tuesday.
+  const hockey = { weekdays: [2, 4], label: 'Hockey', days: {} };
+  const tue = PF.trainingDays([], '2026-11-17', hockey);
+  assert.deepEqual([tue.today, tue.usualNames, tue.label, tue.manual, tue.weekAim], ['usual', ['Tue', 'Thu'], 'Hockey', true, 2]);
+  assert.match(H.trainingLine({ training: tue, carbsTarget: 200 }).text, /^You usually train on Tue, Thu \(Hockey\)\./);
+  // a game on Saturday the 21st, marked that day → a training day and a session this week
+  const sat = PF.trainingDays([], '2026-11-21', Object.assign({}, hockey, { days: { '2026-11-21': true } }));
+  assert.deepEqual([sat.today, sat.week], ['marked', 1]);
+  assert.match(H.trainingLine({ training: sat, carbsTarget: 200 }).text, /^You marked today as a training day \(Hockey\)\./);
+  // skipping Thursday the 19th → no training line that day
+  const thu = PF.trainingDays([], '2026-11-19', Object.assign({}, hockey, { days: { '2026-11-19': false } }));
+  assert.deepEqual([thu.today, thu.restToday], [null, true]);
+  assert.equal(H.trainingLine({ training: thu, carbsTarget: 200 }), null);
+  // with PR Forge: usual days merge (Mon, Wed from PR Forge + Tue, Thu hockey), Monday first
+  assert.deepEqual(PF.trainingDays(ex, '2026-11-18', hockey).usualNames, ['Mon', 'Tue', 'Wed', 'Thu']);
+  // marks keep 60 days; null clears a day
+  let m = PF.setMark({ '2026-08-01': true, '2026-11-10': false }, '2026-11-18', true, '2026-11-18');
+  assert.deepEqual(m, { '2026-11-10': false, '2026-11-18': true });
+  assert.deepEqual(PF.setMark(m, '2026-11-18', null, '2026-11-18'), { '2026-11-10': false });
 });

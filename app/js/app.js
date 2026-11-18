@@ -102,6 +102,17 @@
   function appearance() { return T.normalize(((state.rows.profile && state.rows.profile.preferences) || {}).appearance || (state.rows.profile ? null : T.saved())); }
   function phaseType() { var ph = root.LW.model.currentPhase(state.rows.phases); return ph ? ph.type : null; }
   function applyTheme() { T.apply(state.sheet && state.sheet.kind === 'appearance' ? state.sheet.choice : appearance(), phaseType()); }
+  /** Profile › Training days (NUT-9b): the weekdays you usually train, for sport PR Forge doesn't see. */
+  function trainingSheet() {
+    var sh = state.sheet, names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ids = [1, 2, 3, 4, 5, 6, 0];
+    return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Training days"><div class="grab"></div><h2>Training days</h2>' +
+      '<p class="small muted">The days you usually train, for anything PR Forge doesn\'t see (hockey, runs, classes). On these days Today suggests putting more of your carbs around training; your targets don\'t change.' + (state.pf.status === 'on' ? ' Days from PR Forge are added automatically.' : '') + '</p>' +
+      '<div class="field"><span class="lab">Usually on</span><div class="chips2" role="group" aria-label="Weekdays">' + ids.map(function (d, i) {
+        return '<button type="button" data-a="trday" data-v="' + d + '" aria-pressed="' + (sh.weekdays.indexOf(d) >= 0) + '">' + names[i] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="field"><label for="tr-label">What it is <span class="muted">optional</span></label><input type="text" id="tr-label" maxlength="30" placeholder="e.g. Hockey" value="' + esc(sh.label || '') + '"></div>' +
+      '<p class="small muted">For a one-off game or a skipped session, use ⋯ on Today.</p>' +
+      '<button type="button" class="btn block" data-a="trsave">Save</button></div>';
+  }
   function appearanceSheet() {
     var c = state.sheet.choice, ph = phaseType() || 'recomp';
     return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Appearance"><div class="grab"></div><h2>Appearance</h2>' +
@@ -139,6 +150,7 @@
       row('sparkle', 'Appearance', 'Color and light or dark', 'appearance') +
       row('fork', 'Meals', 'Rename, reorder or hide', 'slots') +
       row('target', 'Targets and phase', 'Open Plan', 'tab', 'phase') +
+      row('dumbbell', 'Training days', (function () { var m = trainingPrefs(), n = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; return m && m.weekdays && m.weekdays.length ? m.weekdays.slice().sort(function (a, b) { return ((a + 6) % 7) - ((b + 6) % 7); }).map(function (d) { return n[d]; }).join(', ') + (m.label ? ' · ' + m.label : '') : 'Hockey, runs, anything outside PR Forge'; })(), 'trdays') +
       // PR Forge opens Progress › Strength, where Connect and Key lifts live.
       row('dumbbell', 'PR Forge', pfs + (state.pf.status === 'on' ? ' · Key lifts' : ' · Connect'), 'ptab', 'strength') + '</section>';
   }
@@ -227,6 +239,7 @@
   function sheet() {
     if (!state.sheet) return '';
     if (state.sheet.kind === 'appearance') return appearanceSheet();
+    if (state.sheet.kind === 'trdays') return trainingSheet();
     if (state.sheet.kind === 'delacct') return deleteSheet();
     return diaryui.sheetView() || progressui.sheetView() || foodui.sheetView() || screens.sheetView() || '';
   }
@@ -317,6 +330,13 @@
     },
     retrysync: function () { if (syncer) syncer.now(); },
     appearance: function () { state.sheet = { kind: 'appearance', choice: appearance() }; render(); },
+    trdays: function () { var m = trainingPrefs() || {}; state.sheet = { kind: 'trdays', weekdays: (m.weekdays || []).slice(), label: m.label || '' }; render(); },
+    trday: function (v) { var d = Number(v), w = state.sheet.weekdays, i = w.indexOf(d); if (i >= 0) w.splice(i, 1); else w.push(d); var l = doc.getElementById('tr-label'); if (l) state.sheet.label = l.value; render(); },
+    trsave: function () { var l = doc.getElementById('tr-label'), label = l ? l.value.trim().slice(0, 30) : state.sheet.label; saveTraining({ weekdays: state.sheet.weekdays.slice().sort(), label: label || null }, 'Training days saved'); },
+    trmark: function (v) {
+      var date = state.diaryDate || today(), m = trainingPrefs() || {};
+      saveTraining({ days: root.LW.prforge.setMark(m.days || {}, date, v === 'on' ? true : v === 'off' ? false : null, today()) }, v === 'on' ? 'Marked as a training day' : v === 'off' ? 'Marked as a rest day' : 'Back to your usual schedule');
+    },
     apmode: function (v) { state.sheet.choice.mode = v; render(); },
     aptext: function (v) { state.sheet.choice.text = v; render(); },
     appal: function (v) { state.sheet.choice.palette = v; render(); },
@@ -425,7 +445,22 @@
 
   /* ---------- M3 screens ---------- */
   // Training days from PR Forge (NUT-9), worked out from the summary already kept on the phone.
-  var training = function () { return state.pf.status === 'on' && state.pf.data && state.pf.data.exercises ? root.LW.prforge.trainingDays(state.pf.data.exercises, today()) : null; };
+  // Training days (NUT-9): PR Forge workouts, plus what the person set themselves (NUT-9b, profile preferences).
+  function trainingPrefs() { return ((state.rows.profile && state.rows.profile.preferences) || {}).training || null; }
+  var training = function () {
+    var pfOn = state.pf.status === 'on' && state.pf.data && state.pf.data.exercises, man = trainingPrefs();
+    var hasMan = man && ((man.weekdays || []).length || Object.keys(man.days || {}).length);
+    if (!pfOn && !hasMan) return null;
+    var td = root.LW.prforge.trainingDays(pfOn ? state.pf.data.exercises : [], today(), man);
+    td.pf = !!pfOn;
+    return td;
+  };
+  /** Save training preferences (weekly schedule, label, day marks) with the profile. */
+  function saveTraining(next, msg) {
+    var p = state.rows.profile; if (!p) return;
+    var prefs = Object.assign({}, p.preferences || {}, { training: Object.assign({}, trainingPrefs() || {}, next) });
+    save([['lw_profiles', Object.assign({}, p, { preferences: prefs })]]).then(function () { state.sheet = false; toast(msg); render(); }, function (e) { toast('Couldn\'t save: ' + (e && e.message)); });
+  }
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); }, training: training });
   var coach = function () { try { return screens.coach(); } catch (e) { return null; } };
   var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach,

@@ -553,9 +553,22 @@ as $$
     order by (case when f.source <> 'usda-branded' then 1 else 0 end) + (case when f.search @@ qq.whole then 0.5 else 0 end)
       + ts_rank(f.search, qq.tsq, 1) desc
     limit 500
+  ), part_q as (
+    -- No food has every word (v0.23): try the query with one word left out, so "thomas everything protein
+    -- bagels" still finds Thomas' Everything Bagels. With two words, keep the last one (usually the food
+    -- itself: "protein bagel" → bagels, not protein bars).
+    select to_tsquery('english', array_to_string(array(select x || ':*' from unnest(words.w) with ordinality as u(x, i) where i <> k), ' & ')) as q
+    from words, generate_series(1, coalesce(array_length(words.w, 1), 0)) as k
+    where array_length(words.w, 1) >= 3 or (array_length(words.w, 1) = 2 and k = 1)
+  ), part_hits as (
+    select f.* from public.lw_foods f, qq
+    where not exists (select 1 from text_hits) and exists (select 1 from part_q pq where f.search @@ pq.q)
+    order by (select count(*) from unnest(qq.each_word) wq where f.search @@ wq) desc,
+      (case when f.source <> 'usda-branded' then 1 else 0 end) desc
+    limit 500
   ), fuzzy_hits as (
     select f.* from public.lw_foods f, qq
-    where char_length(qq.t) >= 4 and not exists (select 1 from text_hits) and qq.t operator(extensions.<%) lower(f.name)
+    where char_length(qq.t) >= 4 and not exists (select 1 from text_hits) and not exists (select 1 from part_hits) and qq.t operator(extensions.<%) lower(f.name)
   ), hits as (
     select h.*, (
         ts_rank(h.search, qq.tsq, 1) * 2
@@ -568,8 +581,10 @@ as $$
         + case when qq.prep is not null and h.preparation = qq.prep then 0.4
                when qq.prep is null and h.preparation = 'raw' then 0.2 else 0 end
         + case when lower(h.name) = qq.t then 0.5 else 0 end
+        -- Closest matches (part_hits): more of the query's words found ranks higher.
+        + coalesce((select count(*) from unnest(qq.each_word) wq where h.search @@ wq)::real / nullif(array_length(qq.each_word, 1), 0), 0)
       )::real as score
-    from (select * from text_hits union all select * from fuzzy_hits) h
+    from (select * from text_hits union all select * from part_hits union all select * from fuzzy_hits) h
     cross join qq
     left join lateral (
       -- The query names this food's brand: a query word in the brand but not in the name.

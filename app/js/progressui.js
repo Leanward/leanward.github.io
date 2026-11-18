@@ -291,7 +291,7 @@
         for (var i = 0; i < Math.max(aim, td.week); i++) boxes += '<i class="' + (i < td.week ? 'on' : '') + '"></i>';
         tCard = '<button type="button" class="mini" data-a="ptab" data-v="strength" aria-label="Training: ' + td.week + ' of ' + (aim || 'no usual number of') + ' sessions this week. Open strength.">' +
           '<span class="mhead">' + UI.icon('dumbbell') + 'Training' + UI.icon('chevron') + '</span><span class="big">' + td.week + (aim ? '<small>/ ' + aim + ' sessions</small>' : '<small>sessions</small>') + '</span>' +
-          '<span class="sub">This week · PR Forge</span>' + (boxes ? '<span class="sess">' + boxes + '</span>' : '') + '</button>';
+          '<span class="sub">This week' + (td.pf ? ' · PR Forge' : '') + '</span>' + (boxes ? '<span class="sess">' + boxes + '</span>' : '') + '</button>';
       }
       return '<div class="minis">' + wCard + tCard + '</div>';
     }

@@ -134,9 +134,16 @@
   var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   function weekday(date) { return new Date(date + 'T12:00:00Z').getUTCDay(); }
   function shift(date, n) { var d = new Date(date + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
-  function trainingDays(exercises, today) {
-    var dates = {};
+  /**
+   * manual (NUT-9b, optional): what the person told Leanward, saved with their profile —
+   * { weekdays: [0–6] they usually train (hockey, runs: anything outside PR Forge), label: 'Hockey',
+   *   days: { 'YYYY-MM-DD': true (trained / training) | false (rest, despite the usual day) } }.
+   * A day marked true counts as a session; false removes the day from today's suggestion only.
+   */
+  function trainingDays(exercises, today, manual) {
+    var dates = {}, m = manual || {}, marks = m.days || {};
     (exercises || []).forEach(function (ex) { (ex.sessions || []).forEach(function (s) { if (s.date <= today) dates[s.date] = 1; }); });
+    Object.keys(marks).forEach(function (d) { if (marks[d] === true && d <= today) dates[d] = 1; });
     var from28 = shift(today, -27), from14 = shift(today, -13), counts = [0, 0, 0, 0, 0, 0, 0], s14 = 0, s28 = 0;
     Object.keys(dates).forEach(function (d) {
       if (d < from28) return;
@@ -144,14 +151,25 @@
       if (d >= from14) s14++;
     });
     var usual = counts.map(function (c, i) { return c >= 2 ? i : -1; }).filter(function (i) { return i >= 0; });
+    (m.weekdays || []).forEach(function (i) { if (i >= 0 && i <= 6 && usual.indexOf(i) < 0) usual.push(i); });
+    usual.sort(function (a, b) { return ((a + 6) % 7) - ((b + 6) % 7); });   // Monday first
     // This week (Monday to today) and the weekly aim: the usual training days, or the 4-week average.
     var monday = shift(today, -((weekday(today) + 6) % 7)), week = Object.keys(dates).filter(function (d) { return d >= monday && d <= today; }).length;
-    return { today: dates[today] ? 'logged' : usual.indexOf(weekday(today)) >= 0 ? 'usual' : null, usual: usual,
+    var todayIs = marks[today] === false ? null : marks[today] === true ? 'marked' : dates[today] ? 'logged' : usual.indexOf(weekday(today)) >= 0 ? 'usual' : null;
+    return { today: todayIs, usual: usual, label: m.label || null, manual: !!((m.weekdays && m.weekdays.length) || Object.keys(marks).length),
       usualNames: usual.map(function (i) { return DAY_NAMES[i]; }), sessions14: s14, sessions28: s28, perWeek: Math.round(s28 / 4 * 10) / 10,
-      week: week, weekAim: usual.length || Math.round(s28 / 4) };
+      week: week, weekAim: usual.length || Math.round(s28 / 4), restToday: marks[today] === false };
   }
 
-  var api = { trainingDays: trainingDays, MAX_LIFTS: MAX_LIFTS, LB_PER_KG: LB_PER_KG, NAMES: NAMES, nameOf: nameOf, bestSet: bestSet, summarize: summarize, series: series, forProgress: forProgress, toggle: toggle };
+  /** The person's training marks with one day set (true / false) or cleared (null), keeping the last 60 days. */
+  function setMark(days, date, value, today) {
+    var out = {}, from = shift(today, -59);
+    Object.keys(days || {}).forEach(function (d) { if (d >= from && d !== date) out[d] = days[d]; });
+    if (value === true || value === false) out[date] = value;
+    return out;
+  }
+
+  var api = { trainingDays: trainingDays, setMark: setMark, MAX_LIFTS: MAX_LIFTS, LB_PER_KG: LB_PER_KG, NAMES: NAMES, nameOf: nameOf, bestSet: bestSet, summarize: summarize, series: series, forProgress: forProgress, toggle: toggle };
   if (node) { module.exports = api; return; }
 
   /* ---------- browser: the read-only PR Forge client ---------- */

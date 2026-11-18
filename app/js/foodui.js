@@ -52,6 +52,12 @@
       if (a.q.trim().length < 2) return '<p class="small muted">Type at least 2 letters, or scan a barcode.</p>';
       if (a.loading && !a.results.length) return own + '<p class="small muted">Searching…</p>';
       if (!a.results.length) return own + '<p class="small muted">Not in Leanward\'s catalog yet.</p>' + onlineHtml(true) + create;
+      // The catalog falls back to closest matches when no food has every word (v0.23): say so, and offer
+      // Search online first, since newer products are often only there.
+      if (!a.results.some(function (f) { return FD.hasAllWords(f, a.q); })) {
+        return own + '<p class="small"><b>No exact match for "' + esc(a.q.trim()) + '".</b> <span class="muted">Newer products are often on Open Food Facts.</span></p>' + onlineHtml(true) +
+          '<span class="sec">Closest matches</span><div class="list">' + a.results.map(resultRow).join('') + '</div>' + create;
+      }
       return own + (own ? '<span class="sec">Catalog</span>' : '') + '<div class="list">' + a.results.map(resultRow).join('') + '</div>' +
         '<p class="small muted">USDA data is public domain (FoodData Central). Not seeing it?</p>' + onlineHtml(false) + create;
     }
