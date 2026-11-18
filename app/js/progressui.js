@@ -266,36 +266,6 @@
         '<div class="ringstat"><div class="ring">' + UI.ring(share, 64, 6, 'ring-n') + '<div class="ringtxt">' + Math.round(share * 100) + '%</div></div></div></div></div></section>';
     }
 
-    /** Today: the weight-trend and training cards (approved design). */
-    function minis() {
-      var UI = root.LW.ui, today = ctx.today(), u = ME.weightUnit(units()), c = ctx.coach ? ctx.coach() : null;
-      var start = c ? c.phase.start_date : core.addDays(today, -27), from28 = core.addDays(today, -27);
-      var v = ME.weightView(S.rows.weights, units(), start > from28 ? start : from28, today), vs = ME.weightView(S.rows.weights, units(), start, today);
-      var wCard;
-      if (!v.latest) {
-        wCard = '<button type="button" class="mini" data-a="weigh"><span class="mhead">' + UI.icon('scale') + 'Weight Trend</span><span class="big">—</span><span class="sub">Log your first weigh-in</span></button>';
-      } else {
-        var since = vs.latest.trend - vs.trend[0].v, good = c && ((c.phase.type === 'cut' && since < 0) || (c.phase.type === 'bulk' && since > 0));
-        var pts = v.trend, lo = Math.min.apply(null, pts.map(function (p) { return p.v; })), hi = Math.max.apply(null, pts.map(function (p) { return p.v; })), span = hi - lo || 1;
-        var xy = pts.map(function (p, i) { return [(4 + i / Math.max(1, pts.length - 1) * 92).toFixed(1), (26 - (p.v - lo) / span * 20).toFixed(1)]; });
-        var path = xy.map(function (q, i) { return (i ? 'L' : 'M') + q[0] + ' ' + q[1]; }).join(' '), end = xy[xy.length - 1];
-        wCard = '<button type="button" class="mini" data-a="ptab" data-v="weight" aria-label="Weight trend ' + fmt(v.latest.trend, 1) + ' ' + u + ', ' + (since < 0 ? 'down ' : 'up ') + fmt(Math.abs(since), 1) + ' since the phase started. Open weight.">' +
-          '<span class="mhead">' + UI.icon('scale') + 'Weight Trend' + UI.icon('chevron') + '</span><span class="big">' + fmt(v.latest.trend, 1) + '<small>' + u + '</small></span>' +
-          '<span class="sub' + (good ? ' good' : '') + '">' + (Math.abs(since) < 0.05 ? 'No change' : (since < 0 ? '↓ ' : '↑ ') + fmt(Math.abs(since), 1) + ' ' + u) + ' since start</span>' +
-          (pts.length > 1 ? '<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path d="' + path + '" vector-effect="non-scaling-stroke"/><circle cx="' + end[0] + '" cy="' + end[1] + '" r="2.6"/></svg>' : '') + '</button>';
-      }
-      var td = ctx.training ? ctx.training() : null, tCard;
-      if (!td) tCard = '<button type="button" class="mini" data-a="ptab" data-v="strength"><span class="mhead">' + UI.icon('dumbbell') + 'Training' + UI.icon('chevron') + '</span><span class="big">—</span><span class="sub">Connect PR Forge to see sessions</span></button>';
-      else {
-        var aim = Math.min(7, td.weekAim || 0), boxes = '';
-        for (var i = 0; i < Math.max(aim, td.week); i++) boxes += '<i class="' + (i < td.week ? 'on' : '') + '"></i>';
-        tCard = '<button type="button" class="mini" data-a="ptab" data-v="strength" aria-label="Training: ' + td.week + ' of ' + (aim || 'no usual number of') + ' sessions this week. Open strength.">' +
-          '<span class="mhead">' + UI.icon('dumbbell') + 'Training' + UI.icon('chevron') + '</span><span class="big">' + td.week + (aim ? '<small>/ ' + aim + ' sessions</small>' : '<small>sessions</small>') + '</span>' +
-          '<span class="sub">This week' + (td.pf ? ' · PR Forge' : '') + '</span>' + (boxes ? '<span class="sess">' + boxes + '</span>' : '') + '</button>';
-      }
-      return '<div class="minis">' + wCard + tCard + '</div>';
-    }
-
     /** Today: a small weight tile with the trend; tap to log (or shows that today is done). */
     function weightTile() {
       var today = ctx.today(), u = ME.weightUnit(units()), v = ME.weightView(S.rows.weights, units(), core.addDays(today, -27), today);
@@ -419,7 +389,7 @@
       measuredelete: function () { var id = S.sheet.id; ctx.remove('lw_measurements', id).then(function () { S.sheet = false; ctx.toast('Deleted'); ctx.render(); }); }
     };
 
-    return { view: view, weightTile: weightTile, minis: minis, sheetView: sheetView, onInput: onInput, actions: actions };
+    return { view: view, weightTile: weightTile, sheetView: sheetView, onInput: onInput, actions: actions };
   }
 
   root.LW.progressui = { create: create };

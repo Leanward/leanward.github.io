@@ -86,8 +86,9 @@
         '<div class="ttlrow"><div><h1>' + esc(title) + '</h1><span class="sub">' + esc(sub) + (date !== today ? ' · <button type="button" class="link" data-a="daytoday">Back to today</button>' : '') + '</span></div>' +
         (c ? '<button type="button" class="phasepill" data-a="tab" data-v="phase" aria-label="' + esc(c.week) + '. Open Plan.">' + UI.icon('target') + esc(c.week) + UI.icon('chevron') + '</button>' : '') + '</div>' +
         heroCard(date);
-      // Today only: weight and training at a glance, Leanward Intelligence, and Quick Add.
-      if (date === today) out += (ctx.minis ? ctx.minis() : '') + intelCard(c) + quickAdd();
+      // Today only: Leanward Intelligence and Quick Add. (The weight and training cards were removed,
+      // owner 2026-11-18: Progress shows both, and neither was something to act on today.)
+      if (date === today) out += intelCard(c) + quickAdd();
       if (!es.length) {
         out += yEntries.length
           ? '<section class="card slim"><div class="row"><span class="small">Nothing logged ' + (date === today ? 'yet today' : 'this day') + '.</span><button type="button" class="btn sm" data-a="copyday">Copy ' + (y === DY.addDays(today, -1) ? 'yesterday' : 'the day before') + '</button></div></section>'
@@ -116,6 +117,18 @@
       });
       return out + '</div>';
     }
+    // Footer for each next-step kind (js/calc/progress.js nextStep): [next action, why it helps, tap action].
+    var STEP_FOOT = {
+      wait: ['Log every meal, weigh in most mornings', 'A fair read needs 2–4 weeks of data'],
+      'log-more': ['Log every meal, even rough guesses', 'Complete days make the read reliable'],
+      'weigh-more': ['Weigh in most mornings', 'More weigh-ins steady the trend', 'weigh'],
+      keep: ['Stay the course', 'Your trend matches your plan'],
+      hold: ['Keep your targets for now', 'Small gaps are often weigh-in noise'],
+      recovery: ['Protein at target, sleep well', 'Supports strength and recovery'],
+      'eat-more': ['Review your target on Plan', 'Based on your 3-week trend', 'tab'],
+      'eat-less': ['Review your target on Plan', 'Based on your 3-week trend', 'tab'],
+      'maintenance-check': ['Weigh foods, log everything', 'Checks your numbers before cutting more']
+    };
     /** Leanward Intelligence on Today: the one thing that matters most right now, with its next action
      *  and today's real targets. Safety (care) first, then the day's tip, a training day, then the next step. */
     function intelCard(c) {
@@ -125,10 +138,14 @@
       if (step && step.kind === 'care') { title = step.title; text = step.why[0]; short = 'Eat at least your target'; why = 'Protects health and training'; }
       else if (tip) { title = tip.title; text = tip.text; act = tip.action; short = tip.short; why = tip.why; }
       else if (train) { title = train.title; text = train.text; short = 'Carbs around training'; why = 'Fuel and recovery'; }
-      else if (step) { title = step.title; text = step.why[0]; short = step.kind === 'keep' ? 'Stay the course' : step.title; why = step.kind === 'keep' ? 'Steady progress' : 'Based on your trend'; }
+      else if (step) {
+        // The footer says what to do and why, in words the title doesn't already use.
+        var F = STEP_FOOT[step.kind] || ['See the full read on Progress', 'Based on your trend'];
+        title = step.title; text = step.why[0].replace(/^Keep logging and weighing in\. Still needed: (.+)\.$/, 'Leanward needs $1 before it can judge your plan.'); short = F[0]; why = F[1]; act = F[2] ? { a: F[2], v: F[2] === 'tab' ? 'phase' : null } : null;
+      }
       else { title = 'Log today, weigh in tomorrow'; text = 'Leanward learns from your logging and weigh-ins. The more complete days you log, the sooner it can tell you whether your plan is working.'; short = 'Log your next meal'; why = 'Builds your baseline'; }
       var targetTxt = tg ? fmt(tg.kcal) + ' kcal · ' + fmt(tg.protein_g) + ' g protein' : 'Set up a phase';
-      var foot = '<div' + (act ? ' role="button" tabindex="0" data-a="' + act.a + '"' : '') + '>' + UI.icon('target') + '<span><b>Next action</b>' + esc(short) + '</span></div>' +
+      var foot = '<div' + (act ? ' role="button" tabindex="0" data-a="' + act.a + '"' + (act.v ? ' data-v="' + act.v + '"' : '') : '') + '>' + UI.icon('target') + '<span><b>Next action</b>' + esc(short) + '</span></div>' +
         '<div>' + UI.icon('trend') + '<span><b>Why it helps</b>' + esc(why) + '</span></div>' +
         '<div role="button" tabindex="0" data-a="tab" data-v="phase">' + UI.icon('clipboard') + '<span><b>Today\'s target</b>' + esc(targetTxt) + '</span></div>';
       return UI.intel({ state: esc(c ? c.state : 'Building your baseline'), title: esc(title), text: esc(text), foot: foot });
