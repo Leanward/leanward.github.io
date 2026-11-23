@@ -79,6 +79,8 @@
     function swipeOpen(v) {
       return '<div class="swipe" data-swipe="' + esc(v) + '"><button type="button" class="swdel" data-a="swipedel" data-v="' + esc(v) + '" tabindex="-1" aria-hidden="true">Delete</button>';
     }
+    /** What you add to a meal, in words that fit it: "a drink" for Beverages, not "food" (owner feedback). */
+    function addWhat(slot) { return slot === 'beverages' ? 'a drink' : slot === 'supplements' ? 'a supplement' : 'food'; }
     function longDate(date) { return new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
     var MEAL_ICON = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', snacks: 'snacks', beverages: 'beverages', supplements: 'supplements' };
     function view() {
@@ -110,7 +112,7 @@
           // Any empty meal that had food the day before (owner's beta feedback: not just breakfast).
           var repeat = yEntries.some(function (e) { return e.slot === sl.id; });
           out += '<section class="mempty">' + ic + '<span><b>' + esc(sl.label) + '</b>' +
-            (repeat ? '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '<span>Add your meal</span>') + '</span>' + add + '</section>';
+            (repeat ? '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '<span>' + (sl.id === 'beverages' ? 'Add a drink' : sl.id === 'supplements' ? 'Add a supplement' : 'Add your meal') + '</span>') + '</span>' + add + '</section>';
           return;
         }
         var t = DY.totals(se), open = !!S['open_meal_' + sl.id];
@@ -119,7 +121,7 @@
           '<span style="min-width:0"><span class="mname">' + esc(sl.label) + '</span><span class="mmac">' + esc(mac) + '</span>' + mealLine(t, date) + '</span>' +
           '<span class="mk">' + fmt(t.kcal) + '<small>kcal</small></span>' +
           '<button type="button" class="dotbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">' + UI.icon('more') + '</button></div></div>' +
-          (open ? '<div class="list">' + se.map(function (e) { return swipeOpen('entry:' + e.id) + entryRow(e) + '</div>'; }).join('') + '</div><div class="mfoot"><button type="button" class="btn sm" data-a="addto" data-v="' + sl.id + '">' + UI.icon('plus') + ' Add food</button></div>' : '') + '</section>';
+          (open ? '<div class="list">' + se.map(function (e) { return swipeOpen('entry:' + e.id) + entryRow(e) + '</div>'; }).join('') + '</div><div class="mfoot"><button type="button" class="btn sm" data-a="addto" data-v="' + sl.id + '">' + UI.icon('plus') + ' Add ' + addWhat(sl.id) + '</button></div>' : '') + '</section>';
       });
       return out + '</div>';
     }
@@ -170,7 +172,7 @@
       var sh = S.sheet, list = entriesOn(sh.date).filter(function (e) { return e.slot === sh.slot; }), t = DY.totals(list);
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(slotLabel(sh.slot)) + '"><div class="grab"></div>' +
         '<h2>' + esc(slotLabel(sh.slot)) + '</h2><p class="small muted">' + list.length + ' item' + (list.length === 1 ? '' : 's') + ' · ' + fmt(t.kcal) + ' kcal</p>' +
-        '<button type="button" class="btn block" data-a="addto" data-v="' + sh.slot + '">Add food to ' + esc(slotLabel(sh.slot)) + '</button>' +
+        '<button type="button" class="btn block" data-a="addto" data-v="' + sh.slot + '">Add ' + addWhat(sh.slot) + ' to ' + esc(slotLabel(sh.slot)) + '</button>' +
         (entriesOn(DY.addDays(sh.date, -1)).some(function (e) { return e.slot === sh.slot; }) ? '<button type="button" class="btn ghost block" data-a="repeatmeal" data-v="' + sh.slot + '">Add yesterday\'s ' + esc(slotLabel(sh.slot).toLowerCase()) + '</button>' : '') +
         '<button type="button" class="btn ghost block" data-a="savemeal" data-v="' + sh.slot + '">Save as a meal</button>' +
         '<button type="button" class="btn ghost block" data-a="copymeal" data-v="' + sh.slot + '">Copy to another day or meal</button>' +
