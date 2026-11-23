@@ -598,10 +598,10 @@
       var p = S.rows.profile;
       if (!p) return '';
       var cp = profileNow(), age = cp.dob ? core.ageOn(cp.dob, today()) : null;
-      return '<section class="card"><div class="cardhead"><h2>' + root.LW.ui.icon('person') + 'Your details</h2></div><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
+      return '<section class="card"><div class="cardhead"><h2>' + root.LW.ui.icon('person') + 'Your details</h2></div><p class="small muted">' + [age != null ? age + ' years' : null, cp.cm ? ht(cp.cm, p.units) : null, cp.kg ? wt(cp.kg, p.units) + ' (last weigh-in)' : null, activityLabel(p.activity)].filter(Boolean).join(' · ') + '</p>' +
         '<div class="row" style="margin-top:8px"><span class="small">Units</span><div class="seg" style="width:170px">' + [['us', 'US'], ['metric', 'Metric']].map(function (u) { return '<button type="button" data-a="units" data-v="' + u[0] + '" aria-pressed="' + (p.units === u[0]) + '">' + u[1] + '</button>'; }).join('') + '</div></div>' +
         '<button type="button" class="btn ghost block" data-a="editdetails">Edit details</button>' +
-        '<p class="small muted">Your weight comes from your latest weigh-in. To change your goal or phase, use Plan → Start a new phase.</p></section>';
+        '<p class="small muted">Targets use your last weigh-in; Progress shows the smoothed trend. To change your goal or phase, use Plan → Start a new phase.</p></section>';
     }
     function activityLabel(id) { try { return C.energy.activityById(id).label.toLowerCase(); } catch (e) { return null; } }
 

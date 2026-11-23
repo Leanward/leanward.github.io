@@ -347,7 +347,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .hero2 .ringtxt { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1.15; }
 .hero2 .ringtxt b { font-size: 25px; font-weight: 800; letter-spacing: -.02em; }
 .hero2 .ringtxt span { font-size: 11.5px; color: var(--muted); }
-.hero2 .ringtxt em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--g1); margin-top: 2px; }
+.hero2 .ringtxt em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--acc-text); margin-top: 2px; }
 .macros2 { display: grid; gap: 9px; border-left: 1px solid var(--line); padding-left: 12px; min-width: 0; }
 .mrow2 { display: grid; grid-template-columns: 20px 1fr auto; column-gap: 8px; align-items: center; }
 .mrow2 .ic { width: 17px; height: 17px; color: var(--g1); grid-row: span 2; }
@@ -370,7 +370,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .intelhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; }
 .inteltitle { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .inteltitle .ic { color: var(--g1); width: 18px; height: 18px; }
-.beta { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--g1); border: 1px solid rgba(var(--g1-rgb), .6); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+.beta { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--acc-text); border: 1px solid rgba(var(--g1-rgb), .6); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
 .intelstate { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .intelstate .ic { width: 15px; height: 15px; color: var(--g1); }
 .intel h3 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
@@ -408,7 +408,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .mempty b { display: block; font-size: 15px; }
 .mempty span { font-size: 12px; color: var(--muted); }
 .mempty .link { font-size: 12px; padding: 2px 0; }
-.dotbtn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--raised); color: var(--fg); display: grid; place-content: center; cursor: pointer; }
+.dotbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--raised); color: var(--fg); display: grid; place-content: center; cursor: pointer; }
 .dotbtn .ic { width: 16px; height: 16px; }
 
 /* Progress */
@@ -423,7 +423,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .sumcard .big small { font-size: 18px; font-weight: 500; margin-left: 3px; }
 .sumcard .vr { width: 1px; align-self: stretch; background: var(--line); }
 .sumcard button { background: none; border: 0; color: var(--fg); text-align: left; font: inherit; cursor: pointer; padding: 0; display: grid; gap: 2px; }
-.sumcard .phase { font-size: 20px; font-weight: 800; color: var(--g1); }
+.sumcard .phase { font-size: 20px; font-weight: 800; color: var(--acc-text); }
 .good { color: var(--ok); }
 .cardhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
 .cardhead h2 { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 17px; }
@@ -495,7 +495,7 @@ button.link.quietdanger { background: none; color: var(--bad); font-weight: 600;
 .cardhead > .rangeseg { flex: none; }
 
 /* Plan and Profile in the same design system (v0.22.1) */
-.phasebig { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--g1); margin-top: 2px; }
+.phasebig { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--acc-text); margin-top: 2px; }
 .pbar.route2 { height: 7px; margin: 12px 0 6px; }
 .targets > div { background: var(--raised); border-radius: 14px; }
 .targets b { font-variant-numeric: tabular-nums; }
@@ -553,3 +553,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(va
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .sheet { background: #fff; } }
 :root[data-theme="light"] .sheet { background: #fff; }
 /* text on coral fills is dark ink: white on #FF756F is ~2.6:1, ink is ~7:1 (WCAG AA needs 4.5:1) */
+
+/* v0.27 (audit fixes) */
+.syncsign { margin: -4px 0 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+/* Small tap targets reach 44 px without changing how they look (iOS guidance). */
+.dotbtn { position: relative; }
+.dotbtn::after { content: ''; position: absolute; inset: -2px; }
+/* Light mode: the accent used as text is darkened to be readable on white (coral: about 4.9:1, was 2.6:1). */
+:root { --acc-text: var(--g1); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --acc-text: color-mix(in srgb, var(--g1) 68%, #000); } }
+:root[data-theme="light"] { --acc-text: color-mix(in srgb, var(--g1) 68%, #000); }
+/* The Progress sub-tabs scroll sideways: fade the right edge so the cut-off tab reads as "more this way". */
+.subnav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 28px; }

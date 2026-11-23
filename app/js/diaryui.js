@@ -89,7 +89,9 @@
       var title = named ? dayName(date) : new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
       var sub = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
       var pick = '<label class="roundbtn" aria-label="Pick a day">' + UI.icon('calendar') + '<input type="date" id="day-pick" value="' + date + '" max="' + today + '"></label>';
-      var out = UI.brandbar(pick + UI.iconBtn('more', 'todaymenu', 'More for this day')) +
+      var sy = S.sync || {}, sign = sy.state === 'offline' ? 'Offline' + (sy.pending ? ' · ' + sy.pending + ' change' + (sy.pending === 1 ? '' : 's') + ' waiting to back up' : ' · changes back up when you reconnect')
+        : sy.state === 'error' ? 'Backup problem · details in Profile' : sy.state === 'signin' ? 'Sign in again to keep backing up' : '';
+      var out = UI.brandbar(pick + UI.iconBtn('more', 'todaymenu', 'More for this day')) + (sign ? '<p class="syncsign" role="status">' + esc(sign) + '</p>' : '') +
         '<div class="ttlrow"><div><h1>' + esc(title) + '</h1><span class="sub">' + esc(sub) + (date !== today ? ' · <button type="button" class="link" data-a="daytoday">Back to today</button>' : '') + '</span></div>' +
         (c ? '<button type="button" class="phasepill" data-a="tab" data-v="phase" aria-label="' + esc(c.week) + '. Open Plan.">' + UI.icon('target') + esc(c.week) + UI.icon('chevron') + '</button>' : '') + '</div>' +
         heroCard(date);
@@ -142,10 +144,11 @@
     function intelCard(c) {
       var UI = root.LW.ui, today = ctx.today(), tg = targetsFor(today);
       var tip = tipNow(), step = c && c.step, train = ctx.training && tg ? root.LW.home.trainingLine({ training: ctx.training(), carbsTarget: Number(tg.carbs_g) }) : null;
-      var title, text, act = null, why = null, short = null;
-      if (step && step.kind === 'care') { title = step.title; text = step.why[0]; short = 'Eat at least your target'; why = 'Protects health and training'; }
-      else if (tip) { title = tip.title; text = tip.text; act = tip.action; short = tip.short; why = tip.why; }
-      else if (train) { title = train.title; text = train.text; short = 'Carbs around training'; why = 'Fuel and recovery'; }
+      var title, text, act = null, why = null, short = null, state = c ? c.state : 'Building your baseline';
+      // The chip names what the card is showing: the coach's data state only when the card shows the coach's step.
+      if (step && step.kind === 'care') { title = step.title; text = step.why[0]; short = 'Eat at least your target'; why = 'Protects health and training'; state = 'Safety first'; }
+      else if (tip) { title = tip.title; text = tip.text; act = tip.action; short = tip.short; why = tip.why; state = 'Tip for today'; }
+      else if (train) { title = train.title; text = train.text; short = 'Carbs around training'; why = 'Fuel and recovery'; state = 'Tip for today'; }
       else if (step) {
         // The footer says what to do and why, in words the title doesn't already use.
         var F = STEP_FOOT[step.kind] || ['See the full read on Progress', 'Based on your trend'];
@@ -156,7 +159,7 @@
       var foot = '<div' + (act ? ' role="button" tabindex="0" data-a="' + act.a + '"' + (act.v ? ' data-v="' + act.v + '"' : '') : '') + '>' + UI.icon('target') + '<span><b>Next action</b>' + esc(short) + '</span></div>' +
         '<div>' + UI.icon('trend') + '<span><b>Why it helps</b>' + esc(why) + '</span></div>' +
         '<div role="button" tabindex="0" data-a="tab" data-v="phase">' + UI.icon('clipboard') + '<span><b>Today\'s target</b>' + esc(targetTxt) + '</span></div>';
-      return UI.intel({ state: esc(c ? c.state : 'Building your baseline'), title: esc(title), text: esc(text), foot: foot });
+      return UI.intel({ state: esc(state), title: esc(title), text: esc(text), foot: foot });
     }
     /** Quick Add (approved design): search, scan, a saved meal, or a quick custom entry. */
     function quickAdd() {

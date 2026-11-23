@@ -189,9 +189,9 @@
     function summaryCard(c, today) {
       var u = ME.weightUnit(units()), start = c ? c.phase.start_date : core.addDays(today, -27);
       var v = ME.weightView(S.rows.weights, units(), start, today);
-      if (!v.latest) return '<section class="card sumcard"><div><span class="lab">Current weight</span><div class="big">—</div><span class="small muted">No weigh-ins yet</span></div><span class="vr"></span>' + phaseBlock(c, null) + '</section>';
+      if (!v.latest) return '<section class="card sumcard"><div><span class="lab">Weight trend</span><div class="big">—</div><span class="small muted">No weigh-ins yet</span></div><span class="vr"></span>' + phaseBlock(c, null) + '</section>';
       var since = v.latest.trend - v.trend[0].v, good = c && ((c.phase.type === 'cut' && since < 0) || (c.phase.type === 'bulk' && since > 0));
-      return '<section class="card sumcard"><div><span class="lab">Current weight</span><div class="big">' + fmt(v.latest.trend, 1) + '<small>' + u + '</small></div>' +
+      return '<section class="card sumcard"><div><span class="lab">Weight trend</span><div class="big">' + fmt(v.latest.trend, 1) + '<small>' + u + '</small></div>' +
         '<span class="small' + (good ? ' good' : ' muted') + '">' + (Math.abs(since) < 0.05 ? 'No change' : (since < 0 ? '↓ ' : '↑ ') + fmt(Math.abs(since), 1) + ' ' + u) + '</span> <span class="small muted">since start</span></div>' +
         '<span class="vr"></span>' + phaseBlock(c, v.latest.trend) + '</section>';
     }
@@ -231,14 +231,15 @@
       var bf = (S.rows.bodyfat || []).filter(function (x) { return !x.deleted; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
       var v = ME.weightView(S.rows.weights, units(), core.addDays(ctx.today(), -27), ctx.today());
       var lean = bf && v.latest ? v.latest.trend * (1 - Number(bf.pct) / 100) : null;
-      var row = function (ic, label, val, a, said) {
-        return '<div class="kv">' + UI.icon(ic) + '<span class="kvl">' + label + '<span class="val' + (val == null ? ' na' : '') + '">' + (val == null ? '—' : val) + '</span></span>' +
-          '<button type="button" class="addpill" data-a="' + a + '" aria-label="' + said + '">' + (val == null ? 'Add' : 'Update') + '</button></div>';
+      var row = function (ic, label, val, a, said, note) {
+        return '<div class="kv">' + UI.icon(ic) + '<span class="kvl">' + label + '<span class="val' + (val == null ? ' na' : '') + '">' + (val == null ? (note || '—') : val) + '</span></span>' +
+          (a ? '<button type="button" class="addpill" data-a="' + a + '" aria-label="' + said + '">' + (val == null ? 'Add' : 'Update') + '</button>' : '') + '</div>';
       };
       return '<section class="card minicard"><div class="cardhead"><h2>' + UI.icon('person') + 'Body Composition</h2><button type="button" class="chev" data-a="ptab" data-v="body" aria-label="Open body composition">' + UI.icon('chevron') + '</button></div>' +
         row('tape', 'Waist', waist ? fmt(ME.cmToUnits ? ME.cmToUnits(Number(waist.cm), units()) : (units() === 'metric' ? Number(waist.cm) : Number(waist.cm) / 2.54), 1) + ' ' + lu : null, 'measure', 'Add a waist measurement') +
         row('percent', 'Body fat', bf ? fmt(Number(bf.pct), 1) + '%' : null, 'bfadd', 'Add a body-fat measurement') +
-        row('lean', 'Lean Mass', lean != null ? fmt(lean, 1) + ' ' + wu : null, 'bfadd', 'Lean mass needs a body-fat measurement: add one') +
+        // Lean mass is worked out from body fat and the weight trend, so it has nothing of its own to add.
+        row('lean', 'Lean Mass', lean != null ? fmt(lean, 1) + ' ' + wu : null, null, '', bf ? null : 'From body fat') +
         (bf ? '<p class="small muted" style="margin:0">Lean mass uses your ' + esc(day(bf.date)) + ' body-fat entry; it\'s an estimate.</p>' : '') + '</section>';
     }
     function trainingCard() {

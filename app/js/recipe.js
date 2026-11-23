@@ -1,4 +1,4 @@
-/* Leanward — recipes (PRD LOG-11): ingredients + the weight of the finished dish → a food per 100 g.
+/* Leanward — recipes (PRD LOG-15): ingredients + the weight of the finished dish → a food per 100 g.
  *
  * A recipe is saved as one of the user's own foods (lw_custom_foods) with a `recipe` column holding the
  * ingredients, so logging, search and sync work as for any other food of theirs. Each ingredient keeps
