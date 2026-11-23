@@ -1,5 +1,5 @@
 /* Leanward — the add sheet: Recent and Frequent (LOG-2), Find a food (LOG-3), your own foods
- * (LOG-8, FDB-5), recipes (LOG-11), saved meals (LOG-9), Quick add (LOG-7), food detail with amount, unit and meal
+ * (LOG-8, FDB-5), recipes (LOG-15), saved meals (LOG-9), Quick add (LOG-7), food detail with amount, unit and meal
  * (NUT-5, LOG-5, FDB-1/3/5) and barcode scanning with "Create this food" (LOG-4).
  * Opened from the global + button or a Diary slot's +. Logging writes a diary entry (js/diary.js).
  * Barcode scanning uses ZXing (js/vendor/zxing.min.js, Apache-2.0), loaded the first time you scan.
@@ -34,6 +34,7 @@
     /** "Search online" (Open Food Facts): a button, or its results for this query. Runs by itself when the catalog has no exact match (autoOnline). */
     function onlineHtml(prominent) {
       var a = S.sheet, o = a.online;
+      if (root.navigator.onLine === false && !(o && o.q === a.q.trim())) return '';
       if (o && o.q === a.q.trim()) {
         if (o.loading) return '<span class="sec">Online · Open Food Facts</span><p class="small muted">' + (o.slow ? 'Still searching… Open Food Facts can be slow. This stops after about 25 seconds.' : 'Searching Open Food Facts…') + '</p>';
         if (o.error) return '<span class="sec">Online · Open Food Facts</span><p class="small warn">' + esc(o.error) + '</p><button type="button" class="btn ghost block" data-a="offsearch">Try again</button>';
@@ -77,9 +78,11 @@
       var own = '<span class="sec">Your foods and recipes</span>' + (mine.length ? '<div class="list">' + mine.slice(0, 8).map(resultRow).join('') + '</div>' : '<p class="small muted">Foods you create from a label (or copy and correct), and recipes you build, are private to you.</p>') +
         (S.sheet.pick ? '' : '<div class="grid2"><button type="button" class="btn ghost block" data-a="cfnew">Create a food</button><button type="button" class="btn ghost block" data-a="rcnew">Create a recipe</button></div>');
       if (!rec.length) return '<p class="small muted">Foods you log show up here, so you can add them again in one tap, even offline.</p>' + own;
-      var row = loggedRow;
+      var row = loggedRow, inFreq = {};
+      freq.forEach(function (f) { inFreq[f.entry.food_ref] = 1; });
+      rec = rec.filter(function (e) { return !inFreq[e.food_ref]; });
       return (freq.length ? '<span class="sec">Frequent</span><div class="list">' + freq.map(function (f) { return row(f.entry, ' · ' + f.count + '× this month'); }).join('') + '</div>' : '') +
-        '<span class="sec">Recent</span><div class="list">' + rec.map(function (e) { return row(e); }).join('') + '</div>' + own;
+        (rec.length ? '<span class="sec">Recent</span><div class="list">' + rec.map(function (e) { return row(e); }).join('') + '</div>' : '') + own;
     }
     function quickHtml() {
       var a = S.sheet;
@@ -200,7 +203,7 @@
       }).join('') + '</div><p class="small muted">Whole recipe ' + fmt(rc.cooked_g) + ' g ' + (rc.cooked_given ? 'when finished' : '(the ingredients\' weight; weigh the finished dish for a truer number)') + (rc.servings > 1 ? ' · ' + rc.servings + ' servings' : '') + '.</p></details>';
     }
 
-    /* ---------- recipes (LOG-11) ---------- */
+    /* ---------- recipes (LOG-15) ---------- */
     function recipeView() {
       var sh = S.sheet, r = sh.r, t = RC.totals(r.items), cooked = r.cookedG > 0 ? r.cookedG : t.rawG, per = cooked > 0 ? 100 / cooked : 0;
       var numIn = function (id, k, label, hint, ph) { return '<div class="field"><label for="' + id + '">' + label + (hint ? ' <span class="muted">' + hint + '</span>' : '') + '</label><input type="number" id="' + id + '" inputmode="decimal" step="any" data-r="' + k + '" value="' + (r[k] == null ? '' : r[k]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></div>'; };
