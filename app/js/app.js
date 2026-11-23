@@ -311,6 +311,7 @@
   var actions = {
     tab: function (v) { state.tab = tabOf(v); store.set('tab', state.tab); render(); root.scrollTo(0, 0); },
     close: function () { foodui.stop(); state.sheet = false; render(); },
+    toastundo: function () { var u = toast.undo; toast.undo = null; doc.getElementById('toast').hidden = true; if (u) u(); },
     signin: function () {
       state.signingIn = true; render();
       cloud.auth.signIn().catch(function (e) {
@@ -437,11 +438,60 @@
   doc.addEventListener('touchend', endDrag);
   doc.addEventListener('touchcancel', endDrag);
 
-  function toast(msg) {
-    var t = doc.getElementById('toast');
-    t.textContent = msg; t.hidden = false;
-    clearTimeout(toast.timer); toast.timer = setTimeout(function () { t.hidden = true; }, 2600);
+  /** A short message; with opts.undo, an Undo button that stays for 5 seconds. */
+  function toast(msg, opts) {
+    var t = doc.getElementById('toast'), undo = opts && opts.undo;
+    toast.undo = undo || null;
+    if (undo) { t.innerHTML = '<span>' + esc(msg) + '</span><button type="button" data-a="toastundo">Undo</button>'; t.classList.add('act'); }
+    else { t.textContent = msg; t.classList.remove('act'); }
+    t.hidden = false;
+    clearTimeout(toast.timer); toast.timer = setTimeout(function () { t.hidden = true; toast.undo = null; }, undo ? 5000 : 2600);
   }
+
+  /* Swipe a food or a meal row left to delete it (diaryui swipeOpen). A short swipe shows the Delete
+   * button; a long one (past about half the row) deletes straight away. Undo is in the message. */
+  var sw = null, swOpen = null, swJustMoved = 0, SW_BTN = 88;
+  function swRow(box) { return box.querySelector(':scope > :not(.swdel)'); }
+  function swShut(box) { if (!box) return; var r = swRow(box); if (r) r.style.transform = ''; box.classList.remove('open', 'full'); if (swOpen === box) swOpen = null; }
+  doc.addEventListener('touchstart', function (e) {
+    var box = e.target.closest && e.target.closest('.swipe');
+    if (swOpen && swOpen !== box) swShut(swOpen);
+    if (!box || e.touches.length !== 1 || e.target.closest('.swdel')) { sw = null; return; }
+    sw = { box: box, x0: e.touches[0].clientX, y0: e.touches[0].clientY, dx: 0, lock: null, base: box.classList.contains('open') ? -SW_BTN : 0 };
+  }, { passive: true });
+  doc.addEventListener('touchmove', function (e) {
+    if (!sw) return;
+    var dx = e.touches[0].clientX - sw.x0, dy = e.touches[0].clientY - sw.y0;
+    if (!sw.lock) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      sw.lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (sw.lock === 'x') sw.box.classList.add('dragging');
+    }
+    if (sw.lock !== 'x') return;
+    if (e.cancelable) e.preventDefault();
+    sw.dx = Math.min(0, sw.base + dx);
+    swRow(sw.box).style.transform = 'translateX(' + sw.dx + 'px)';
+    sw.box.classList.toggle('full', -sw.dx > sw.box.offsetWidth * 0.55);
+  }, { passive: false });
+  function swEnd() {
+    if (!sw) return;
+    var s = sw; sw = null;
+    if (s.lock !== 'x') return;
+    swJustMoved = Date.now();
+    s.box.classList.remove('dragging');
+    var r = swRow(s.box);
+    if (-s.dx > s.box.offsetWidth * 0.55) { r.style.transform = 'translateX(-100%)'; diaryui.actions.swipedel(s.box.dataset.swipe); return; }
+    if (-s.dx > SW_BTN / 2) { r.style.transform = 'translateX(-' + SW_BTN + 'px)'; s.box.classList.add('open'); s.box.classList.remove('full'); swOpen = s.box; }
+    else swShut(s.box);
+  }
+  doc.addEventListener('touchend', swEnd);
+  doc.addEventListener('touchcancel', swEnd);
+  // The tap that ends a swipe, or a tap on a row whose Delete is showing, shouldn't also open the row.
+  doc.addEventListener('click', function (e) {
+    var box = e.target.closest && e.target.closest('.swipe');
+    if (e.target.closest && e.target.closest('.swdel')) return;
+    if (Date.now() - swJustMoved < 350 || (box && box.classList.contains('open'))) { e.preventDefault(); e.stopPropagation(); if (box && Date.now() - swJustMoved >= 350) swShut(box); }
+  }, true);
 
   /* ---------- M3 screens ---------- */
   // Training days from PR Forge (NUT-9), worked out from the summary already kept on the phone.
