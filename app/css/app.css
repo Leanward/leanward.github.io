@@ -66,6 +66,18 @@ p { margin: 8px 0 0; }
 .sheet { touch-action: pan-y; will-change: transform; }
 .sheet.dragging { transition: none; }
 .sheet.settling { transition: transform .18s ease-out; }
+.swipe { position: relative; overflow: hidden; }
+.swipe > .swdel { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background: #E5484D; color: #fff; font: inherit; font-size: 14px; font-weight: 700; transition: width .15s; visibility: hidden; }
+.swipe.dragging > .swdel, .swipe.open > .swdel, .swipe.full > .swdel { visibility: visible; }
+.swipe.full > .swdel { width: 100%; text-align: right; padding-right: 26px; }
+.swipe > :not(.swdel), .swipe > .item.food { position: relative; z-index: 1; background: var(--card); transition: transform .2s ease; touch-action: pan-y; }
+.swipe.dragging > :not(.swdel) { transition: none; }
+.mitem .list > .swipe .item.food { border-top: 0; }
+.mitem .list > .swipe + .swipe { border-top: 1px solid var(--line); }
+.toast.act { display: flex; align-items: center; gap: 14px; width: max-content; max-width: min(92%, 380px); }
+.toast.act span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast.act button { flex: none; background: none; border: 0; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; padding: 4px 2px; }
+.toast[hidden] { display: none; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 999px; z-index: 30; max-width: 90%; }
 [hidden] { display: none !important; }
 

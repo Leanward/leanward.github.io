@@ -12,6 +12,9 @@
   var NUTRIENTS = DY.NUTRIENTS;   // id, label, unit, group (js/diary.js)
   var ISSUES = [['wrong-nutrients', 'Wrong nutrients'], ['wrong-serving', 'Wrong serving size'], ['wrong-name', 'Wrong name or brand'], ['duplicate', 'Duplicate'], ['other', 'Something else']];
 
+  // The search box's hint, by meal: drinks for Beverages, supplements for Supplements.
+  var SEARCH_HINT = { food: 'Search foods (e.g. greek yogurt, chicken breast cooked)', beverages: 'Search drinks (e.g. coffee with milk, orange juice)', supplements: 'Search supplements (e.g. whey protein, creatine)' };
+
   function create(ctx) {
     var S = ctx.state, esc = ctx.esc, timer = null, autoTimer = null, seq = 0, reader = null, scanStart = 0;
 
@@ -100,7 +103,7 @@
       if (a.tab === 'meals') return wrap('Saved meals', '<div class="row"><h2>Add to ' + esc(where()) + '</h2></div>' + tabs + mealsHtml(), ' tall');
       return wrap('Find a food',
         '<div class="row"><h2>Add to ' + esc(where()) + '</h2><button type="button" class="btn sm" data-a="scan">Scan barcode</button></div>' + tabs +
-        '<input type="search" id="fd-q" placeholder="Search foods (e.g. greek yogurt, chicken breast cooked)" value="' + esc(a.q) + '" autocomplete="off" aria-label="Search foods" enterkeyhint="search">' +
+        '<input type="search" id="fd-q" placeholder="' + esc(SEARCH_HINT[a.slot] || SEARCH_HINT.food) + '" value="' + esc(a.q) + '" autocomplete="off" aria-label="Search foods" enterkeyhint="search">' +
         (online ? '' : '<p class="small warn">You\'re offline. Search needs a connection; your recent foods below still work.</p>') +
         '<div id="fd-results">' + (a.q.trim().length < 2 ? recentHtml() : resultsHtml()) + '</div>', ' tall');
     }

@@ -74,6 +74,13 @@
         '<span class="k">' + fmt(Number(e.kcal)) + '<small>' + (e.protein_g != null ? 'P ' + fmt(Number(e.protein_g)) + ' g' : '') + '</small></span></button>';
     }
 
+    /** Swipe left to delete (app.js handles the gesture): the row sits over a Delete button. VoiceOver users
+     *  delete from the food's edit sheet or the meal's ⋯ menu instead. */
+    function swipeOpen(v) {
+      return '<div class="swipe" data-swipe="' + esc(v) + '"><button type="button" class="swdel" data-a="swipedel" data-v="' + esc(v) + '" tabindex="-1" aria-hidden="true">Delete</button>';
+    }
+    /** What you add to a meal, in words that fit it: "a drink" for Beverages, not "food" (owner feedback). */
+    function addWhat(slot) { return slot === 'beverages' ? 'a drink' : slot === 'supplements' ? 'a supplement' : 'food'; }
     function longDate(date) { return new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
     var MEAL_ICON = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', snacks: 'snacks', beverages: 'beverages', supplements: 'supplements' };
     function view() {
@@ -105,16 +112,16 @@
           // Any empty meal that had food the day before (owner's beta feedback: not just breakfast).
           var repeat = yEntries.some(function (e) { return e.slot === sl.id; });
           out += '<section class="mempty">' + ic + '<span><b>' + esc(sl.label) + '</b>' +
-            (repeat ? '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '<span>Add your meal</span>') + '</span>' + add + '</section>';
+            (repeat ? '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '<span>' + (sl.id === 'beverages' ? 'Add a drink' : sl.id === 'supplements' ? 'Add a supplement' : 'Add your meal') + '</span>') + '</span>' + add + '</section>';
           return;
         }
         var t = DY.totals(se), open = !!S['open_meal_' + sl.id];
         var mac = 'P ' + fmt(t.protein_g) + ' g · C ' + fmt(t.carbs_g) + ' g · F ' + fmt(t.fat_g) + ' g' + (t.nutrients.fiber >= 1 ? ' · Fiber ' + fmt(t.nutrients.fiber) + ' g' : '');
-        out += '<section class="mitem"><div class="mhead2" role="button" tabindex="0" data-a="mealopen" data-v="' + sl.id + '" aria-expanded="' + open + '" aria-label="' + esc(sl.label + ', ' + fmt(t.kcal) + ' kcal, ' + se.length + ' item' + (se.length === 1 ? '' : 's') + '. ' + (open ? 'Hide' : 'Show') + ' foods.') + '">' + ic +
+        out += '<section class="mitem">' + swipeOpen('meal:' + sl.id) + '<div class="mhead2" role="button" tabindex="0" data-a="mealopen" data-v="' + sl.id + '" aria-expanded="' + open + '" aria-label="' + esc(sl.label + ', ' + fmt(t.kcal) + ' kcal, ' + se.length + ' item' + (se.length === 1 ? '' : 's') + '. ' + (open ? 'Hide' : 'Show') + ' foods.') + '">' + ic +
           '<span style="min-width:0"><span class="mname">' + esc(sl.label) + '</span><span class="mmac">' + esc(mac) + '</span>' + mealLine(t, date) + '</span>' +
           '<span class="mk">' + fmt(t.kcal) + '<small>kcal</small></span>' +
-          '<button type="button" class="dotbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">' + UI.icon('more') + '</button></div>' +
-          (open ? '<div class="list">' + se.map(entryRow).join('') + '</div><div class="mfoot"><button type="button" class="btn sm" data-a="addto" data-v="' + sl.id + '">' + UI.icon('plus') + ' Add food</button></div>' : '') + '</section>';
+          '<button type="button" class="dotbtn" data-a="mealmenu" data-v="' + sl.id + '" aria-label="More for ' + esc(sl.label) + '">' + UI.icon('more') + '</button></div></div>' +
+          (open ? '<div class="list">' + se.map(function (e) { return swipeOpen('entry:' + e.id) + entryRow(e) + '</div>'; }).join('') + '</div><div class="mfoot"><button type="button" class="btn sm" data-a="addto" data-v="' + sl.id + '">' + UI.icon('plus') + ' Add ' + addWhat(sl.id) + '</button></div>' : '') + '</section>';
       });
       return out + '</div>';
     }
@@ -165,10 +172,11 @@
       var sh = S.sheet, list = entriesOn(sh.date).filter(function (e) { return e.slot === sh.slot; }), t = DY.totals(list);
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(slotLabel(sh.slot)) + '"><div class="grab"></div>' +
         '<h2>' + esc(slotLabel(sh.slot)) + '</h2><p class="small muted">' + list.length + ' item' + (list.length === 1 ? '' : 's') + ' · ' + fmt(t.kcal) + ' kcal</p>' +
-        '<button type="button" class="btn block" data-a="addto" data-v="' + sh.slot + '">Add food to ' + esc(slotLabel(sh.slot)) + '</button>' +
+        '<button type="button" class="btn block" data-a="addto" data-v="' + sh.slot + '">Add ' + addWhat(sh.slot) + ' to ' + esc(slotLabel(sh.slot)) + '</button>' +
         (entriesOn(DY.addDays(sh.date, -1)).some(function (e) { return e.slot === sh.slot; }) ? '<button type="button" class="btn ghost block" data-a="repeatmeal" data-v="' + sh.slot + '">Add yesterday\'s ' + esc(slotLabel(sh.slot).toLowerCase()) + '</button>' : '') +
         '<button type="button" class="btn ghost block" data-a="savemeal" data-v="' + sh.slot + '">Save as a meal</button>' +
-        '<button type="button" class="btn ghost block" data-a="copymeal" data-v="' + sh.slot + '">Copy to another day or meal</button></div>';
+        '<button type="button" class="btn ghost block" data-a="copymeal" data-v="' + sh.slot + '">Copy to another day or meal</button>' +
+        '<button type="button" class="btn danger block" data-a="swipedel" data-v="meal:' + sh.slot + '">Delete everything in ' + esc(slotLabel(sh.slot)) + '</button></div>';
     }
 
     /** Today's tip (HOM-4): at most one, shown inside the Leanward Intelligence card. */
@@ -408,6 +416,22 @@
         var now = new Date(), slot = DY.slotForTime(now.getHours() * 60 + now.getMinutes());
         var rows = DY.copyEntries([e], ctx.today(), slot).map(function (r) { r.logged_via = 'recent'; return ['lw_diary_entries', r]; });
         ctx.save(rows).then(function () { ctx.toast('Added to ' + slotLabel(slot) + '. Tap it below to change it.'); ctx.render(); });
+      },
+      /** Delete one food ("entry:<id>") or everything in a meal on the day shown ("meal:<slot>"), with Undo. */
+      swipedel: function (v) {
+        var p = String(v).split(':'), date = S.diaryDate || ctx.today();
+        var gone = p[0] === 'entry' ? (S.rows.diary || []).filter(function (e) { return e.id === p.slice(1).join(':'); })
+          : entriesOn(date).filter(function (e) { return e.slot === p[1]; });
+        if (!gone.length) return;
+        if (S.sheet && S.sheet.kind === 'mealmenu') S.sheet = false;
+        ctx.save(gone.map(function (e) { return ['lw_diary_entries', { id: e.id, deleted: true }]; })).then(function () {
+          ctx.render();
+          ctx.toast(gone.length === 1 ? 'Deleted ' + DY.calmName(gone[0].name) : 'Deleted ' + gone.length + ' items from ' + slotLabel(gone[0].slot), {
+            undo: function () {
+              ctx.save(gone.map(function (e) { return ['lw_diary_entries', Object.assign({}, e, { deleted: false })]; })).then(function () { ctx.toast('Restored'); ctx.render(); });
+            }
+          });
+        });
       },
       /** Yesterday's food in this meal, added to the same meal on the day shown (LOG-10). */
       repeatmeal: function (slot) {
