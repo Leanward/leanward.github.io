@@ -275,8 +275,25 @@
     return { rows: [['lw_target_sets', targetSetRow(o.phase.id, o.from, pv, o.profile, choice, o.now)]], preview: pv };
   }
 
+  /**
+   * Goal date as a range (PRG-7): from the trend's 21-day pace, ±25%. o: { goalKg, trendKg, phaseType, rate21 (kg a week,
+   * from trend.rateOfChange over 21 days, or null), pct21 (% of body weight a week), phaseDays, weighIns21, today }.
+   * Returns { state: 'range', early, late } | { state: 'reached' } | { state: 'wait' | 'not-moving' | 'far', why }.
+   */
+  function goalRange(o) {
+    if (o.goalKg == null || o.trendKg == null) return null;
+    var left = o.goalKg - o.trendKg;
+    // Reached: within 0.2 kg, or past the goal in the phase's direction (a cut at or below it, a bulk at or above it).
+    if (Math.abs(left) < 0.2 || (o.phaseType === 'cut' && left >= 0) || (o.phaseType === 'bulk' && left <= 0)) return { state: 'reached' };
+    if (!(o.phaseDays >= 21) || !(o.weighIns21 >= 10) || o.rate21 == null) return { state: 'wait', why: 'A date appears after 3 weeks of weigh-ins (10 or more).' };
+    if (left * o.rate21 <= 0 || Math.abs(o.pct21) < 0.1) return { state: 'not-moving', why: 'Your trend isn\'t moving toward your goal yet, so there\'s no date.' };
+    var fast = Math.abs(left / (o.rate21 * 1.25)) * 7, slow = Math.abs(left / (o.rate21 * 0.75)) * 7;
+    if (slow > 730) return { state: 'far', why: 'At this pace your goal is more than 2 years away.' };
+    return { state: 'range', early: calc.core.addDays(o.today, Math.round(fast)), late: calc.core.addDays(o.today, Math.round(slow)) };
+  }
+
   var api = {
-    GOALS: GOALS, PLANNED_WEEKS: PLANNED_WEEKS, goalById: goalById, newId: newId, goalOptions: goalOptions, preview: preview, setup: setup,
+    GOALS: GOALS, goalRange: goalRange, PLANNED_WEEKS: PLANNED_WEEKS, goalById: goalById, newId: newId, goalOptions: goalOptions, preview: preview, setup: setup,
     profileOf: profileOf, profileFromRows: profileFromRows, knownColumns: knownColumns, detailsRow: detailsRow, goalWeightKg: goalWeightKg, weeksToGoal: weeksToGoal, currentPhase: currentPhase, phaseOn: phaseOn, targetsFor: targetsFor, targetsOn: targetsOn, dayOf: dayOf,
     startPhase: startPhase, editTargets: editTargets
   };

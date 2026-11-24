@@ -644,7 +644,7 @@
       var wts = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return { date: w.date, kg: Number(w.kg), at: w.measured_at }; });
       if (!wts.length) return null;
       var s = C.trend.trendSeries(wts, { endDate: today() }).filter(function (d) { return d.date <= today(); });
-      return s.length ? s[s.length - 1].trend : null;
+      return s.length ? s[s.length - 1].trendKg : null;   // trendKg: .trend doesn't exist (the goal trigger never fired before v0.31)
     }
     /** The hand-off state, or null without a phase: { due, reason, daysLeft, snoozed, options }. */
     function phaseEnd() {
@@ -799,23 +799,30 @@
       var w = (S.rows.weights || []).filter(function (x) { return !x.deleted; }).map(function (x) { return { date: x.date, kg: Number(x.kg), at: x.measured_at }; });
       if (!w.length) return null;
       var series = C.trend.trendSeries(w, { endDate: today() }).filter(function (d) { return d.date <= today(); });
-      var rate = C.trend.rateOfChange(series);
-      return { kg: series[series.length - 1].trendKg, perWeek: rate ? rate.kgPerWeek : null };
+      var rate = C.trend.rateOfChange(series), r21 = C.trend.rateOfChange(series, 21), from21 = core.addDays(today(), -20), days21 = {};
+      w.forEach(function (x) { if (x.date >= from21 && x.date <= today()) days21[x.date] = 1; });
+      return { kg: series[series.length - 1].trendKg, perWeek: rate ? rate.kgPerWeek : null, rate21: r21 ? r21.kgPerWeek : null, pct21: r21 ? r21.pctPerWeek : null, weighIns21: Object.keys(days21).length };
     }
     function goalLine(ph) {
       if (ph.type === 'nutrition') return '';
       var u = S.rows.profile.units, g = ph.target_weight_kg == null ? null : Number(ph.target_weight_kg);
       if (g == null) return '<p class="small" style="margin:8px 0 0"><button type="button" class="link" data-a="goalw">Add a goal weight (optional)</button></p>';
-      var t = trendNow(), left = t ? g - t.kg : null, weeks = t ? M.weeksToGoal(g, t.kg, t.perWeek) : null;
+      var t = trendNow(), left = t ? g - t.kg : null;
+      var gr = t ? M.goalRange({ goalKg: g, trendKg: t.kg, phaseType: ph.type, rate21: t.rate21, pct21: t.pct21, phaseDays: M.dayOf(ph, today()).day, weighIns21: t.weighIns21, today: today() }) : null;
       var diff = function (kg) { return metric(u) ? fmt(Math.abs(kg), 1) + ' kg' : fmt(Math.abs(core.kgToLb(kg)), 1) + ' lb'; };
+      var md = function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+      // PRG-7: a range from the 21-day pace, an estimate (never a promise); or one line on why there's no date.
+      var when = !gr || gr.state === 'reached' ? '' : gr.state === 'range'
+        ? '<p class="small" style="margin:6px 0 0">At your current pace: about <b>' + esc(md(gr.early)) + ' – ' + esc(md(gr.late)) + '</b>. An estimate from your trend over the last 3 weeks, not a promise.</p>'
+        : '<p class="small muted" style="margin:6px 0 0">' + esc(gr.why) + '</p>';
       return '<div class="row small" style="margin-top:8px"><span>Goal weight <b>' + wt(g, u) + '</b>' +
-        (left == null ? '' : Math.abs(left) < 0.2 ? ' · reached' : ' · ' + diff(left) + ' to go' + (weeks ? ' · about ' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' at your current trend' : '')) +
-        '</span><button type="button" class="link" data-a="goalw">Change</button></div>';
+        (left == null ? '' : gr && gr.state === 'reached' ? ' · reached' : ' · ' + diff(left) + ' to go') +
+        '</span><button type="button" class="link" data-a="goalw">Change</button></div>' + when;
     }
     function goalSheet() {
       var sh = S.sheet, u = S.rows.profile.units;
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Goal weight"><div class="grab"></div><h2>Goal weight</h2>' +
-        '<p class="small muted">Optional. It doesn\'t change your targets: it shows how far you have to go and, once your trend has a rate, roughly how long at that pace.</p>' +
+        '<p class="small muted">Optional. It doesn\'t change your targets: it shows how far you have to go and, after 3 weeks of weigh-ins, a rough date range at your current pace.</p>' +
         '<div class="field"><label for="gw-v">Goal weight <span class="muted">' + (metric(u) ? 'kg' : 'lb') + '</span></label><input type="number" id="gw-v" inputmode="decimal" step="any" data-g="value" value="' + (sh.value == null ? '' : sh.value) + '"></div>' +
         '<button type="button" class="btn block" data-a="goalwsave">Save</button>' +
         (sh.had ? '<button type="button" class="btn ghost block" data-a="goalwclear">Remove the goal weight</button>' : '') + '</div>';
