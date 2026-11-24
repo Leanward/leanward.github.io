@@ -150,6 +150,7 @@
       row('sparkle', 'Appearance', 'Color and light or dark', 'appearance') +
       row('fork', 'Meals', 'Rename, reorder or hide', 'slots') +
       row('target', 'Targets and phase', 'Open Plan', 'tab', 'phase') +
+      row('clipboard', 'Weekly check-in', (function () { var p = (state.rows.profile && state.rows.profile.preferences) || {}, n = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays']; return p.checkinDay != null && p.checkinDay !== '' ? n[Number(p.checkinDay)] : 'Same weekday as your phase start'; })(), 'cidays') +
       row('dumbbell', 'Training days', (function () { var m = trainingPrefs(), n = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; return m && m.weekdays && m.weekdays.length ? m.weekdays.slice().sort(function (a, b) { return ((a + 6) % 7) - ((b + 6) % 7); }).map(function (d) { return n[d]; }).join(', ') + (m.label ? ' · ' + m.label : '') : 'Hockey, runs, anything outside PR Forge'; })(), 'trdays') +
       // PR Forge opens Progress › Strength, where Connect and Key lifts live.
       row('dumbbell', 'PR Forge', pfs + (state.pf.status === 'on' ? ' · Key lifts' : ' · Connect'), 'ptab', 'strength') + '</section>';
@@ -513,7 +514,8 @@
   }
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); }, training: training });
   var coach = function () { try { return screens.coach(); } catch (e) { return null; } };
-  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach });
+  var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach,
+    checkinDue: function () { try { return screens.checkinDue(); } catch (e) { return null; } } });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;
   var pf = {

@@ -3,7 +3,7 @@
  * This worker only ever creates or deletes caches whose names start with "leanward-", so it can't
  * disturb anything else that might share the origin (e.g. during the move off kevo00012.github.io).
  */
-var CACHE = 'leanward-0.27.0';
+var CACHE = 'leanward-0.28.0';
 var PREFIX = 'leanward-';
 var SHELL = [
   './',
@@ -51,6 +51,7 @@ var SHELL = [
   'js/prforge.js',
   'js/calc/adaptive.js',
   'js/maint.js',
+  'js/checkin.js',
   'js/home.js',
   'js/progressui.js',
   'js/foodui.js',

@@ -146,7 +146,9 @@
       var tip = tipNow(), step = c && c.step, train = ctx.training && tg ? root.LW.home.trainingLine({ training: ctx.training(), carbsTarget: Number(tg.carbs_g) }) : null;
       var title, text, act = null, why = null, short = null, state = c ? c.state : 'Building your baseline';
       // The chip names what the card is showing: the coach's data state only when the card shows the coach's step.
+      var ci = ctx.checkinDue ? ctx.checkinDue() : null;   // the card is only on today's view
       if (step && step.kind === 'care') { title = step.title; text = step.why[0]; short = 'Eat at least your target'; why = 'Protects health and training'; state = 'Safety first'; }
+      else if (ci && ci.due) { title = 'Your weekly check-in is ready'; text = 'Two minutes: how last week went, and what, if anything, to change. Nothing changes unless you accept.'; act = { a: 'checkin' }; short = 'Start check-in'; why = 'A steady read, once a week'; state = 'Weekly check-in'; }
       else if (tip) { title = tip.title; text = tip.text; act = tip.action; short = tip.short; why = tip.why; state = 'Tip for today'; }
       else if (train) { title = train.title; text = train.text; short = 'Carbs around training'; why = 'Fuel and recovery'; state = 'Tip for today'; }
       else if (step) {
@@ -159,7 +161,7 @@
       var foot = '<div' + (act ? ' role="button" tabindex="0" data-a="' + act.a + '"' + (act.v ? ' data-v="' + act.v + '"' : '') : '') + '>' + UI.icon('target') + '<span><b>Next action</b>' + esc(short) + '</span></div>' +
         '<div>' + UI.icon('trend') + '<span><b>Why it helps</b>' + esc(why) + '</span></div>' +
         '<div role="button" tabindex="0" data-a="tab" data-v="phase">' + UI.icon('clipboard') + '<span><b>Today\'s target</b>' + esc(targetTxt) + '</span></div>';
-      return UI.intel({ state: esc(state), title: esc(title), text: esc(text), foot: foot });
+      return UI.intel({ a: ci && ci.due && state === 'Weekly check-in' ? 'checkin' : null, state: esc(state), title: esc(title), text: esc(text), foot: foot });
     }
     /** Quick Add (approved design): search, scan, a saved meal, or a quick custom entry. */
     function quickAdd() {
