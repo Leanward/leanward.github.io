@@ -177,3 +177,26 @@ test('goal weight: optional, plausible, in the phase\'s direction, never below B
   assert.equal(M2.weeksToGoal(77.1, 77.0, -0.4), 0);
   assert.equal(M2.weeksToGoal(77.1, 80, null), null);
 });
+
+test('goal date as a range (PRG-7): 21-day pace ±25%, only with enough data and moving toward the goal', () => {
+  const M = require('../js/model.js');
+  const base = { goalKg: 80, trendKg: 85, rate21: -0.5, pct21: -0.59, phaseDays: 30, weighIns21: 15, today: '2026-11-24' };
+  // 5 kg at 0.5 kg/wk = 10 weeks; ±25% pace → 8 weeks (0.625/wk) to 13.3 weeks (0.375/wk)
+  assert.deepEqual(M.goalRange(base), { state: 'range', early: '2027-01-19', late: '2027-02-25' });
+  assert.equal(M.goalRange(Object.assign({}, base, { phaseDays: 20 })).state, 'wait');
+  assert.equal(M.goalRange(Object.assign({}, base, { weighIns21: 9 })).state, 'wait');
+  assert.equal(M.goalRange(Object.assign({}, base, { rate21: 0.2, pct21: 0.24 })).state, 'not-moving');    // gaining in a cut
+  assert.equal(M.goalRange(Object.assign({}, base, { rate21: -0.05, pct21: -0.06 })).state, 'not-moving'); // under 0.1%/wk
+  assert.equal(M.goalRange(Object.assign({}, base, { trendKg: 80.1 })).state, 'reached');
+  assert.equal(M.goalRange(Object.assign({}, base, { goalKg: 40, trendKg: 85, rate21: -0.09, pct21: -0.11 })).state, 'far');
+  // bulk: goal above, gaining
+  assert.equal(M.goalRange({ goalKg: 90, trendKg: 85, rate21: 0.25, pct21: 0.29, phaseDays: 40, weighIns21: 12, today: '2026-11-24' }).state, 'range');
+});
+
+test('goal range: past the goal in the phase direction counts as reached', () => {
+  const M = require('../js/model.js');
+  const o = { goalKg: 88, trendKg: 87.7, rate21: -0.07, pct21: -0.08, phaseDays: 27, weighIns21: 15, today: '2026-11-24' };
+  assert.equal(M.goalRange(Object.assign({ phaseType: 'cut' }, o)).state, 'reached');          // trend below a cut's goal
+  assert.equal(M.goalRange(Object.assign({ phaseType: 'bulk' }, o, { goalKg: 87 })).state, 'reached');   // trend above a bulk's goal
+  assert.notEqual(M.goalRange(Object.assign({ phaseType: 'cut' }, o, { goalKg: 85 })).state, 'reached');
+});
