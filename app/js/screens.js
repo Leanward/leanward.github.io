@@ -344,6 +344,22 @@
       detset: function (v) { var i = v.indexOf(':'); S.sheet[v.slice(0, i)] = v.slice(i + 1); ctx.render(); },
       detsave: function (v) { detailsSave(v); },
       maintaccept: function () { maintDecide(true); },
+      checkin: function () { var d = checkinDue(); if (!d || !d.due) { ctx.toast('No check-in due right now'); return; } S.sheet = { kind: 'checkin', date: d.date, answer: null, week: ciWeek(d.date) }; ctx.render(); },
+      cians: function (v) { S.sheet.answer = v; ctx.render(); },
+      ciagain: function () { S.sheet.answer = null; ctx.render(); },
+      cidone: function () { checkinSave(S.sheet); },
+      cimaint: function (v) {
+        var sh = S.sheet, o = ciOutcome(sh);   // before the decision: afterwards the check reads "waiting"
+        // The maintenance decision (its own record and, if accepted, the new targets), then the check-in.
+        maintDecide(v === 'accept');
+        checkinSave(sh, v === 'accept' ? 'Check-in saved; maintenance updated' : 'Check-in saved; targets kept', o);
+      },
+      cidays: function () { S.sheet = { kind: 'cidays' }; ctx.render(); },
+      cidayset: function (v) {
+        var p = S.rows.profile; if (!p) return;
+        var prefs = Object.assign({}, p.preferences || {}, { checkinDay: v === '' ? null : Number(v) });
+        ctx.save([['lw_profiles', Object.assign({}, p, { preferences: prefs })]]).then(function () { S.sheet = false; ctx.toast(v === '' ? 'Check-ins follow your phase start' : 'Check-ins on ' + WEEKDAYS[Number(v)] + 's'); ctx.render(); });
+      },
       maintdecline: function () { maintDecide(false); },
       newphase: function () { startNewPhase(); ctx.render(); root.scrollTo(0, 0); },
       edittargets: function () { var t = currentTargets(); S.sheet = { kind: 'targets', when: '0', kcal: t.kcal, proteinG: t.protein_g, fatG: t.fat_g }; ctx.render(); },
@@ -544,6 +560,77 @@
       ctx.save(rows).then(function () { ctx.toast(accept ? 'Maintenance updated to ' + fmt(c.to) + ' kcal' : 'Kept your current targets'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
     }
 
+    /* ---------- weekly check-in (PRG-6) ---------- */
+    var CI = root.LW.checkin, WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    function ciPrefs() { return (S.rows.profile && S.rows.profile.preferences) || {}; }
+    /** Is a check-in due today? (null without a phase.) */
+    function checkinDue() {
+      var ph = M.currentPhase(S.rows.phases);
+      if (!ph || !currentTargets()) return null;
+      return CI.due({ phase: ph, prefs: ciPrefs(), today: today(), recs: S.rows.recs });
+    }
+    function ciWeek(date) {
+      return CI.week({ date: date, diary: S.rows.diary, weights: S.rows.weights, targetOn: function (d) { return M.targetsFor(S.rows.phases, S.rows.sets, d, today()); } });
+    }
+    function ciOutcome(sh) {
+      var c = coach(), m = null;
+      try { m = maintCheck(); } catch (e) { m = null; }
+      return CI.outcome({ answer: sh.answer, week: sh.week, step: c && c.step, maint: m });
+    }
+    function niceRange(a, b) { return niceDay(a) + ' – ' + niceDay(b); }
+    function checkinSheet() {
+      var sh = S.sheet, w = sh.week, UI = root.LW.ui, c = coach();
+      var head = '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Weekly check-in"><div class="grab"></div>' +
+        '<h2>Weekly check-in</h2><p class="small muted">The week of ' + esc(niceRange(w.start, w.end)) + '. Nothing changes unless you accept a suggestion.</p>';
+      if (!sh.answer) {
+        return head + '<div class="field"><span class="lab">How was your logging this week?</span><div class="opts" role="radiogroup">' +
+          [['all', 'All of it', 'Every meal and snack, most days'], ['most', 'Most days', 'A few gaps or guesses'], ['some', 'Only some', 'A busy or off week']].map(function (o) {
+            return '<button type="button" class="opt" role="radio" aria-checked="false" data-a="cians" data-v="' + o[0] + '"><b>' + o[1] + '</b><span>' + o[2] + '</span></button>';
+          }).join('') + '</div></div><p class="small muted">An honest answer helps: Leanward won\'t suggest a calorie change from a week that wasn\'t fully logged.</p></div>';
+      }
+      var o = ciOutcome(sh), sig = function (label, val, note) { return '<div class="sig"><div class="row"><b style="font-size:13.5px">' + label + '</b><span>' + val + '</span></div>' + (note ? '<p class="small muted">' + note + '</p>' : '') + '</div>'; };
+      var wsig = c && c.read ? c.read.signals.filter(function (x) { return x.id === 'weight'; })[0] : null;
+      var others = c && c.read ? c.read.signals.filter(function (x) { return x.id !== 'weight' && x.status !== 'collecting'; }) : [];
+      var tone = { care: 'watch', hold: 'wait', maint: 'watch', change: 'watch', keep: 'ok' }[o.kind];
+      var box = '<div class="next ' + tone + '"><span class="small muted">This week</span><b>' + esc(o.title) + '</b><p class="small">' + esc(o.text) + '</p></div>';
+      // The outcome first, then the numbers behind it.
+      return head + box + '<span class="sec">The week in numbers</span>' +
+        sig('Days logged', w.loggedDays + ' of 7', 'A day counts when it reaches at least half your calorie target.') +
+        sig('Weigh-ins', w.weighIns + ' of 7') +
+        (w.avgKcal != null ? sig('Average calories', fmt(w.avgKcal) + (w.targetKcal ? ' / ' + fmt(w.targetKcal) + ' kcal' : ' kcal')) : '') +
+        (w.avgProtein != null ? sig('Average protein', fmt(w.avgProtein) + (w.targetProtein ? ' / ' + fmt(w.targetProtein) + ' g' : ' g')) : '') +
+        (wsig ? sig('Weight trend', esc((SIGNAL[wsig.status] || SIGNAL.collecting)[1]), esc(wsig.value)) : '') +
+        others.map(function (s) { return sig(esc(s.label), esc((SIGNAL[s.status] || SIGNAL.collecting)[1]), esc(s.value)); }).join('') +
+        (o.offerMaint ? '<button type="button" class="btn block" data-a="cimaint" data-v="accept">Accept the new maintenance</button><button type="button" class="btn ghost block" data-a="cimaint" data-v="decline">Keep my current targets</button>'
+          : '<button type="button" class="btn block" data-a="cidone">Done</button>') +
+        '<button type="button" class="link" data-a="ciagain" style="justify-self:center">Change my answer</button></div>';
+    }
+    function checkinSave(sh, after, o) {
+      var ph = M.currentPhase(S.rows.phases);
+      o = o || ciOutcome(sh);
+      var row = CI.record({ date: sh.date, phaseId: ph && ph.id, answer: sh.answer, week: sh.week, outcome: o, now: new Date().toISOString() });
+      return ctx.save([['lw_recommendations', row]]).then(function () { S.sheet = false; ctx.toast(after || 'Check-in saved'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
+    }
+    /** Plan: the check-in when it's due, and the last few. */
+    function checkinCard() {
+      var d = checkinDue(), UI = root.LW.ui;
+      if (!d) return '';
+      var h = CI.history(S.rows.recs).slice(0, 4), day = WEEKDAYS[CI.dayFor(ciPrefs(), M.currentPhase(S.rows.phases))];
+      var ans = { all: 'logged all', most: 'logged most days', some: 'logged some' };
+      return '<section class="card"><div class="cardhead"><h2>' + UI.icon('clipboard') + 'Weekly check-in</h2><button type="button" class="addpill" data-a="cidays">' + day + 's</button></div>' +
+        (d.due ? '<p class="small">This week\'s check-in is ready: how the week went and what, if anything, to change.</p><button type="button" class="btn block" data-a="checkin">Start check-in</button>'
+          : '<p class="small muted">' + (d.done ? 'Done for this week. ' : '') + 'Next check-in: ' + esc(niceDay(d.next)) + '.' + (d.date || d.done ? '' : ' The first one comes after your phase\'s first week.') + '</p>') +
+        (h.length ? '<div class="list">' + h.map(function (r) { var p = r.proposed; return '<div class="item"><span><span class="t">' + esc(p.title || '') + '</span><span class="s">' + esc(niceDay(p.date)) + ' · ' + esc(ans[p.answer] || '') + (p.week ? ' · ' + p.week.loggedDays + ' days, ' + p.week.weighIns + ' weigh-ins' : '') + '</span></span></div>'; }).join('') + '</div>' : '') +
+        '</section>';
+    }
+    function ciDaysSheet() {
+      var ph = M.currentPhase(S.rows.phases), cur = ciPrefs().checkinDay, start = ph ? WEEKDAYS[CI.dayFor({}, ph)] : null;
+      var opt = function (v, label) { return '<button type="button" class="opt" role="radio" aria-checked="' + (String(cur == null ? '' : cur) === String(v)) + '" data-a="cidayset" data-v="' + v + '"><b>' + label + '</b></button>'; };
+      return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Check-in day"><div class="grab"></div><h2>Check-in day</h2>' +
+        '<p class="small muted">The check-in looks at the 7 days before it. It stays open for 3 days, so a busy day is fine.</p>' +
+        '<div class="opts" role="radiogroup">' + opt('', 'Same as my phase start' + (start ? ' (' + start + ')' : '')) + [1, 2, 3, 4, 5, 6, 0].map(function (d) { return opt(d, WEEKDAYS[d]); }).join('') + '</div></div>';
+    }
+
     /** When the target in use doesn't match the phase's planned rate (typed in, or held at the floor), say what it implies. */
     function paceNote(ph, t) {
       var ci = t.calc_inputs || {};
@@ -568,7 +655,7 @@
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + (paceNote(ph, t) ? 'planned ' : '') + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' + paceNote(ph, t) +
           UI.bar(pos / 100, 'route2') +
           '<div class="row small muted"><span>Started ' + nd(ph.start_date) + '</span><span>' + (ph.planned_end ? 'Planned end ~' + nd(ph.planned_end) : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
-        maintCard(t) +
+        checkinCard() + maintCard(t) +
         '<section class="card"><div class="cardhead"><h2>' + UI.icon('target') + 'Targets</h2><button type="button" class="addpill" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
           carbNote(t) +
@@ -730,6 +817,8 @@
       if (sh && sh.kind === 'details') return detailsSheet();
       if (sh && sh.kind === 'goalw') return goalSheet();
       if (sh && sh.kind === 'maint') return maintSheet();
+      if (sh && sh.kind === 'checkin') return checkinSheet();
+      if (sh && sh.kind === 'cidays') return ciDaysSheet();
       if (!sh || sh.kind !== 'targets') return '';
       var pv = sheetPreview();
       return '<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="et-h"><div class="grab"></div><h2 id="et-h">Edit targets</h2>' +
@@ -763,7 +852,7 @@
 
     return {
       startOnboarding: startOnboarding, onboardingView: onboardingView, onInput: onInput, actions: actions,
-      hasSetup: hasSetup, coach: coach, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView
+      hasSetup: hasSetup, coach: coach, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView, checkinDue: checkinDue
     };
   }
 
