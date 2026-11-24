@@ -114,8 +114,13 @@
         if (!se.length) {
           // Any empty meal that had food the day before (owner's beta feedback: not just breakfast).
           var repeat = yEntries.some(function (e) { return e.slot === sl.id; });
+          // "Your usual" (HOM-3, v1.25) when it isn't simply yesterday's meal again.
+          var u = DY.usualMeal(S.rows.diary || [], sl.id, date), setOf = function (l) { return l.map(function (e) { return e.food_ref || e.name; }).sort().join('|'); };
+          var usual = u && setOf(u.entries) !== setOf(yEntries.filter(function (e) { return e.slot === sl.id; }));
+          var links = (usual ? '<button type="button" class="link" data-a="usualmeal" data-v="' + sl.id + '">Your usual</button>' : '') +
+            (repeat ? (usual ? '<span class="muted"> · </span>' : '') + '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '');
           out += '<section class="mempty">' + ic + '<span><b>' + esc(sl.label) + '</b>' +
-            (repeat ? '<button type="button" class="link" data-a="repeatmeal" data-v="' + sl.id + '">Same as yesterday</button>' : '<span>' + (sl.id === 'beverages' ? 'Add a drink' : sl.id === 'supplements' ? 'Add a supplement' : 'Add your meal') + '</span>') + '</span>' + add + '</section>';
+            (links ? '<span>' + links + '</span>' : '<span>' + (sl.id === 'beverages' ? 'Add a drink' : sl.id === 'supplements' ? 'Add a supplement' : 'Add your meal') + '</span>') + '</span>' + add + '</section>';
           return;
         }
         var t = DY.totals(se), open = !!S['open_meal_' + sl.id];
@@ -447,6 +452,20 @@
               ctx.save(gone.map(function (e) { return ['lw_diary_entries', Object.assign({}, e, { deleted: false })]; })).then(function () { ctx.toast('Restored'); ctx.render(); });
             }
           });
+        });
+      },
+      /** Your usual meal (HOM-3): the whole set at its latest amounts, from Today or the add sheet, with Undo. */
+      usualmeal: function (slot) {
+        var inSheet = S.sheet && S.sheet.kind === 'add', date = inSheet ? S.sheet.date : (S.diaryDate || ctx.today());
+        var u = DY.usualMeal(S.rows.diary || [], slot, date);
+        if (!u) return;
+        var rows = DY.copyEntries(u.entries, date, slot).map(function (r) { r.logged_via = 'usual'; return r; });
+        if (inSheet) S.sheet = false;
+        ctx.save(rows.map(function (r) { return ['lw_diary_entries', r]; })).then(function () {
+          ctx.render();
+          ctx.toast('Added your usual ' + slotLabel(slot).toLowerCase(), { undo: function () {
+            ctx.save(rows.map(function (r) { return ['lw_diary_entries', { id: r.id, deleted: true }]; })).then(function () { ctx.toast('Removed'); ctx.render(); });
+          } });
         });
       },
       /** Yesterday's food in this meal, added to the same meal on the day shown (LOG-10). */

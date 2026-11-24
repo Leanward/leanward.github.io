@@ -150,3 +150,27 @@ test('4/4/9 note: shown only when a food\'s calories differ meaningfully, with t
   assert.equal(D.atwaterNote({ kcal: 83, protein_g: 0.1, carbs_g: 2.7, fat_g: 0, nutrients: { alcohol: 10.6 }, source: 'usda-sr-legacy' }), null);
   assert.equal(D.atwaterNote({ kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), null);
 });
+
+test('usual meal (HOM-3): the same set of foods on 3+ of 28 days and 40%+ of logged days', () => {
+  const DY = require('../js/diary.js');
+  const e = (date, ref, g, slot) => ({ id: date + ref + (slot || 'b'), date, slot: slot || 'breakfast', food_ref: ref, name: ref, kcal: 100, qty: g });
+  const today = '2026-11-24';
+  let rows = [
+    e('2026-11-20', 'oats', 250), e('2026-11-20', 'yog', 200),
+    e('2026-11-21', 'yog', 150), e('2026-11-21', 'oats', 250),     // same set, other order and amount
+    e('2026-11-22', 'eggs', 100),
+    e('2026-11-23', 'oats', 250), e('2026-11-23', 'yog', 200),
+    e('2026-11-24', 'oats', 250),                                   // today: not counted
+    e('2026-11-22', 'chicken', 150, 'lunch')
+  ];
+  let u = DY.usualMeal(rows, 'breakfast', today);
+  assert.equal(u.days, 3); assert.equal(u.of, 4);
+  assert.deepEqual(u.entries.map((x) => x.date + ':' + x.food_ref).sort(), ['2026-11-23:oats', '2026-11-23:yog']);  // the latest day's amounts
+  // only 2 days with the set: no habit yet
+  assert.equal(DY.usualMeal(rows.filter((x) => x.date !== '2026-11-20'), 'breakfast', today), null);
+  // a set on 3 of 10 logged days is under 40%: not "usual"
+  const varied = rows.concat(['11-01', '11-02', '11-03', '11-04', '11-05', '11-06'].map((d, i) => e('2026-' + d, 'x' + i, 50)));
+  assert.equal(DY.usualMeal(varied, 'breakfast', today), null);
+  // deleted entries and other meals don't count; older than 28 days don't count
+  assert.equal(DY.usualMeal(rows, 'lunch', today), null);
+});
