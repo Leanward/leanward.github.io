@@ -565,3 +565,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(va
 :root[data-theme="light"] { --acc-text: color-mix(in srgb, var(--g1) 68%, #000); }
 /* The Progress sub-tabs scroll sideways: fade the right edge so the cut-off tab reads as "more this way". */
 .subnav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 28px; }
+/* Weeks 1–3: progress toward the first read on Today's Intelligence card. */
+.firstread { display: grid; gap: 5px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.firstread .frrow { display: flex; justify-content: space-between; margin-top: 4px; }

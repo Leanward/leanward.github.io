@@ -81,6 +81,7 @@
     }
     /** What you add to a meal, in words that fit it: "a drink" for Beverages, not "food" (owner feedback). */
     function addWhat(slot) { return slot === 'beverages' ? 'a drink' : slot === 'supplements' ? 'a supplement' : 'food'; }
+    function niceDate(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
     function longDate(date) { return new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
     var MEAL_ICON = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', snacks: 'snacks', beverages: 'beverages', supplements: 'supplements' };
     function view() {
@@ -155,15 +156,23 @@
       else if (step) {
         // The footer says what to do and why, in words the title doesn't already use.
         var F = STEP_FOOT[step.kind] || ['See the full read on Progress', 'Based on your trend'];
-        title = step.title; text = step.why[0].replace(/^Keep logging and weighing in\. Still needed: (.+)\.$/, 'Leanward needs $1 before it can judge your plan.'); short = F[0]; why = F[1]; act = F[2] ? { a: F[2], v: F[2] === 'tab' ? 'phase' : null } : null;
+        title = step.title; text = step.why[0].replace(/^Keep logging and weighing in\. Still needed: (.+)\.$/, 'Leanward needs $1 before it can judge your plan.'); short = F[0];
+        if (step.kind === 'wait' && c.first) {   // weeks 1–3: the date of the first read, not just "too early"
+          title = 'Building your first read';
+          text = 'Your first read of how your ' + c.phaseName.toLowerCase() + ' is going is due ' + niceDate(c.first.date) + ', if you keep logging and weigh in most mornings.';
+        } why = F[1]; act = F[2] ? { a: F[2], v: F[2] === 'tab' ? 'phase' : null } : null;
       }
       else { title = 'Log today, weigh in tomorrow'; text = 'Leanward learns from your logging and weigh-ins. The more complete days you log, the sooner it can tell you whether your plan is working.'; short = 'Log your next meal'; why = 'Builds your baseline'; }
       var targetTxt = tg ? fmt(tg.kcal) + ' kcal · ' + fmt(tg.protein_g) + ' g protein' : 'Set up a phase';
       var foot = '<div' + (act ? ' role="button" tabindex="0" data-a="' + act.a + '"' + (act.v ? ' data-v="' + act.v + '"' : '') : '') + '>' + UI.icon('target') + '<span><b>Next action</b>' + esc(short) + '</span></div>' +
         '<div>' + UI.icon('trend') + '<span><b>Why it helps</b>' + esc(why) + '</span></div>' +
         '<div role="button" tabindex="0" data-a="tab" data-v="phase">' + UI.icon('clipboard') + '<span><b>Today\'s target</b>' + esc(targetTxt) + '</span></div>';
+      // Weeks 1–3: how close the first read is, under whatever the card says (not with a care step).
+      var fr = c && c.first && state !== 'Safety first' ? '<div class="firstread"><span class="small"><b>First read</b> · ' + esc(niceDate(c.first.date)) + '</span>' +
+        '<span class="frrow"><span class="small muted">Days of your phase</span><span class="small">' + c.first.days + ' of ' + c.first.daysOf + '</span></span>' + UI.bar(c.first.days / c.first.daysOf) +
+        '<span class="frrow"><span class="small muted">Weigh-ins</span><span class="small">' + c.first.weighIns + ' of ' + c.first.weighInsOf + '</span></span>' + UI.bar(c.first.weighIns / c.first.weighInsOf) + '</div>' : '';
       return UI.intel({ a: ci && ci.due && state === 'Weekly check-in' ? 'checkin' : null, state: esc(state), title: esc(title), text: esc(text), foot: foot,
-        extra: state === 'Phase ending' ? '<button type="button" class="link" data-a="pesnooze" style="margin-top:8px">Not now</button>' : '' });
+        extra: (state === 'Phase ending' ? '<button type="button" class="link" data-a="pesnooze" style="margin-top:8px">Not now</button>' : '') + fr });
     }
     /** Quick Add (approved design): search, scan, a saved meal, or a quick custom entry. */
     function quickAdd() {

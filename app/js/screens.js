@@ -465,7 +465,8 @@
       var sigs = r ? r.signals : [], w = sigs.filter(function (x) { return x.id === 'weight'; })[0];
       var read = sigs.filter(function (x) { return x.status !== 'collecting'; });
       var state = !w || w.status === 'collecting' ? 'Collecting data' : read.length < sigs.length ? 'Early signal' : 'Enough data to assess';
-      return { phase: ph, targets: t, read: r, step: step, q: q, state: state, phaseName: PHASE_NAME[ph.type], week: root.LW.ui.weekLabel(PHASE_NAME[ph.type], d), day: d,
+      var first = r && ph.type !== 'nutrition' ? C.progress.firstRead({ days: d.day, weighIns: r.weighIns, today: today() }) : null;
+      return { phase: ph, targets: t, read: r, step: step, q: q, state: state, first: first, phaseName: PHASE_NAME[ph.type], week: root.LW.ui.weekLabel(PHASE_NAME[ph.type], d), day: d,
         plannedPct: C.targets.PHASES[ph.type].rates.length ? (ph.type === 'cut' ? -1 : ph.type === 'bulk' ? 1 : 0) * Number(ph.rate) : null };
     }
     function nextHtml(ph, t, r) {
