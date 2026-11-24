@@ -113,3 +113,13 @@ test('maintenance check: confidence from logging and weigh-ins; caution when far
   r = A.estimate(Object.assign({ endDate: end, previousTdee: 3200 }, mk(1, [0, 1, 2, 3, 4, 5, 6])));
   assert.equal(r.cautions.length, 1); assert.match(r.cautions[0], /wasn't logged/); assert.equal(r.tdee, 3050);
 });
+
+test('first read (weeks 1–3): progress toward 14 days and 8 weigh-ins, with the earliest date', () => {
+  const P = require('../js/calc/progress.js');
+  let f = P.firstRead({ days: 9, weighIns: 5, today: '2026-11-24' });
+  assert.deepEqual(f, { days: 9, daysOf: 14, weighIns: 5, weighInsOf: 8, date: '2026-11-29' });   // 5 more days is the longer wait
+  f = P.firstRead({ days: 13, weighIns: 2, today: '2026-11-24' });
+  assert.equal(f.date, '2026-11-30');                                                              // 6 more weigh-ins
+  assert.equal(P.firstRead({ days: 20, weighIns: 12, today: '2026-11-24' }), null);                // enough: the read takes over
+  assert.equal(P.firstRead({ days: 20, weighIns: 7, today: '2026-11-24' }).days, 14);
+});

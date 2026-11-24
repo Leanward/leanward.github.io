@@ -201,7 +201,19 @@
       if (input.waist && input.waist.length) signals.push(waistSignal(ph, ctx, opts));
       if (ph.type !== 'maintenance') signals = signals.concat(liftSignals(ph, ctx));
     }
-    return { dayOfPhase: days, signals: signals, summary: summary(ph.type, signals) };
+    return { dayOfPhase: days, weighIns: ctx.weighIns == null ? null : ctx.weighIns, signals: signals, summary: summary(ph.type, signals) };
+  }
+
+  /**
+   * Weeks 1–3 (master audit, change #3): progress toward the first weight read instead of a bare
+   * "collecting data". days: day of the phase (1 = start day); weighIns: days weighed in the phase.
+   * The earliest date assumes a weigh-in most mornings from today on. Returns null once there's enough.
+   */
+  function firstRead(o) {
+    var dayNeed = Math.max(0, MIN_DAYS - o.days), wNeed = Math.max(0, MIN_WEIGHINS - (o.weighIns || 0));
+    if (!dayNeed && !wNeed) return null;
+    var date = core.addDays(o.today, Math.max(dayNeed, wNeed));
+    return { days: Math.min(o.days, MIN_DAYS), daysOf: MIN_DAYS, weighIns: Math.min(o.weighIns || 0, MIN_WEIGHINS), weighInsOf: MIN_WEIGHINS, date: date };
   }
 
   /** PRG-4: plain, non-judgmental copy built from the signals. */
@@ -341,7 +353,7 @@
     return null;
   }
 
-  var api = { MIN_DAYS: MIN_DAYS, MIN_WEIGHINS: MIN_WEIGHINS, MIN_ENTRIES: MIN_ENTRIES, WAIST_NOISE_CM: WAIST_NOISE_CM, LIFT_MIN_SESSIONS: LIFT_MIN_SESSIONS, read: read, nextStep: nextStep };
+  var api = { MIN_DAYS: MIN_DAYS, MIN_WEIGHINS: MIN_WEIGHINS, MIN_ENTRIES: MIN_ENTRIES, WAIST_NOISE_CM: WAIST_NOISE_CM, LIFT_MIN_SESSIONS: LIFT_MIN_SESSIONS, read: read, nextStep: nextStep, firstRead: firstRead };
   if (node) module.exports = api;
   else { root.LW.calc.progress = api; }
 })(this);
