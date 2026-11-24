@@ -1,7 +1,7 @@
 /* Leanward — the add sheet: Recent and Frequent (LOG-2), Find a food (LOG-3), your own foods
  * (LOG-8, FDB-5), recipes (LOG-15), saved meals (LOG-9), Quick add (LOG-7), food detail with amount, unit and meal
  * (NUT-5, LOG-5, FDB-1/3/5) and barcode scanning with "Create this food" (LOG-4).
- * Opened from the global + button or a Diary slot's +. Logging writes a diary entry (js/diary.js).
+ * Opened from the global + button or a Diary slot's +. Opens on your usual meal and the foods most often logged at that meal (HOM-3). Logging writes a diary entry (js/diary.js).
  * Barcode scanning uses ZXing (js/vendor/zxing.min.js, Apache-2.0), loaded the first time you scan.
  */
 (function (root) {
@@ -78,10 +78,16 @@
       var own = '<span class="sec">Your foods and recipes</span>' + (mine.length ? '<div class="list">' + mine.slice(0, 8).map(resultRow).join('') + '</div>' : '<p class="small muted">Foods you create from a label (or copy and correct), and recipes you build, are private to you.</p>') +
         (S.sheet.pick ? '' : '<div class="grid2"><button type="button" class="btn ghost block" data-a="cfnew">Create a food</button><button type="button" class="btn ghost block" data-a="rcnew">Create a recipe</button></div>');
       if (!rec.length) return '<p class="small muted">Foods you log show up here, so you can add them again in one tap, even offline.</p>' + own;
-      var row = loggedRow, inFreq = {};
+      var row = loggedRow, inFreq = {}, sl = S.sheet.slot, date = S.sheet.date || ctx.today(), slName = sl ? ctx.slotLabel(sl).toLowerCase() : '';
+      // HOM-3 (v1.25): your usual meal for this slot, one tap; then the foods most often logged at this meal.
+      var u = sl && !S.sheet.pick ? DY.usualMeal(all, sl, date) : null;
+      var usual = u ? '<span class="sec">Your usual ' + esc(slName) + '</span><div class="list"><button type="button" class="item food" data-a="usualmeal" data-v="' + esc(sl) + '"><span><span class="t">' +
+        esc(u.entries.map(function (e) { return DY.calmName(e.name); }).join(' + ')) + '</span><span class="s">' + fmt(u.entries.reduce(function (a, e) { return a + (Number(e.kcal) || 0); }, 0)) + ' kcal · ' + u.days + ' of the last ' + u.of + ' ' + esc(slName) + 's</span></span><span class="badge">+</span></button></div>' : '';
+      var picks = sl && !S.sheet.pick ? DY.quickPicks(all, sl, date, 5) : [];
+      if (picks.length) { freq = picks.map(function (e) { return { entry: e }; }); }
       freq.forEach(function (f) { inFreq[f.entry.food_ref] = 1; });
       rec = rec.filter(function (e) { return !inFreq[e.food_ref]; });
-      return (freq.length ? '<span class="sec">Frequent</span><div class="list">' + freq.map(function (f) { return row(f.entry, ' · ' + f.count + '× this month'); }).join('') + '</div>' : '') +
+      return usual + (freq.length ? '<span class="sec">' + (picks.length ? 'Often at ' + esc(slName) : 'Frequent') + '</span><div class="list">' + freq.map(function (f) { return row(f.entry, f.count ? ' · ' + f.count + '× this month' : ''); }).join('') + '</div>' : '') +
         (rec.length ? '<span class="sec">Recent</span><div class="list">' + rec.map(function (e) { return row(e); }).join('') + '</div>' : '') + own;
     }
     function quickHtml() {

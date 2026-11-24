@@ -225,6 +225,28 @@
       .sort(function (a, b) { return n[b] - n[a] || (last[a].date < last[b].date ? 1 : -1); }).slice(0, limit || 5).map(function (k) { return last[k]; });
   }
 
+  /**
+   * "Your usual breakfast" (HOM-3, v1.25): the same set of foods logged in this slot on at least 3 of the
+   * last 28 days, and on at least 40% of the days that slot was logged. Returns that day's entries (the most
+   * recent day with the set, so the amounts are the latest), with { days, of }; null when there's no habit.
+   */
+  function usualMeal(entries, slot, today, days) {
+    var since = addDays(today, -(days || 28)), byDay = {};
+    entries.forEach(function (e) {
+      if (e.deleted || e.slot !== slot || e.date < since || e.date >= today) return;
+      (byDay[e.date] = byDay[e.date] || []).push(e);
+    });
+    var dates = Object.keys(byDay).sort(), count = {}, latest = {};
+    dates.forEach(function (d) {
+      var refs = byDay[d].map(function (e) { return e.food_ref || ('quick:' + e.name + ':' + Math.round(Number(e.kcal) || 0)); }).sort();
+      var key = refs.join('|');
+      count[key] = (count[key] || 0) + 1; latest[key] = d;
+    });
+    var best = Object.keys(count).sort(function (a, b) { return count[b] - count[a] || (latest[a] < latest[b] ? 1 : -1); })[0];
+    if (!best || count[best] < 3 || count[best] < 0.4 * dates.length) return null;
+    return { entries: byDay[latest[best]], days: count[best], of: dates.length };
+  }
+
   /** Copy entries to another date (and optionally slot) as new entries (LOG-10). */
   function copyEntries(list, toDate, toSlot) {
     return list.filter(function (e) { return !e.deleted; }).map(function (e) {
@@ -276,7 +298,7 @@
 
   var api = { atwaterNote: atwaterNote, matchLogged: matchLogged, SLOTS: SLOTS, NUTRIENTS: NUTRIENTS, G_PER_OZ: G_PER_OZ, unitsFor: unitsFor, amountsFor: amountsFor, entryFromFood: entryFromFood, foodOfEntry: foodOfEntry,
     updateEntry: updateEntry, quickAdd: quickAdd, totals: totals, versusTarget: versusTarget, recents: recents, frequents: frequents,
-    quickPicks: quickPicks, servingLabel: servingLabel, unitLabelOf: unitLabelOf, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
+    quickPicks: quickPicks, usualMeal: usualMeal, servingLabel: servingLabel, unitLabelOf: unitLabelOf, amountText: amountText, calmName: calmName, copyEntries: copyEntries, slotForTime: slotForTime, addDays: addDays };
   if (node) module.exports = api;
   else { root.LW.diary = api; }
 })(this);
