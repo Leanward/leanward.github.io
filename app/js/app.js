@@ -515,7 +515,8 @@
   var screens = root.LW.screens.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, today: today, lifts: function () { return pf.lifts(); }, training: training });
   var coach = function () { try { return screens.coach(); } catch (e) { return null; } };
   var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach,
-    checkinDue: function () { try { return screens.checkinDue(); } catch (e) { return null; } } });
+    checkinDue: function () { try { return screens.checkinDue(); } catch (e) { return null; } },
+    phaseEnd: function () { try { return screens.phaseEnd(); } catch (e) { return null; } } });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;
   var pf = {

@@ -344,6 +344,12 @@
       detset: function (v) { var i = v.indexOf(':'); S.sheet[v.slice(0, i)] = v.slice(i + 1); ctx.render(); },
       detsave: function (v) { detailsSave(v); },
       maintaccept: function () { maintDecide(true); },
+      pechoose: function (v) { phaseEndChoose(v); },
+      pesnooze: function () {
+        var p = S.rows.profile, ph = M.currentPhase(S.rows.phases); if (!p || !ph) return;
+        var prefs = Object.assign({}, p.preferences || {}, { phaseEndSnooze: PE.snooze(ph.id, today()) });
+        ctx.save([['lw_profiles', Object.assign({}, p, { preferences: prefs })]]).then(function () { ctx.toast('Hidden from Today for a week; it stays on Plan'); ctx.render(); });
+      },
       checkin: function () { var d = checkinDue(); if (!d || !d.due) { ctx.toast('No check-in due right now'); return; } S.sheet = { kind: 'checkin', date: d.date, answer: null, week: ciWeek(d.date) }; ctx.render(); },
       cians: function (v) { S.sheet.answer = v; ctx.render(); },
       ciagain: function () { S.sheet.answer = null; ctx.render(); },
@@ -631,6 +637,68 @@
         '<div class="opts" role="radiogroup">' + opt('', 'Same as my phase start' + (start ? ' (' + start + ')' : '')) + [1, 2, 3, 4, 5, 6, 0].map(function (d) { return opt(d, WEEKDAYS[d]); }).join('') + '</div></div>';
     }
 
+    /* ---------- planned-end hand-off (PHS-6) ---------- */
+    var PE = root.LW.phaseend;
+    function trendNowKg() {
+      var wts = (S.rows.weights || []).filter(function (w) { return !w.deleted; }).map(function (w) { return { date: w.date, kg: Number(w.kg), at: w.measured_at }; });
+      if (!wts.length) return null;
+      var s = C.trend.trendSeries(wts, { endDate: today() }).filter(function (d) { return d.date <= today(); });
+      return s.length ? s[s.length - 1].trend : null;
+    }
+    /** The hand-off state, or null without a phase: { due, reason, daysLeft, snoozed, options }. */
+    function phaseEnd() {
+      var ph = M.currentPhase(S.rows.phases), g = currentGoal();
+      if (!ph || !currentTargets()) return null;
+      var d = PE.due({ phase: ph, goalType: g && g.type, today: today(), trendKg: trendNowKg(), snooze: ciPrefs().phaseEndSnooze });
+      if (!d.due) return d;
+      var c = coach(), lastCut = (S.rows.phases || []).filter(function (p) { return !p.deleted && p.type === 'cut' && p.end_date; }).sort(function (a, b) { return a.end_date < b.end_date ? 1 : -1; })[0];
+      d.options = PE.options({ phase: ph, goalType: g && g.type, today: today(), careStep: !!(c && c.step && c.step.kind === 'care'), lastCut: lastCut });
+      return d;
+    }
+    function phaseEndLead(d, ph) {
+      var name = PHASE_NAME[ph.type];
+      if (PE.isDietBreak(ph, (currentGoal() || {}).type)) return 'Your diet break ' + (d.daysLeft < 0 ? 'ended ' + nd(ph.planned_end) : d.daysLeft === 0 ? 'ends today' : 'ends ' + nd(ph.planned_end)) + '.';
+      if (d.reason === 'goal') return 'Your weight trend has reached your goal of ' + wt(Number(ph.target_weight_kg)) + '.';
+      return 'Your ' + name.toLowerCase() + ' ' + (d.daysLeft < 0 ? 'passed its planned end on ' + nd(ph.planned_end) : d.daysLeft === 0 ? 'reaches its planned end today' : 'reaches its planned end on ' + nd(ph.planned_end)) + '.';
+    }
+    /** Plan: the hand-off card (stays here until a choice is made, whatever "Not now" says). */
+    function phaseEndCard() {
+      var d = phaseEnd(), ph = M.currentPhase(S.rows.phases), UI = root.LW.ui;
+      if (!d || !d.due) return '';
+      // Maintenance choices name the number they use and where it comes from (PHS-6).
+      var mtxt = '';
+      try {
+        var mp = M.preview(profileNow(), { phase: 'maintenance' }, today()), t = currentTargets(), src = mp.plan.energySource;
+        mtxt = ' At about ' + fmt(mp.final.kcal) + ' kcal: ' + (fromCheck(t) ? 'from your maintenance check' : src === 'formula' ? 'estimated by formula at your current weight' : 'from the maintenance you entered') + '.';
+      } catch (e) { mtxt = ''; }
+      return '<section class="card"><div class="cardhead"><h2>' + UI.icon('plan') + 'What\'s next?</h2></div><p class="small">' + esc(phaseEndLead(d, ph)) + ' Nothing changes until you choose; until then your targets stay as they are.</p>' +
+        '<div class="opts">' + d.options.map(function (o) {
+          return '<button type="button" class="opt" data-a="pechoose" data-v="' + o.id + '"><b>' + esc(o.label) + (o.suggested ? ' · suggested' : '') + '</b><span>' + esc(o.why + (o.phase === 'maintenance' ? mtxt : '')) + '</span></button>';
+        }).join('') + '</div></section>';
+    }
+    function phaseEndChoose(id) {
+      var d = phaseEnd(), ph = M.currentPhase(S.rows.phases);
+      if (!d || !d.due) return;
+      var o = d.options.filter(function (x) { return x.id === id; })[0];
+      if (!o) return;
+      if (o.id === 'other') { startNewPhase(); ctx.render(); root.scrollTo(0, 0); return; }
+      if (o.extend) {
+        var np = PE.extended(ph, o.extend, today());
+        if (!root.confirm('Keep going until ' + nd(np.planned_end) + '? Your targets stay the same.')) return;
+        ctx.save([['lw_phases', np]]).then(function () { ctx.toast('Planned end moved to ' + nd(np.planned_end)); ctx.render(); });
+        return;
+      }
+      var res;
+      try {
+        res = M.startPhase({ now: new Date().toISOString(), today: today(), profile: profileNow(), currentPhase: ph, currentGoal: currentGoal(), goal: o.goal, phase: o.phase,
+          rate: o.rate != null ? o.rate : undefined, manual: null });
+      } catch (e) { ctx.toast(e.message); return; }
+      if (o.plannedDays) res.rows.forEach(function (r) { if (r[0] === 'lw_phases' && r[1].id === res.phase.id) r[1].planned_end = core.addDays(today(), o.plannedDays - 1); });
+      var f = res.preview.final;
+      if (!root.confirm('Start ' + o.label.toLowerCase() + ' today? New targets: ' + fmt(f.kcal) + ' kcal · P ' + f.proteinG + ' g. Your ' + PHASE_NAME[ph.type].toLowerCase() + ' is kept in your history.')) return;
+      ctx.save(res.rows).then(function () { ctx.toast(o.label + ' started'); ctx.render(); }, function (e) { ctx.toast('Couldn\'t save: ' + (e && e.message)); });
+    }
+
     /** When the target in use doesn't match the phase's planned rate (typed in, or held at the floor), say what it implies. */
     function paceNote(ph, t) {
       var ci = t.calc_inputs || {};
@@ -655,7 +723,7 @@
           '<span class="small muted">' + d.label + (C.targets.PHASES[ph.type].rates.length ? ' · ' + (paceNote(ph, t) ? 'planned ' : '') + rateLabel(ph.type, Number(ph.rate)) : '') + '</span>' + paceNote(ph, t) +
           UI.bar(pos / 100, 'route2') +
           '<div class="row small muted"><span>Started ' + nd(ph.start_date) + '</span><span>' + (ph.planned_end ? 'Planned end ~' + nd(ph.planned_end) : 'Open-ended') + '</span></div>' + goalLine(ph) + '</section>' +
-        checkinCard() + maintCard(t) +
+        phaseEndCard() + checkinCard() + maintCard(t) +
         '<section class="card"><div class="cardhead"><h2>' + UI.icon('target') + 'Targets</h2><button type="button" class="addpill" data-a="edittargets">Edit targets</button></div>' +
           '<div style="margin-top:10px">' + targetRow(t) + '</div>' +
           carbNote(t) +
@@ -852,7 +920,7 @@
 
     return {
       startOnboarding: startOnboarding, onboardingView: onboardingView, onInput: onInput, actions: actions,
-      hasSetup: hasSetup, coach: coach, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView, checkinDue: checkinDue
+      hasSetup: hasSetup, coach: coach, phaseView: phaseView, homeCard: homeCard, phaseTile: phaseTile, readCard: readCard, profileCard: profileCard, sheetView: sheetView, checkinDue: checkinDue, phaseEnd: phaseEnd
     };
   }
 
