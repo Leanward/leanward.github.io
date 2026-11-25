@@ -9,13 +9,16 @@
 
   var config = {
     // Bump on every release, together with CACHE in sw.js (a test checks they match).
-    VERSION: '0.32.0',
+    VERSION: '0.33.0',
     SUPABASE_URL: 'https://anxpwqbakjqnglqgccfo.supabase.co',
     SUPABASE_KEY: 'sb_publishable_CyK9gSeHLeQEYC89YZKt6Q_kTo1sfqw',
     // PR Forge's Supabase project, for the optional read-only "Connect PR Forge" (js/prforge.js).
     // Its publishable key is public too (it is in PR Forge's own code); Leanward only ever reads with it.
     PRFORGE_URL: 'https://pvtcqdtqycihlontmirl.supabase.co',
     PRFORGE_KEY: 'sb_publishable_00yYlGDJceDwbjp_B25oLg_FOEW6ZwE',
+    // Reminders (ACC-5): the public half of the VAPID key pair (made with tools/vapid-keys.mjs). Public by
+    // design; the private half is only in Supabase's Edge Function secrets. Empty = reminders not set up yet.
+    VAPID_PUBLIC_KEY: '',
     // Leanward has its own origin, but every key and cache it creates still starts with these
     // prefixes, so it never touches anything it didn't create.
     STORAGE_PREFIX: 'leanward:v1:',

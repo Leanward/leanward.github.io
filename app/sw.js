@@ -3,7 +3,7 @@
  * This worker only ever creates or deletes caches whose names start with "leanward-", so it can't
  * disturb anything else that might share the origin (e.g. during the move off kevo00012.github.io).
  */
-var CACHE = 'leanward-0.32.0';
+var CACHE = 'leanward-0.33.0';
 var PREFIX = 'leanward-';
 var SHELL = [
   './',
@@ -53,6 +53,7 @@ var SHELL = [
   'js/maint.js',
   'js/checkin.js',
   'js/phaseend.js',
+  'js/reminders.js',
   'js/home.js',
   'js/progressui.js',
   'js/foodui.js',
@@ -90,4 +91,30 @@ self.addEventListener('fetch', function (event) {
       });
     })
   );
+});
+
+/* ---------- reminders (ACC-5) ----------
+ * A push holds only which reminder it is ({"t":"log"}); the words are fixed in js/reminders.js, so the
+ * lock screen never shows a number, food or weight. iOS needs every push to show a notification. */
+importScripts('js/reminders.js');
+
+self.addEventListener('push', function (event) {
+  var R = self.LW.reminders, kind = null;
+  try { kind = event.data ? event.data.json().t : null; } catch (e) { kind = null; }
+  var text = R.TEXT[kind] || { title: 'Leanward', body: 'Open Leanward' };
+  event.waitUntil(self.registration.showNotification(text.title, {
+    body: text.body, tag: 'lw-' + (kind || 'other'), icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', data: { open: R.TEXT[kind] ? kind : null }
+  }));
+});
+
+// Tapping one opens Leanward on the right screen: the open window if there is one, otherwise a new one.
+self.addEventListener('notificationclick', function (event) {
+  var open = event.notification.data && event.notification.data.open;
+  event.notification.close();
+  var url = new URL(open ? './?open=' + open : './', self.registration.scope).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+    var win = list.filter(function (c) { return c.url.indexOf(self.registration.scope) === 0; })[0];
+    if (win) return win.focus().then(function (c) { (c || win).postMessage({ lwOpen: open }); });
+    return self.clients.openWindow(url);
+  }));
 });

@@ -105,7 +105,7 @@ begin
        or (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = x.t) <> 3;
   k := k + 1; insert into lw_security_check values (k, 'Exactly the 3 own-rows rules on each table', 'none differ', coalesce(bad, 'none differ'), case when bad is null then 'PASS' else 'FAIL' end);
   select string_agg(p.proname, ', ' order by p.proname) into definers from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.prosecdef;
-  k := k + 1; insert into lw_security_check values (k, 'Functions that run with extra rights', 'lw_delete_account, lw_errors_guard', coalesce(definers, 'none'), case when definers = 'lw_delete_account, lw_errors_guard' then 'PASS' else 'FAIL' end);
+  k := k + 1; insert into lw_security_check values (k, 'Functions that run with extra rights', 'lw_delete_account, lw_errors_guard, lw_push_remove, lw_push_resume, lw_push_save, lw_push_touch', coalesce(definers, 'none'), case when definers = 'lw_delete_account, lw_errors_guard, lw_push_remove, lw_push_resume, lw_push_save, lw_push_touch' then 'PASS' else 'FAIL' end);
   k := k + 1; insert into lw_security_check values (k, 'Signed-out visitor can delete an account', 'no',
     case when has_function_privilege('anon', 'public.lw_delete_account()', 'execute') then 'yes' else 'no' end,
     case when has_function_privilege('anon', 'public.lw_delete_account()', 'execute') then 'FAIL' else 'PASS' end);

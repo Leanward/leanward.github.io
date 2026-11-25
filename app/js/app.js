@@ -38,7 +38,9 @@
     // rows: the signed-in person's saved data, read from the phone's database (M3).
     rows: emptyRows(), loaded: false, everSynced: false, ob: null,
     // pf: the optional read-only PR Forge connection (js/prforge.js). data is the last summary read, kept on the phone.
-    pf: { status: 'checking', email: '', data: null, busy: false, error: '' } };
+    pf: { status: 'checking', email: '', data: null, busy: false, error: '' },
+    // push: this phone's reminders (ACC-5): here = 'ok' | 'paused' | 'missing' | 'none' once checked.
+    push: { here: null } };
   var data = null, syncer = null;   // the signed-in person's phone copy (js/db.js) and its sync
   function emptyRows() { return { profile: null, goals: [], phases: [], sets: [], weights: [], waist: [], measures: [], diary: [], customs: [], meals: [], recs: [], bodyfat: [] }; }
 
@@ -113,6 +115,76 @@
       '<p class="small muted">For a one-off game or a skipped session, use ⋯ on Today.</p>' +
       '<button type="button" class="btn block" data-a="trsave">Save</button></div>';
   }
+  /* ---------- reminders (ACC-5) ---------- */
+  var R = root.LW.reminders;
+  function reminderPrefs() { return ((state.rows.profile && state.rows.profile.preferences) || {}).reminders || null; }
+  function remindersSheet() {
+    var sh = state.sheet, r = sh.r, st = R.status(R.push.env()), off = st === 'unconfigured' || st === 'unsupported' || st === 'install';
+    var names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ids = [1, 2, 3, 4, 5, 6, 0], WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var note = {
+      unconfigured: 'Reminders aren\'t switched on for Leanward yet. They\'re coming soon.',
+      unsupported: 'This browser can\'t show reminders. On iPhone, they work in Leanward from your Home Screen.',
+      install: 'Reminders need Leanward on your Home Screen: in Safari, tap Share, then Add to Home Screen, and open Leanward from there.',
+      denied: 'Notifications are off for Leanward. To get reminders, turn them on in iPhone Settings › Notifications › Leanward, then come back here.'
+    }[st];
+    var timeSel = function (k, id) {
+      return '<select id="' + id + '" data-rm="' + k + '"' + (off ? ' disabled' : '') + '>' + R.times().map(function (t) { return '<option value="' + t + '"' + (r[k].time === t ? ' selected' : '') + '>' + R.niceTime(t) + '</option>'; }).join('') + '</select>';
+    };
+    var tick = function (k, label) { return '<label class="check"><input type="checkbox" data-rmon="' + k + '"' + (r[k].on ? ' checked' : '') + (off ? ' disabled' : '') + '> <b>' + label + '</b></label>'; };
+    var ph = root.LW.model.currentPhase(state.rows.phases), cd = ph ? root.LW.checkin.dayFor((state.rows.profile && state.rows.profile.preferences) || {}, ph) : null;
+    var days = r.weigh.days;
+    return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Reminders"><div class="grab"></div><h2>Reminders</h2>' +
+      '<p class="small muted">All optional and off unless you turn them on. They never show your numbers or foods on the lock screen, and Leanward never sends anything else.</p>' +
+      (note ? '<p class="small warn" role="status">' + esc(note) + '</p>' : '') +
+      (!note && R.anyOn(reminderPrefs()) && state.push.here === 'none' ? '<p class="small muted">Your reminders are on, but not on this phone. Tap Save to get them here too.</p>' : '') +
+      (sh.error ? '<p class="small warn">' + esc(sh.error) + '</p>' : '') +
+      '<div class="card">' + tick('log', 'Log meals') + '<div class="field"><label for="rm-log">At</label>' + timeSel('log', 'rm-log') + '</div>' +
+        '<p class="small muted">Skipped if you\'ve logged anything in the 3 hours before.</p></div>' +
+      '<div class="card">' + tick('weigh', 'Weigh-in') + '<div class="field"><label for="rm-weigh">At</label>' + timeSel('weigh', 'rm-weigh') + '</div>' +
+        '<div class="field"><span class="lab">On</span><div class="chips2" role="group" aria-label="Weigh-in days">' + ids.map(function (d, i) {
+          return '<button type="button" data-a="rmday" data-v="' + d + '" aria-pressed="' + (!days || days.indexOf(d) >= 0) + '"' + (off ? ' disabled' : '') + '>' + names[i] + '</button>'; }).join('') + '</div></div>' +
+        '<p class="small muted">Skipped if you\'ve already weighed in that day. Weekly is fine too, if daily weighing doesn\'t suit you.</p></div>' +
+      '<div class="card">' + tick('checkin', 'Check-in day') +
+        '<p class="small muted">' + R.niceTime(R.CHECKIN_TIME) + (cd != null ? ' on ' + WD[cd] + 's' : ' on your check-in day') + ', only while your weekly check-in is ready and not done.</p></div>' +
+      '<p class="small muted">Nothing is sent if you haven\'t opened Leanward for 14 days: reminders pause until you come back.</p>' +
+      '<button type="button" class="btn block" data-a="rmsave"' + (off || sh.busy ? ' disabled' : '') + '>' + (sh.busy ? 'Saving…' : 'Save') + '</button></div>';
+  }
+  function saveReminders(r, msg) {
+    var p = state.rows.profile; if (!p) return Promise.resolve();
+    return save([['lw_profiles', Object.assign({}, p, { preferences: Object.assign({}, p.preferences || {}, { reminders: r }) })]]).then(function () { state.sheet = false; toast(msg); render(); });
+  }
+  /** Once per start, with fresh settings: tell the server this phone is still here; learn if reminders are paused. */
+  var touched = false;
+  function touchReminders() {
+    if (touched || !R.anyOn(reminderPrefs()) || root.navigator.onLine === false || !R.push.env().key) return;
+    touched = true;
+    R.push.touch().then(function (res) {
+      // This phone's subscription was forgotten on the server (e.g. a sign-in on another account): save it again.
+      if (res === 'missing' && R.push.env().permission === 'granted') return R.push.enable().then(function () { state.push.here = 'ok'; });
+      state.push.here = res; refresh();
+    }).catch(function () { touched = false; });
+  }
+  function pausedCard() {
+    if (state.push.here !== 'paused') return '';
+    return '<section class="card slim" role="status"><div class="row"><span class="small"><b>Reminders paused</b><br>You were away a while, so Leanward stopped sending them.</span><button type="button" class="btn sm" data-a="rmresume">Resume</button></div></section>';
+  }
+  // A tapped reminder opens its screen (sw.js adds ?open=<kind>, or sends it to the open window).
+  var openReq = R.openFrom(root.location.search);
+  if (openReq && root.history && root.history.replaceState) root.history.replaceState(null, '', root.location.pathname);
+  function applyOpen() {
+    if (!openReq || !state.loaded || state.ob || !screens.hasSetup()) return;
+    var k = openReq; openReq = null;
+    foodui.stop(); state.sheet = false; state.tab = 'home'; store.set('tab', 'home');
+    if (k === 'weigh') progressui.actions.weigh();
+    else if (k === 'checkin') screens.actions.checkin();
+    else render();
+    root.scrollTo(0, 0);
+  }
+  if (root.navigator.serviceWorker) root.navigator.serviceWorker.addEventListener('message', function (e) {
+    var k = e.data && e.data.lwOpen;
+    if (k === 'log' || k === 'weigh' || k === 'checkin') { openReq = k; applyOpen(); }
+  });
+
   function appearanceSheet() {
     var c = state.sheet.choice, ph = phaseType() || 'recomp';
     return '<div class="scrim" data-a="close"></div><div class="sheet tall" role="dialog" aria-modal="true" aria-label="Appearance"><div class="grab"></div><h2>Appearance</h2>' +
@@ -151,6 +223,7 @@
       row('fork', 'Meals', 'Rename, reorder or hide', 'slots') +
       row('target', 'Targets and phase', 'Open Plan', 'tab', 'phase') +
       row('clipboard', 'Weekly check-in', (function () { var p = (state.rows.profile && state.rows.profile.preferences) || {}, n = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays']; return p.checkinDay != null && p.checkinDay !== '' ? n[Number(p.checkinDay)] : 'Same weekday as your phase start'; })(), 'cidays') +
+      row('bell', 'Reminders', R.summary(reminderPrefs()) + (state.push.here === 'paused' ? ' · paused' : ''), 'reminders') +
       row('dumbbell', 'Training days', (function () { var m = trainingPrefs(), n = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; return m && m.weekdays && m.weekdays.length ? m.weekdays.slice().sort(function (a, b) { return ((a + 6) % 7) - ((b + 6) % 7); }).map(function (d) { return n[d]; }).join(', ') + (m.label ? ' · ' + m.label : '') : 'Hockey, runs, anything outside PR Forge'; })(), 'trdays') +
       // PR Forge opens Progress › Strength, where Connect and Key lifts live.
       row('dumbbell', 'PR Forge', pfs + (state.pf.status === 'on' ? ' · Key lifts' : ' · Connect'), 'ptab', 'strength') + '</section>';
@@ -241,6 +314,7 @@
     if (!state.sheet) return '';
     if (state.sheet.kind === 'appearance') return appearanceSheet();
     if (state.sheet.kind === 'trdays') return trainingSheet();
+    if (state.sheet.kind === 'reminders') return remindersSheet();
     if (state.sheet.kind === 'delacct') return deleteSheet();
     return diaryui.sheetView() || progressui.sheetView() || foodui.sheetView() || screens.sheetView() || '';
   }
@@ -363,6 +437,38 @@
         if (state.sheet && state.sheet.kind === 'delacct') { state.sheet.busy = false; state.sheet.error = 'Your account was not deleted: ' + ((e && e.message) || 'try again') + ' Nothing was removed.'; render(); }
       });
     },
+    reminders: function () {
+      state.sheet = { kind: 'reminders', r: R.normalize(reminderPrefs()), busy: false, error: '' }; render();
+      if (state.push.here == null || state.push.here === 'none') R.push.current().then(function (s) { if (!s && state.push.here == null) { state.push.here = 'none'; render(); } }, function () {});
+    },
+    rmday: function (v) {
+      var r = state.sheet.r, d = Number(v), days = r.weigh.days ? r.weigh.days.slice() : [0, 1, 2, 3, 4, 5, 6], i = days.indexOf(d);
+      if (i >= 0) days.splice(i, 1); else days.push(d);
+      r.weigh.days = days.length === 7 ? null : days.sort(); render();
+    },
+    rmsave: function () {
+      var sh = state.sheet, r = sh.r;
+      if (r.weigh.on && r.weigh.days && !r.weigh.days.length) { toast('Pick at least one weigh-in day, or turn it off'); return; }
+      if (!R.anyOn(r)) {
+        saveReminders(r, 'Reminders off');
+        R.push.disable().then(function () { state.push.here = 'none'; }, function () {});
+        return;
+      }
+      if (root.navigator.onLine === false) { toast('You\'re offline. Turning reminders on needs a connection.'); return; }
+      // Straight from the tap, so iOS shows its permission question.
+      var asked = R.push.enable();
+      sh.busy = true; sh.error = ''; render();
+      asked.then(function (res) {
+        if (res === 'denied') { sh.busy = false; sh.error = 'Notifications weren\'t allowed, so reminders can\'t be sent. You can allow them in iPhone Settings › Notifications › Leanward.'; render(); return; }
+        state.push.here = 'ok';
+        return saveReminders(r, 'Reminders saved');
+      }).catch(function (e) {
+        if (state.sheet === sh) { sh.busy = false; sh.error = 'Reminders weren\'t turned on: ' + ((e && e.message) || 'try again') + ' Nothing was changed.'; render(); }
+      });
+    },
+    rmresume: function () {
+      R.push.resume().then(function () { state.push.here = 'ok'; toast('Reminders back on'); render(); }, function (e) { toast('Couldn\'t resume: ' + ((e && e.message) || 'try again')); });
+    },
     exportjson: function () { exportData('json'); },
     exportcsv: function () { exportData('csv'); },
     recheck: function () { state.ping = { ok: null, reason: 'Checking…' }; render(); checkConnection(); },
@@ -384,6 +490,11 @@
     if (/^(number|text)$/.test(e.target.type)) screens.onInput(e.target);
   });
   doc.addEventListener('change', function (e) {
+    if (state.sheet && state.sheet.kind === 'reminders' && (e.target.dataset.rm || e.target.dataset.rmon)) {
+      var rk = e.target.dataset.rm || e.target.dataset.rmon;
+      if (e.target.dataset.rm) state.sheet.r[rk].time = e.target.value; else { state.sheet.r[rk].on = e.target.checked; render(); }
+      return;
+    }
     if (/^(select-one|date|time)$/.test(e.target.type) && (progressui.onInput(e.target) || foodui.onInput(e.target) || diaryui.onInput(e.target))) return;
     if (e.target.dataset.ap === 'follow' && state.sheet && state.sheet.kind === 'appearance') { state.sheet.choice.follow = e.target.checked; render(); return; }
     if (/^(checkbox|select-one|date)$/.test(e.target.type)) screens.onInput(e.target);
@@ -516,7 +627,8 @@
   var coach = function () { try { return screens.coach(); } catch (e) { return null; } };
   var diaryui = root.LW.diaryui.create({ state: state, render: function () { render(); }, toast: toast, esc: esc, save: save, remove: remove, today: today, training: training, coach: coach,
     checkinDue: function () { try { return screens.checkinDue(); } catch (e) { return null; } },
-    phaseEnd: function () { try { return screens.phaseEnd(); } catch (e) { return null; } } });
+    phaseEnd: function () { try { return screens.phaseEnd(); } catch (e) { return null; } },
+    notice: pausedCard });
   /* ---------- PR Forge, read-only (M6b) ---------- */
   var PF = root.LW.prforge;
   var pf = {
@@ -601,6 +713,7 @@
           recs: r[9].filter(function (x) { return !x.deleted; }), bodyfat: r[10] };
         state.loaded = true;
         refresh();
+        if (openReq) root.setTimeout(applyOpen, 0);
       });
   }
 
@@ -617,9 +730,9 @@
         state.everSynced = !!(m && m.lastSyncAt);
         syncer = cloud.Syncer(d, function (st) {
           state.sync = Object.assign({}, st);
-          if (st.state === 'synced') { state.everSynced = true; loadRows(); } else refresh();
+          if (st.state === 'synced') { state.everSynced = true; loadRows().then(touchReminders); } else refresh();
         });
-        return loadRows().then(function () { syncer.now(); pf.start(d); });
+        return loadRows().then(function () { syncer.now(); pf.start(d); touchReminders(); });
       });
     }, function (e) { state.sync = { state: 'error', pending: 0, message: e && e.message }; state.loaded = true; render(); });
   }
@@ -630,6 +743,7 @@
     state.sync = { state: 'idle', pending: 0 };
     state.rows = emptyRows(); state.loaded = false; state.everSynced = false; state.ob = null; state.sheet = false;
     state.pf = { status: 'checking', email: '', data: null, busy: false, error: '' };
+    state.push = { here: null }; touched = false;
   }
 
   cloud.auth.init(function (account, event) {

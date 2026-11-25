@@ -48,6 +48,12 @@ Merging to `main` runs the tests, then publishes to GitHub Pages. Leanward has *
    - GitHub → repo **Settings** → **Secrets and variables** → **Actions** → **New repository secret**: name `SUPABASE_DB_URL`, value the URI.
    - **Actions** → **Food catalog import** → **Run workflow**. Try a dry run first; it reports what would be loaded. The workflow also runs on the 3rd of each month.
 5. Open the app → Profile → **About this build**. "Database" should say **Connected**.
+6. **Reminders** (ACC-5, v0.33), after step 3. Until this is done the Reminders setting says they're coming soon.
+   - **Keys:** in `app/`, run `node tools/vapid-keys.mjs`. It prints a public and a private key. The public key goes in `js/config.js` (`VAPID_PUBLIC_KEY`, then release as usual). The private key goes **only** into Supabase.
+   - **Secrets:** Supabase → Edge Functions → **Secrets**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:` plus a support address Apple can contact) and `CRON_SECRET` (a long random string, e.g. from `node -e "console.log(crypto.randomUUID() + crypto.randomUUID())"`).
+   - **Deploy the sender:** in `app/`, `npx supabase login`, then `npx supabase functions deploy lw-reminders --project-ref anxpwqbakjqnglqgccfo --no-verify-jwt`. (`--no-verify-jwt` is right: the function checks `CRON_SECRET` itself and answers 404 to anyone else.) Or, in the dashboard: Edge Functions → Deploy a new function → Via editor, name `lw-reminders`, add both files from `supabase/functions/lw-reminders/`, and turn off "Verify JWT".
+   - **Schedule it:** Database → Extensions → turn on **pg_cron** and **pg_net**. Then SQL Editor: paste `supabase/reminders-cron.sql`, put your `CRON_SECRET` where it says, and click **Run**.
+   - **Check:** Edge Functions → lw-reminders → Logs shows a line like `{"due":0,"sent":0,"gone":0,"failed":0}` every 15 minutes. On the iPhone, open Leanward **from the Home Screen**, turn on a reminder for the next quarter hour, and lock the phone.
 
 ## Layout
 
@@ -74,13 +80,17 @@ app/
 │   ├── prforge.js         key lifts from PR Forge, read-only: summary rules (pure, tested) and the second client
 │   ├── maint.js           the maintenance check: logged days, window, suggestion and decision record (pure, tested)
 │   ├── home.js            Home's daily insight and the data export as JSON and CSV (pure, tested)
+│   ├── reminders.js       reminder settings, the fixed lock-screen words and this phone's push subscription
 │   ├── theme.js           appearance: palettes, color by phase, dark / light / match (pure part tested)
 │   ├── cloud.js           Google sign-in, connection check, error sending, Supabase pull/push and the Syncer
 │   ├── app.js             the shell UI
 │   ├── calc/              calculation engine (M1): pure, tested, every result with its working
 │   └── vendor/            supabase-js 2.118.0 (MIT), the same build PR Forge uses; ZXing 0.21.3 (Apache-2.0) for scanning
 ├── supabase/schema.sql    Leanward's tables (lw_*), row level security, grants
+├── supabase/functions/lw-reminders/   the reminders sender (Edge Function) and Web Push encryption (webpush.mjs, tested)
+├── supabase/reminders-cron.sql        runs the sender every 15 minutes (one-time setup)
 ├── tools/serve.js         local server
+├── tools/vapid-keys.mjs   makes the reminders key pair (one-time setup)
 └── tests/                 node --test
 ```
 
