@@ -93,6 +93,7 @@
       var sy = S.sync || {}, sign = sy.state === 'offline' ? 'Offline' + (sy.pending ? ' · ' + sy.pending + ' change' + (sy.pending === 1 ? '' : 's') + ' waiting to back up' : ' · changes back up when you reconnect')
         : sy.state === 'error' ? 'Backup problem · details in Profile' : sy.state === 'signin' ? 'Sign in again to keep backing up' : '';
       var out = UI.brandbar(pick + UI.iconBtn('more', 'todaymenu', 'More for this day')) + (sign ? '<p class="syncsign" role="status">' + esc(sign) + '</p>' : '') +
+        (date === today && ctx.notice ? ctx.notice() : '') +
         '<div class="ttlrow"><div><h1>' + esc(title) + '</h1><span class="sub">' + esc(sub) + (date !== today ? ' · <button type="button" class="link" data-a="daytoday">Back to today</button>' : '') + '</span></div>' +
         (c ? '<button type="button" class="phasepill" data-a="tab" data-v="phase" aria-label="' + esc(c.week) + '. Open Plan.">' + UI.icon('target') + esc(c.week) + UI.icon('chevron') + '</button>' : '') + '</div>' +
         heroCard(date);

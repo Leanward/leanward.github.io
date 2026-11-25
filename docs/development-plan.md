@@ -252,6 +252,8 @@ Each milestone has an **exit criteria** list. A milestone is done when every ite
 
 **Status (2026-11-16, M7b built):** in-app account deletion (ACC-1) with a database test that checks every row of one person goes and another person's stay; edit profile details with a targets preview; appearance (ACC-6); the entitlement switch (S4). Reminders (ACC-5) deferred to after the beta (PRD v1.6). **Owner step:** run `supabase/schema.sql` once to add `lw_delete_account`. **M7 remaining:** the exit checks below on the real project.
 
+**Status (2026-11-25, reminders built, v0.33):** ACC-5 reminders (PRD v1.26): settings sheet, Web Push from a Supabase Edge Function on a 15-minute pg_cron schedule, skip rules and the 14-day pause in SQL, deep links from a tapped reminder. Tested on a throwaway PostgreSQL and checked in Chromium with a stand-in push service. **Owner steps:** README "Reminders" (keys, secrets, deploy, schedule), then `VAPID_PUBLIC_KEY` in `js/config.js`. **Not yet verified:** a real push to an iPhone.
+
 **Exit criteria:** export round-trips (every entity present in the files); deleting an account removes every Leanward row for that user (verified by query); all P0 requirements in PRD §6 are implemented.
 
 ### M8 — Hardening and beta

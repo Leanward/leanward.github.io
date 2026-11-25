@@ -616,3 +616,191 @@ revoke all on function public.lw_search_foods(text, integer) from public, anon;
 revoke all on function public.lw_food_by_barcode(text) from public, anon;
 grant execute on function public.lw_search_foods(text, integer) to authenticated;
 grant execute on function public.lw_food_by_barcode(text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Reminders (ACC-5, PRD v1.26). Standard Web Push, sent by the Edge Function in
+-- supabase/functions/lw-reminders, which pg_cron calls every 15 minutes (setup: README.md).
+-- The settings live in lw_profiles.preferences.reminders (synced like any other preference):
+--   { "log":     { "on": true, "time": "20:00" },
+--     "weigh":   { "on": true, "time": "07:30", "days": [1, 3, 5] },   -- days: 0 = Sunday; absent = every day
+--     "checkin": { "on": true } }                                      -- 9:00 on the check-in day (PRG-6)
+-- A phone's push subscription is kept here, never in the synced tables. The app can't read this
+-- table: it saves, refreshes and removes its own subscription through the functions below.
+-- ---------------------------------------------------------------------------
+create table if not exists public.lw_push_subscriptions (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null references auth.users (id) on delete cascade,
+  endpoint    text not null unique check (endpoint ~ '^https://' and char_length(endpoint) <= 1000),
+  p256dh      text not null check (p256dh ~ '^[A-Za-z0-9_-]{80,100}$'),
+  auth        text not null check (auth ~ '^[A-Za-z0-9_-]{16,32}$'),
+  tz          text not null check (char_length(tz) <= 64),
+  created_at  timestamptz not null default now(),
+  last_seen   timestamptz not null default now(),
+  paused_at   timestamptz
+);
+create index if not exists lw_push_subscriptions_user on public.lw_push_subscriptions (user_id);
+alter table public.lw_push_subscriptions enable row level security;
+revoke all on public.lw_push_subscriptions from anon, authenticated;
+
+-- One row per reminder sent, so none goes twice in a day (kept 30 days).
+create table if not exists public.lw_reminder_sends (
+  user_id     uuid not null references auth.users (id) on delete cascade,
+  kind        text not null check (kind in ('log', 'weigh', 'checkin')),
+  local_date  date not null,
+  sent_at     timestamptz not null default now(),
+  primary key (user_id, kind, local_date)
+);
+alter table public.lw_reminder_sends enable row level security;
+revoke all on public.lw_reminder_sends from anon, authenticated;
+
+-- The app: save this phone's subscription (turning a reminder on). A phone moves to whoever signs in on it.
+create or replace function public.lw_push_save(p_endpoint text, p_p256dh text, p_auth text, p_tz text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then raise exception 'Not signed in' using errcode = '28000'; end if;
+  if not exists (select 1 from pg_catalog.pg_timezone_names where name = p_tz) then
+    raise exception 'Unknown time zone' using errcode = '22023';
+  end if;
+  insert into public.lw_push_subscriptions (user_id, endpoint, p256dh, auth, tz)
+    values (uid, p_endpoint, p_p256dh, p_auth, p_tz)
+    on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth,
+      tz = excluded.tz, last_seen = now(), paused_at = null;
+  -- At most 10 phones per person: the least recently seen go first.
+  delete from public.lw_push_subscriptions where id in (
+    select id from public.lw_push_subscriptions where user_id = uid order by last_seen desc offset 10);
+end;
+$$;
+
+-- The app, on every open: "this phone is still here" (and its time zone). Returns 'ok', 'paused'
+-- (reminders paused after 14 days away, ACC-5: the app offers Resume) or 'missing' (not saved here).
+create or replace function public.lw_push_touch(p_endpoint text, p_tz text) returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := (select auth.uid());
+  paused timestamptz;
+begin
+  if uid is null then raise exception 'Not signed in' using errcode = '28000'; end if;
+  update public.lw_push_subscriptions set last_seen = now(),
+      tz = case when exists (select 1 from pg_catalog.pg_timezone_names where name = p_tz) then p_tz else tz end
+    where user_id = uid and endpoint = p_endpoint returning paused_at into paused;
+  if not found then return 'missing'; end if;
+  return case when paused is null then 'ok' else 'paused' end;
+end;
+$$;
+
+-- The app: Resume after a pause (all of this person's phones).
+create or replace function public.lw_push_resume() returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.uid()) is null then raise exception 'Not signed in' using errcode = '28000'; end if;
+  update public.lw_push_subscriptions set paused_at = null, last_seen = now() where user_id = (select auth.uid());
+end;
+$$;
+
+-- The app: forget this phone (every reminder turned off, or iOS permission taken away).
+create or replace function public.lw_push_remove(p_endpoint text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.uid()) is null then raise exception 'Not signed in' using errcode = '28000'; end if;
+  delete from public.lw_push_subscriptions where user_id = (select auth.uid()) and endpoint = p_endpoint;
+end;
+$$;
+
+revoke all on function public.lw_push_save(text, text, text, text) from public, anon;
+revoke all on function public.lw_push_touch(text, text) from public, anon;
+revoke all on function public.lw_push_resume() from public, anon;
+revoke all on function public.lw_push_remove(text) from public, anon;
+grant execute on function public.lw_push_save(text, text, text, text) to authenticated;
+grant execute on function public.lw_push_touch(text, text) to authenticated;
+grant execute on function public.lw_push_resume() to authenticated;
+grant execute on function public.lw_push_remove(text) to authenticated;
+
+-- Which reminders are due at a moment, in each person's local time (the time zone of the phone seen
+-- most recently). ACC-5's rules: each reminder only when turned on; due from its time for 30 minutes
+-- (so one late or missed run of the 15-minute job doesn't lose it); at most one of each a day; nothing
+-- while paused or when Leanward hasn't been opened for 14 days.
+--   log      skipped when anything was logged in the 3 hours before
+--   weigh    only on the chosen days; skipped when there's already a weigh-in that day
+--   checkin  9:00 on the check-in day, while the check-in is due and not done (js/checkin.js: from day 7
+--            of the current phase, on the chosen weekday or the phase-start weekday)
+create or replace function public.lw_reminders_due(p_at timestamptz default now())
+returns table (user_id uuid, kind text, local_date date)
+language sql stable set search_path = '' as $$
+  with subs as (
+    select s.user_id, max(s.last_seen) as seen, (array_agg(s.tz order by s.last_seen desc))[1] as tz,
+      bool_or(s.paused_at is not null) as paused
+    from public.lw_push_subscriptions s group by s.user_id
+  ), people as (
+    select s.user_id, (p_at at time zone s.tz) as lt, p.preferences as prefs, p.preferences -> 'reminders' as r
+    from subs s join public.lw_profiles p on p.user_id = s.user_id and p.id = 'me' and not p.deleted
+    where not s.paused and s.seen >= p_at - interval '14 days' and jsonb_typeof(p.preferences -> 'reminders') = 'object'
+  ), wanted as (
+    select pe.user_id, k.kind, pe.lt, pe.prefs, pe.r -> k.kind as cfg,
+      case when k.kind = 'checkin' then time '09:00'
+           when (pe.r -> k.kind ->> 'time') ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then (pe.r -> k.kind ->> 'time')::time
+           else k.dflt end as t
+    from people pe
+    cross join (values ('log', time '20:00'), ('weigh', time '07:30'), ('checkin', time '09:00')) as k (kind, dflt)
+    where (pe.r -> k.kind ->> 'on') = 'true'
+  ), timely as (
+    select w.*, w.lt::date as ld from wanted w
+    where w.lt::time - w.t >= interval '0' and w.lt::time - w.t < interval '30 minutes'
+  ), phase as (
+    select distinct on (ph.user_id) ph.user_id, ph.start_date,
+      coalesce(case when (t.prefs ->> 'checkinDay') ~ '^[0-6]$' then (t.prefs ->> 'checkinDay')::int end,
+               extract(dow from ph.start_date)::int) as wd
+    from public.lw_phases ph join timely t on t.user_id = ph.user_id and t.kind = 'checkin'
+    where not ph.deleted and ph.end_date is null
+    order by ph.user_id, ph.start_date desc, ph.created_at desc
+  )
+  select t.user_id, t.kind, t.ld from timely t
+  where not exists (select 1 from public.lw_reminder_sends rs where rs.user_id = t.user_id and rs.kind = t.kind and rs.local_date = t.ld)
+    and case t.kind
+      when 'log' then not exists (select 1 from public.lw_diary_entries d
+        where d.user_id = t.user_id and not d.deleted and d.created_at > p_at - interval '3 hours')
+      when 'weigh' then
+        (t.cfg -> 'days' is null or jsonb_typeof(t.cfg -> 'days') <> 'array' or t.cfg -> 'days' @> to_jsonb(extract(dow from t.ld)::int))
+        and not exists (select 1 from public.lw_weights wt where wt.user_id = t.user_id and not wt.deleted and wt.date = t.ld)
+      when 'checkin' then exists (select 1 from phase ph where ph.user_id = t.user_id
+          and extract(dow from t.ld)::int = ph.wd
+          and t.ld >= ph.start_date + 7 + ((ph.wd - extract(dow from ph.start_date + 7)::int + 7) % 7))
+        and not exists (select 1 from public.lw_recommendations rc where rc.user_id = t.user_id and not rc.deleted
+          and rc.type = 'weekly-checkin' and rc.proposed ->> 'date' = t.ld::text)
+    end;
+$$;
+
+-- The Edge Function, every 15 minutes: pause people away 14+ days, record what's due (so nothing goes
+-- twice, even if two runs overlap) and return where to send it. Only the server's own key can call
+-- this and lw_push_gone: the app's roles can't.
+create or replace function public.lw_reminders_claim()
+returns table (kind text, endpoint text, p256dh text, auth text)
+language plpgsql set search_path = '' as $$
+#variable_conflict use_column
+begin
+  delete from public.lw_reminder_sends where sent_at < now() - interval '30 days';
+  update public.lw_push_subscriptions s set paused_at = now()
+    where s.paused_at is null and s.user_id in (
+      select x.user_id from public.lw_push_subscriptions x group by x.user_id having max(x.last_seen) < now() - interval '14 days');
+  return query
+    with claimed as (
+      insert into public.lw_reminder_sends as rs (user_id, kind, local_date)
+        select d.user_id, d.kind, d.local_date from public.lw_reminders_due(now()) d
+        on conflict do nothing
+        returning rs.user_id, rs.kind
+    )
+    select c.kind, s.endpoint, s.p256dh, s.auth
+    from claimed c join public.lw_push_subscriptions s on s.user_id = c.user_id and s.paused_at is null;
+end;
+$$;
+
+-- The Edge Function: forget subscriptions Apple says are gone (HTTP 404 / 410).
+create or replace function public.lw_push_gone(endpoints text[]) returns void
+language sql set search_path = '' as $$
+  delete from public.lw_push_subscriptions where endpoint = any (endpoints);
+$$;
+
+revoke all on function public.lw_reminders_due(timestamptz) from public, anon, authenticated;
+revoke all on function public.lw_reminders_claim() from public, anon, authenticated;
+revoke all on function public.lw_push_gone(text[]) from public, anon, authenticated;
